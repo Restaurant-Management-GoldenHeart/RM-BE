@@ -1,0 +1,938 @@
+{
+  "info": {
+    "_postman_id": "4df596d5-f561-4bc6-8575-0a48ea4fc05f",
+    "name": "GoldenHeart Restaurant API",
+    "description": "Postman collection for the currently implemented GoldenHeart Restaurant APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Customer Self",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerUsername}}\",\n  \"email\": \"customer01@example.com\",\n  \"password\": \"{{customerPassword}}\",\n  \"fullName\": \"Customer One\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('adminAccessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('managerAccessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{managerUsername}}\",\n  \"password\": \"{{managerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('staffAccessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Current Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout Current Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Get Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const roles = pm.response.json().data || [];",
+                  "  roles.forEach(role => pm.environment.set(role.name.toLowerCase() + 'RoleId', role.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "Create Manager By Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('managerId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{managerUsername}}\",\n  \"password\": \"{{managerPassword}}\",\n  \"roleId\": {{managerRoleId}},\n  \"fullName\": \"Manager One\",\n  \"employeeCode\": \"MGR001\",\n  \"email\": \"manager01@goldenheart.com\",\n  \"phone\": \"0900000002\",\n  \"branchId\": null,\n  \"dateOfBirth\": \"1995-05-10\",\n  \"gender\": \"Male\",\n  \"hireDate\": \"2026-04-10\",\n  \"salary\": 15000000,\n  \"address\": \"District 1\",\n  \"internalNotes\": \"Created by admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Staff By Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('staffId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Staff One\",\n  \"employeeCode\": \"EMP001\",\n  \"email\": \"staff01@goldenheart.com\",\n  \"phone\": \"0900000001\",\n  \"branchId\": null,\n  \"dateOfBirth\": \"2001-01-10\",\n  \"gender\": \"Male\",\n  \"hireDate\": \"2026-04-10\",\n  \"salary\": 7000000,\n  \"address\": \"HCM City\",\n  \"internalNotes\": \"Night shift\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Employee Duplicate Username",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"Staff999\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Duplicate Staff\",\n  \"employeeCode\": \"EMP009\",\n  \"email\": \"duplicate.staff@goldenheart.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Manager Create Staff Without RoleId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"staff02\",\n  \"password\": \"Staff234\",\n  \"fullName\": \"Staff Two\",\n  \"employeeCode\": \"EMP002\",\n  \"email\": \"staff02@goldenheart.com\",\n  \"phone\": \"0900000003\",\n  \"address\": \"District 2\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Manager Create With RoleId Forbidden",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"staff03\",\n  \"password\": \"Staff345\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Staff Three\",\n  \"employeeCode\": \"EMP003\",\n  \"email\": \"staff03@goldenheart.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Employees Admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Employee By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{staffId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Manager Update Employee Basic Info",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Staff One Updated\",\n  \"phone\": \"0900000099\",\n  \"address\": \"District 3\",\n  \"salary\": 8000000,\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{staffId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Manager Update Role Forbidden",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": {{managerRoleId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{staffId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Staff Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Staff Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Staff Self Updated\",\n  \"email\": \"staff01.updated@goldenheart.com\",\n  \"phone\": \"0900000010\",\n  \"address\": \"Thu Duc\",\n  \"dateOfBirth\": \"2001-01-10\",\n  \"gender\": \"Male\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Staff Get Employees Forbidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Delete Employee",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "{{staffId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Delete Self Forbidden",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "employees",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Create Customer 01",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('customerId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nguyen Van A\",\n  \"email\": \"customerA@example.com\",\n  \"phone\": \"0911111111\",\n  \"customerCode\": \"CUS001\",\n  \"address\": \"HCM City\",\n  \"dateOfBirth\": \"2000-02-20\",\n  \"gender\": \"Male\",\n  \"note\": \"VIP\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Customer 02",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tran Thi B\",\n  \"email\": \"customerB@example.com\",\n  \"phone\": \"0911111112\",\n  \"customerCode\": \"CUS002\",\n  \"address\": \"Ha Noi\",\n  \"dateOfBirth\": \"1998-08-08\",\n  \"gender\": \"Female\",\n  \"note\": \"Loyal customer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Customer Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Duplicate Customer\",\n  \"email\": \"customerA@example.com\",\n  \"phone\": \"0911111199\",\n  \"customerCode\": \"CUS099\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Customers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?page=0&size=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Customer By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{managerAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nguyen Van A Updated\",\n  \"phone\": \"0922222222\",\n  \"address\": \"District 7\",\n  \"note\": \"Returned customer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Deleted Customer 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

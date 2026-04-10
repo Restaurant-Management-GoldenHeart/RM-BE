@@ -35,6 +35,11 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Parent aggregate for restaurant ordering.
+ *
+ * Kitchen completion updates both child order item state and this parent order state.
+ */
 public class Order {
 
     @Id

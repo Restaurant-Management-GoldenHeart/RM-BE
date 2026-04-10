@@ -12,6 +12,9 @@ import java.time.Duration;
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "app.security.jwt")
+/**
+ * Central JWT and refresh-cookie configuration loaded from application properties.
+ */
 public class JwtProperties {
 
     @NotBlank

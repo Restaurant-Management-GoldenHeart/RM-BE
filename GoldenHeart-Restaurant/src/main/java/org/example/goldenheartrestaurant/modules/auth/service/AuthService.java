@@ -25,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Coordinates password authentication with JWT issuing and refresh-token rotation.
+ */
 public class AuthService {
 
     private static final String DEFAULT_CUSTOMER_ROLE = "CUSTOMER";
@@ -46,6 +49,7 @@ public class AuthService {
      */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
+        // Registration creates both the credential record and the profile record together.
         if (userRepository.existsByUsernameIgnoreCase(request.getUsername())) {
             throw new ConflictException("Username already exists");
         }
@@ -96,6 +100,7 @@ public class AuthService {
      */
     @Transactional
     public IssuedTokens login(LoginRequest request) {
+        // This lets Spring Security own password checking instead of custom manual comparison.
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
@@ -116,12 +121,14 @@ public class AuthService {
      */
     @Transactional
     public IssuedTokens refresh(String refreshToken) {
+        // Refresh validation is two-layered: JWT parsing plus DB-backed token lifecycle checks.
         String username = jwtService.extractUsernameFromRefreshToken(refreshToken);
         RefreshToken storedToken = refreshTokenService.requireActiveToken(refreshToken, username);
         User user = storedToken.getUser();
 
         // Rotate refresh token:
         // token cũ bị revoke, token mới được phát và lưu lại.
+        // Each successful refresh invalidates the previous refresh token.
         refreshTokenService.revoke(storedToken);
 
         return issueTokens(user);
@@ -136,6 +143,7 @@ public class AuthService {
         CustomUserDetails userDetails = CustomUserDetails.from(user);
         String accessToken = jwtService.generateAccessToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);
+        // Persist refresh-token state server-side so logout, revocation and rotation remain possible.
         refreshTokenService.store(user, refreshToken, jwtService.extractRefreshTokenExpiry(refreshToken));
 
         return new IssuedTokens(

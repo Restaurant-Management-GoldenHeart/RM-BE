@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.order.entity.Order;
+import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.Branch;
 
 import java.math.BigDecimal;
@@ -30,6 +31,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Audit trail for stock changes.
+ *
+ * Inventory stores the latest balance; StockMovement explains why that balance changed.
+ */
 public class StockMovement {
 
     @Id
@@ -59,6 +65,10 @@ public class StockMovement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_item_id")
+    private OrderItem orderItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

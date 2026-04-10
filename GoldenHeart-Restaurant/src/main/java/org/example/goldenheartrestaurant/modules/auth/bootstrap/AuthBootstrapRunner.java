@@ -17,6 +17,9 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+/**
+ * Seeds the minimum identity data required by a fresh database.
+ */
 public class AuthBootstrapRunner implements ApplicationRunner {
 
     private final RoleRepository roleRepository;
@@ -40,6 +43,7 @@ public class AuthBootstrapRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        // Safe to run on every startup because seeding is idempotent.
         seedRoles();
 
         if (adminBootstrapEnabled && !userRepository.existsByUsernameIgnoreCase(adminUsername)) {
@@ -69,6 +73,7 @@ public class AuthBootstrapRunner implements ApplicationRunner {
         List<String> roles = List.of("ADMIN", "MANAGER", "STAFF", "KITCHEN", "CUSTOMER");
 
         for (String roleName : roles) {
+            // Insert only when missing so repeated restarts stay harmless.
             roleRepository.findByNameIgnoreCase(roleName)
                     .orElseGet(() -> roleRepository.save(
                             Role.builder()

@@ -31,6 +31,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Customer master data used by CRM and order linkage.
+ */
 public class Customer extends BaseEntity {
 
     @Id
@@ -90,6 +93,7 @@ public class Customer extends BaseEntity {
     }
 
     private void syncActiveContacts() {
+        // Same soft-delete uniqueness strategy as UserProfile.
         if (getDeletedAt() == null) {
             activeEmail = email;
             activePhone = phone;

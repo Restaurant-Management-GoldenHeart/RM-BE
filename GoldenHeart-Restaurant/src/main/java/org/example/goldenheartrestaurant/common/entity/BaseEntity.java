@@ -12,6 +12,12 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @MappedSuperclass
+/**
+ * Shared audit fields for entities that need created/updated timestamps and soft delete support.
+ *
+ * Concrete entities combine this base class with Hibernate soft-delete annotations so rows can be
+ * hidden from normal queries without losing historical data.
+ */
 public abstract class BaseEntity {
 
     @Column(name = "created_at", nullable = false)
@@ -34,6 +40,7 @@ public abstract class BaseEntity {
 
     @PreUpdate
     protected void onUpdate() {
+        // Keep audit timestamps centralized instead of repeating this in every service method.
         updatedAt = LocalDateTime.now();
     }
 }

@@ -27,6 +27,11 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * One ordered dish line inside an order.
+ *
+ * Its quantity multiplies the recipe quantities during kitchen stock deduction.
+ */
 public class OrderItem {
 
     @Id

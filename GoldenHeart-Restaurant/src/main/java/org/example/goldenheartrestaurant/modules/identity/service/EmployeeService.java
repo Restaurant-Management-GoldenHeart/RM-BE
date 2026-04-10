@@ -30,6 +30,13 @@ import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Employee domain service.
+ *
+ * Important design choice: some authorization is duplicated here even though controllers already use
+ * @PreAuthorize, because rules like "manager cannot assign role" are business constraints, not just
+ * simple role membership checks.
+ */
 public class EmployeeService {
 
     private static final String ROLE_ADMIN = "ADMIN";
@@ -67,6 +74,7 @@ public class EmployeeService {
         boolean isAdmin = hasRole(currentUser, ROLE_ADMIN);
         boolean isManager = hasRole(currentUser, ROLE_MANAGER);
 
+        // Service-layer validation keeps permission-sensitive write rules close to the mutation itself.
         validateCreateRequest(request, isAdmin, isManager);
 
         Role role = resolveRoleForCreate(request.roleId(), isAdmin);
@@ -112,6 +120,7 @@ public class EmployeeService {
         }
 
         if (!isAdmin && request.roleId() != null) {
+            // Manager can create employees but cannot choose arbitrary roles.
             throw new ForbiddenException("Manager cannot change employee role");
         }
 
@@ -171,6 +180,7 @@ public class EmployeeService {
             throw new ForbiddenException("Only admin can delete employees");
         }
         if (employeeId.equals(currentUser.getUserId())) {
+            // Prevent accidental self-delete of the current authenticated account.
             throw new ForbiddenException("You cannot delete your own account");
         }
 
@@ -221,6 +231,7 @@ public class EmployeeService {
             throw new ForbiddenException("You do not have permission to create employees");
         }
         if (!isAdmin && request.roleId() != null) {
+            // Managers are limited to creating operational STAFF accounts.
             throw new ForbiddenException("Manager cannot assign role when creating employee");
         }
         if (isAdmin && request.roleId() == null) {
@@ -239,6 +250,7 @@ public class EmployeeService {
             return resolveRoleById(roleId);
         }
 
+        // Manager-created accounts default to STAFF to avoid privilege escalation by request body tampering.
         return roleRepository.findByNameIgnoreCase(ROLE_STAFF)
                 .orElseThrow(() -> new NotFoundException("Default STAFF role not found"));
     }

@@ -10,6 +10,11 @@ import java.util.Collection;
 import java.util.List;
 
 @Getter
+/**
+ * Security-oriented projection of {@code User}.
+ *
+ * Spring Security only needs credentials and authorities, not the whole entity graph.
+ */
 public class CustomUserDetails implements UserDetails {
 
     private final Integer userId;
@@ -38,6 +43,7 @@ public class CustomUserDetails implements UserDetails {
                 user.getUsername(),
                 user.getPasswordHash(),
                 normalizedRole,
+                // hasRole('ADMIN') resolves through ROLE_ADMIN authority generated here.
                 List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole))
         );
     }

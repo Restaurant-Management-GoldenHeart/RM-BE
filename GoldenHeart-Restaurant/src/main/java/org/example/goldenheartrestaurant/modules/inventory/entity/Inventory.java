@@ -32,6 +32,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Current stock snapshot for one ingredient in one branch.
+ */
 public class Inventory {
 
     @Id

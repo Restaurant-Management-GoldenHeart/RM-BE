@@ -15,6 +15,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
+/**
+ * Read-only role lookup endpoint used by admin/manager screens.
+ */
 public class RoleController {
 
     private final RoleRepository roleRepository;

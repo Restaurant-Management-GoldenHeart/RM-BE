@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,12 +26,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "menu_items")
+@Table(
+        name = "menu_items",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_menu_items_branch_category_name", columnNames = {"branch_id", "category_id", "name"})
+        }
+)
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Sellable menu item for a specific branch and category.
+ *
+ * Recipes are attached here because kitchen completion needs per-dish ingredient consumption data.
+ */
 public class MenuItem {
 
     @Id
@@ -48,6 +59,9 @@ public class MenuItem {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(length = 500)
+    private String description;
+
     @Column(precision = 10, scale = 2)
     private BigDecimal price;
 
@@ -56,7 +70,8 @@ public class MenuItem {
     private MenuItemStatus status;
 
     @Builder.Default
-    @OneToMany(mappedBy = "menuItem")
+    @OneToMany(mappedBy = "menuItem", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    // Orphan removal helps replace recipe definitions cleanly during menu edits.
     private List<Recipe> recipes = new ArrayList<>();
 
     @Builder.Default

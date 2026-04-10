@@ -28,6 +28,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Role catalog used by Spring method security and employee authorization rules.
+ */
 public class Role extends BaseEntity {
 
     @Id

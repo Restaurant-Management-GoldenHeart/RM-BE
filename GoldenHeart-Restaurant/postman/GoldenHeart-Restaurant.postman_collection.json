@@ -38,6 +38,34 @@
           }
         },
         {
+          "name": "Register Customer Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer02\",\n  \"email\": \"customer01@example.com\",\n  \"password\": \"Customer123\",\n  \"fullName\": \"Customer Duplicate\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
           "name": "Login Admin",
           "event": [
             {
@@ -161,10 +189,103 @@
           }
         },
         {
+          "name": "Login Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.environment.set('customerAccessToken', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerUsername}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"WrongPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
           "name": "Refresh Current Session",
           "request": {
             "method": "POST",
             "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Without Cookie",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": ""
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/refresh",
               "host": [
@@ -680,6 +801,210 @@
                 "v1",
                 "employees",
                 "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu",
+      "item": [
+        {
+          "name": "Create Menu Item Pho Bo Tai",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('menuItemId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai\",\n  \"description\": \"Pho bo tai tai branch 1\",\n  \"price\": 65000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 120\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 180\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 500\n    },\n    {\n      \"ingredientId\": {{ingredientOnionId}},\n      \"quantity\": 20\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "menu-items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Menu Duplicate Name Conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai\",\n  \"description\": \"Duplicate menu item name\",\n  \"price\": 70000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 100\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 150\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "menu-items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Menu Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items?page=0&size=10&branchId={{branch1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "menu-items"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "branchId",
+                  "value": "{{branch1Id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Menu Item By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items/{{menuItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "menu-items",
+                "{{menuItemId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Menu Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai Special\",\n  \"description\": \"Updated pho item\",\n  \"price\": 70000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 140\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 180\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 550\n    },\n    {\n      \"ingredientId\": {{ingredientOnionId}},\n      \"quantity\": 25\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items/{{menuItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "menu-items",
+                "{{menuItemId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kitchen",
+      "item": [
+        {
+          "name": "Complete Order Item As Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "kitchen",
+                "order-items",
+                "{{orderItemId}}",
+                "complete"
               ]
             }
           }

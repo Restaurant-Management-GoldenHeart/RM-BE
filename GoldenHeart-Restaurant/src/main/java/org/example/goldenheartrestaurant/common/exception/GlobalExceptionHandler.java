@@ -3,6 +3,7 @@ package org.example.goldenheartrestaurant.common.exception;
 import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -14,6 +15,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+/**
+ * Maps validation, security and business exceptions into a consistent JSON error contract.
+ */
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -39,6 +43,16 @@ public class GlobalExceptionHandler {
                 ErrorResponse.builder()
                         .success(false)
                         .message(exception.getMessage())
+                        .build()
+        );
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ErrorResponse.builder()
+                        .success(false)
+                        .message("Data integrity violation")
                         .build()
         );
     }
@@ -75,6 +89,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({JwtException.class, IllegalArgumentException.class})
     public ResponseEntity<ErrorResponse> handleTokenErrors(RuntimeException exception) {
+        // IllegalArgumentException is also used for malformed refresh-cookie input.
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                 ErrorResponse.builder()
                         .success(false)

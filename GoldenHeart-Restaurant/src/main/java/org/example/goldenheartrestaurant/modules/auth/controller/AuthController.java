@@ -24,6 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+/**
+ * Public authentication API for register, login, refresh and logout.
+ */
 public class AuthController {
 
     private final AuthService authService;
@@ -50,6 +53,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(HttpServletRequest request) {
+        // Refresh token is intentionally read from cookie rather than request body.
         String refreshToken = readCookie(request, jwtProperties.getRefreshCookieName());
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new IllegalArgumentException("Refresh token cookie is missing");
@@ -74,6 +78,7 @@ public class AuthController {
     }
 
     private ResponseEntity<ApiResponse<AuthResponse>> buildTokenResponse(String message, IssuedTokens issuedTokens) {
+        // Only access token is returned in JSON. Refresh token is written to Set-Cookie.
         AuthResponse response = AuthResponse.builder()
                 .accessToken(issuedTokens.accessToken())
                 .tokenType("Bearer")

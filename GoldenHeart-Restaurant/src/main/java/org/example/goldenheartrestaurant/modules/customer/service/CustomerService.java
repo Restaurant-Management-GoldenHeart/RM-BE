@@ -17,6 +17,9 @@ import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Customer management use cases with explicit uniqueness validation.
+ */
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
@@ -58,6 +61,7 @@ public class CustomerService {
                 .note(request.note())
                 .build();
 
+        // New customers start with zero loyalty points; future order/billing flows can increase this.
         return toCustomerResponse(customerRepository.save(customer));
     }
 

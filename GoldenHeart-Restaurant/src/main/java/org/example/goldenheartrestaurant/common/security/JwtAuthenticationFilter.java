@@ -15,6 +15,12 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+/**
+ * Turns Authorization Bearer token into Spring Authentication once per request.
+ *
+ * After this filter runs successfully, controller methods can use @AuthenticationPrincipal and
+ * @PreAuthorize against the populated SecurityContext.
+ */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -31,6 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String accessToken = authorizationHeader.substring(7);
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                // JwtService handles signature validation, token-type checking and DB-backed user reload.
                 Authentication authentication = jwtService.buildAuthentication(accessToken);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
@@ -41,6 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        // These endpoints are responsible for issuing/refreshing tokens, so they stay publicly reachable.
         return request.getServletPath().startsWith("/api/v1/auth/");
     }
 }

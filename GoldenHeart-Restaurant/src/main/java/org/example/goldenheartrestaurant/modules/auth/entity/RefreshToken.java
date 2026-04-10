@@ -25,6 +25,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Server-side refresh-token registry.
+ *
+ * Browser keeps the raw cookie value; backend stores only the hash and lifecycle metadata.
+ */
 public class RefreshToken {
 
     @Id

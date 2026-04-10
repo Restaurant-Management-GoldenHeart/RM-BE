@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Stores server-side state for refresh tokens so long-lived sessions can be revoked and rotated.
+ */
 public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
@@ -45,6 +48,7 @@ public class RefreshTokenService {
      */
     @Transactional(readOnly = true)
     public RefreshToken requireActiveToken(String rawRefreshToken, String expectedUsername) {
+        // Signature validation alone is not enough here; token must still be active in DB too.
         RefreshToken storedToken = refreshTokenRepository.findByTokenHash(hashToken(rawRefreshToken))
                 .orElseThrow(() -> new JwtException("Refresh token is not recognized"));
 
@@ -66,6 +70,7 @@ public class RefreshTokenService {
     @Transactional
     public void revoke(RefreshToken refreshToken) {
         if (!refreshToken.isRevoked()) {
+            // These timestamps make later audit or suspicious-session analysis easier.
             refreshToken.setRevoked(true);
             refreshToken.setRevokedAt(LocalDateTime.now());
             refreshToken.setLastUsedAt(LocalDateTime.now());

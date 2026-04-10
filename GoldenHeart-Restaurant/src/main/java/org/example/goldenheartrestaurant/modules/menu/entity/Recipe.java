@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,12 +20,20 @@ import org.example.goldenheartrestaurant.modules.inventory.entity.Ingredient;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "recipes")
+@Table(
+        name = "recipes",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_recipes_menu_item_ingredient", columnNames = {"menu_item_id", "ingredient_id"})
+        }
+)
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Recipe line item: quantity of one ingredient required for one unit of a menu item.
+ */
 public class Recipe {
 
     @Id
@@ -39,6 +48,6 @@ public class Recipe {
     @JoinColumn(name = "ingredient_id", nullable = false)
     private Ingredient ingredient;
 
-    @Column(precision = 10, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal quantity;
 }

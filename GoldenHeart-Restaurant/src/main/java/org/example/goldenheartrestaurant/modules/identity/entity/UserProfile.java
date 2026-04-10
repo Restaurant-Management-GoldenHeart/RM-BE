@@ -38,6 +38,12 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Business profile attached 1:1 to User.
+ *
+ * activeEmail/activePhone are the values participating in unique constraints while the record is active.
+ * They are nulled on soft delete so new rows can reuse the same contact information.
+ */
 public class UserProfile extends BaseEntity {
 
     @Id
@@ -104,6 +110,7 @@ public class UserProfile extends BaseEntity {
     }
 
     private void syncActiveContacts() {
+        // Keeps unique-key helper columns aligned with the current soft-delete state.
         if (getDeletedAt() == null) {
             activeEmail = email;
             activePhone = phone;

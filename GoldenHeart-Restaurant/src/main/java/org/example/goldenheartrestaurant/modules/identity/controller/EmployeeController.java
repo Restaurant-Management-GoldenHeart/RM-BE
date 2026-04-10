@@ -28,6 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/employees")
 @RequiredArgsConstructor
+/**
+ * Employee management endpoints.
+ *
+ * Method-level role checks block broad access, while EmployeeService applies finer business rules.
+ */
 public class EmployeeController {
 
     private final EmployeeService employeeService;
@@ -106,6 +111,7 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<EmployeeSelfResponse>> getMyProfile(
             @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
+        // currentUser comes from SecurityContext populated by JwtAuthenticationFilter.
         return ResponseEntity.ok(
                 ApiResponse.<EmployeeSelfResponse>builder()
                         .message("My profile retrieved successfully")

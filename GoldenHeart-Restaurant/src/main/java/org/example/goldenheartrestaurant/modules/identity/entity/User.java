@@ -36,6 +36,11 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+/**
+ * Authentication identity record.
+ *
+ * Credentials and permissions live here, while business profile data stays in UserProfile.
+ */
 public class User extends BaseEntity {
 
     @Id
@@ -57,6 +62,7 @@ public class User extends BaseEntity {
     private UserStatus status;
 
     @OneToOne(mappedBy = "user", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    // User and profile are persisted/removed together to avoid half-created accounts.
     private UserProfile profile;
 
     @Builder.Default

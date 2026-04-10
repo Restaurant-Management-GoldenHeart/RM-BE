@@ -1,31 +1,37 @@
 USE goldenheart_restaurant;
 
-INSERT INTO restaurants (name, address, phone)
-SELECT 'Golden Heart Main Restaurant', '123 Nguyen Hue, District 1, HCM City', '02873001234'
+INSERT INTO restaurants (id, name, address, phone)
+SELECT 1, 'Golden Heart Main Restaurant', '123 Nguyen Hue, District 1, HCM City', '02873001234'
 WHERE NOT EXISTS (
     SELECT 1
     FROM restaurants
-    WHERE name = 'Golden Heart Main Restaurant'
+    WHERE id = 1
 );
 
-INSERT INTO branches (restaurant_id, name, address, phone)
-SELECT r.id, 'Golden Heart Branch 1', '45 Le Loi, District 1, HCM City', '02873000001'
-FROM restaurants r
-WHERE r.name = 'Golden Heart Main Restaurant'
+INSERT INTO branches (id, restaurant_id, name, address, phone)
+SELECT 1, 1, 'Golden Heart Branch 1', '45 Le Loi, District 1, HCM City', '02873000001'
+WHERE EXISTS (
+      SELECT 1
+      FROM restaurants r
+      WHERE r.id = 1
+  )
   AND NOT EXISTS (
       SELECT 1
       FROM branches b
-      WHERE b.name = 'Golden Heart Branch 1'
+      WHERE b.id = 1
   );
 
-INSERT INTO branches (restaurant_id, name, address, phone)
-SELECT r.id, 'Golden Heart Branch 2', '88 Vo Van Ngan, Thu Duc, HCM City', '02873000002'
-FROM restaurants r
-WHERE r.name = 'Golden Heart Main Restaurant'
+INSERT INTO branches (id, restaurant_id, name, address, phone)
+SELECT 2, 1, 'Golden Heart Branch 2', '88 Vo Van Ngan, Thu Duc, HCM City', '02873000002'
+WHERE EXISTS (
+      SELECT 1
+      FROM restaurants r
+      WHERE r.id = 1
+  )
   AND NOT EXISTS (
       SELECT 1
       FROM branches b
-      WHERE b.name = 'Golden Heart Branch 2'
+      WHERE b.id = 2
   );
 
 SELECT id, name, address, phone

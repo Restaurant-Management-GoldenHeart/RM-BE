@@ -21,6 +21,11 @@ import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
+/**
+ * Central place for JWT creation, parsing and refresh-cookie helpers.
+ *
+ * The project uses token typing so an access token and refresh token cannot be interchanged.
+ */
 public class JwtService {
 
     private static final String TOKEN_TYPE_CLAIM = "tokenType";
@@ -52,6 +57,7 @@ public class JwtService {
     }
 
     public ResponseCookie buildRefreshTokenCookie(String refreshToken) {
+        // Cookie flags come from config so environments can tune security without changing business logic.
         return ResponseCookie.from(jwtProperties.getRefreshCookieName(), refreshToken)
                 .httpOnly(jwtProperties.isRefreshCookieHttpOnly())
                 .secure(jwtProperties.isRefreshCookieSecure())
@@ -62,6 +68,7 @@ public class JwtService {
     }
 
     public ResponseCookie clearRefreshTokenCookie() {
+        // Logout clears the client-side cookie; DB revocation happens in RefreshTokenService/AuthService.
         return ResponseCookie.from(jwtProperties.getRefreshCookieName(), "")
                 .httpOnly(jwtProperties.isRefreshCookieHttpOnly())
                 .secure(jwtProperties.isRefreshCookieSecure())
@@ -77,6 +84,8 @@ public class JwtService {
      */
     public Authentication buildAuthentication(String accessToken) {
         Claims claims = parseClaims(accessToken, ACCESS_TOKEN_TYPE);
+        // We intentionally reload the current user from DB instead of trusting claims alone.
+        // That makes role changes and soft-delete effective immediately on the next request.
         CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(claims.getSubject());
 
         return UsernamePasswordAuthenticationToken.authenticated(
@@ -104,7 +113,9 @@ public class JwtService {
                 .issuer(jwtProperties.getIssuer())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
+                // tokenType separates access-token and refresh-token responsibilities.
                 .claim(TOKEN_TYPE_CLAIM, tokenType)
+                // These claims help clients/logging, but authorization still reloads server truth from DB.
                 .claim(ROLE_CLAIM, userDetails.getRoleName())
                 .claim("userId", userDetails.getUserId())
                 .signWith(getSigningKey())
@@ -120,6 +131,7 @@ public class JwtService {
 
         String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
         if (!expectedType.equals(tokenType)) {
+            // Prevents refresh token from being accepted where access token is expected and vice versa.
             throw new JwtException("Invalid token type");
         }
 
@@ -130,6 +142,7 @@ public class JwtService {
         byte[] secretBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
 
         if (secretBytes.length < 32) {
+            // HMAC JWT signing requires enough entropy; short secrets are a security risk.
             throw new IllegalArgumentException("JWT secret must contain at least 32 characters");
         }
 

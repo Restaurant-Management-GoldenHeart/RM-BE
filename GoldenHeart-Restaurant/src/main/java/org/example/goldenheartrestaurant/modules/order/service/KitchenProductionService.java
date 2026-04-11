@@ -32,10 +32,15 @@ import java.util.function.Function;
 @Service
 @RequiredArgsConstructor
 /**
- * Kitchen completion workflow.
+ * Service xử lý luồng bếp hoàn thành món.
  *
- * This path is sensitive because one action must keep order state, inventory balance and stock
- * history consistent inside the same transaction.
+ * Đây là một trong những luồng nhạy cảm nhất của hệ thống vì 1 thao tác complete món
+ * phải giữ đồng thời 3 thứ luôn nhất quán:
+ * - trạng thái order item
+ * - tồn kho inventory
+ * - lịch sử stock movement
+ *
+ * Vì vậy method chính được bọc trong @Transactional.
  */
 public class KitchenProductionService {
 
@@ -49,6 +54,7 @@ public class KitchenProductionService {
         OrderItem orderItem = orderItemRepository.findKitchenDetailById(orderItemId)
                 .orElseThrow(() -> new NotFoundException("Order item not found"));
 
+        // Chặn các trạng thái không hợp lệ trước khi đụng vào tồn kho.
         if (orderItem.getStatus() == OrderItemStatus.CANCELLED) {
             throw new ConflictException("Cancelled order item cannot be completed");
         }
@@ -58,6 +64,7 @@ public class KitchenProductionService {
 
         List<Recipe> recipes = orderItem.getMenuItem().getRecipes();
         if (recipes.isEmpty()) {
+            // Không có recipe thì không thể biết phải trừ nguyên liệu nào.
             throw new ConflictException("Menu item has no recipe configured");
         }
 
@@ -69,7 +76,8 @@ public class KitchenProductionService {
                 .findAllForUpdateByBranchIdAndIngredientIds(orderItem.getOrder().getBranch().getId(), ingredientIds)
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(inv -> inv.getIngredient().getId(), Function.identity()));
-        // The repository is expected to lock matching inventory rows to avoid concurrent over-deduction.
+        // Query repository dùng pessimistic lock để tránh 2 request cùng lúc
+        // trừ đè lên cùng một lượng tồn kho.
 
         User actor = userRepository.findEmployeeDetailById(currentUser.getUserId())
                 .orElseThrow(() -> new NotFoundException("Current user not found"));
@@ -83,12 +91,16 @@ public class KitchenProductionService {
                 throw new ConflictException("Inventory not found for ingredient: " + recipe.getIngredient().getName());
             }
 
-            // Example:
-            // recipe quantity 0.20 and order quantity 3 means deduct 0.60 from stock.
+            // Ví dụ:
+            // recipe cần 0.20 kg / 1 món
+            // orderItem.quantity = 3
+            // => phải trừ 0.60 kg khỏi tồn kho
             BigDecimal quantityToDeduct = recipe.getQuantity().multiply(BigDecimal.valueOf(orderItem.getQuantity()));
             BigDecimal currentStock = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
 
             if (currentStock.compareTo(quantityToDeduct) < 0) {
+                // Chỉ cần thiếu 1 ingredient là fail cả transaction,
+                // không cho trừ kho dở dang nửa chừng.
                 throw new ConflictException("Not enough stock for ingredient: " + recipe.getIngredient().getName());
             }
 
@@ -108,7 +120,7 @@ public class KitchenProductionService {
                             .quantityChange(quantityToDeduct.negate())
                             .balanceAfter(remainingStock)
                             .unitCost(unitCost)
-                            // Captures material cost consumed by this kitchen-completion event.
+                            // Lưu lại giá vốn nguyên liệu tiêu hao của lần complete này.
                             .totalCost(unitCost.multiply(quantityToDeduct))
                             .occurredAt(LocalDateTime.now())
                             .note("Stock deducted after kitchen completed order item")
@@ -119,7 +131,7 @@ public class KitchenProductionService {
                     new StockDeductionResponse(
                             recipe.getIngredient().getId(),
                             recipe.getIngredient().getName(),
-                            recipe.getIngredient().getUnit(),
+                            recipe.getIngredient().resolveUnitSymbol(),
                             quantityToDeduct,
                             remainingStock
                     )
@@ -149,7 +161,8 @@ public class KitchenProductionService {
                         || item.getStatus() == OrderItemStatus.SERVED
                         || item.getStatus() == OrderItemStatus.CANCELLED);
 
-        // Parent order becomes COMPLETED only when every child line reached a terminal state.
+        // Chỉ khi mọi dòng con đã đi vào trạng thái cuối
+        // thì order cha mới được lên COMPLETED.
         order.setStatus(allDone ? OrderStatus.COMPLETED : OrderStatus.PROCESSING);
     }
 }

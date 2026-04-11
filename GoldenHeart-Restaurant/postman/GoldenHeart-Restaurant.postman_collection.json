@@ -811,7 +811,7 @@
       "name": "Menu",
       "item": [
         {
-          "name": "Create Menu Item Pho Bo Tai",
+          "name": "Create Menu Item Pho Bo Chin",
           "event": [
             {
               "listen": "test",
@@ -819,7 +819,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (pm.response.code === 201) {",
-                  "  pm.environment.set('menuItemId', pm.response.json().data.id);",
+                  "  pm.environment.set('createdMenuItemId', pm.response.json().data.id);",
                   "}"
                 ]
               }
@@ -839,7 +839,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai\",\n  \"description\": \"Pho bo tai tai branch 1\",\n  \"price\": 65000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 120\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 180\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 500\n    },\n    {\n      \"ingredientId\": {{ingredientOnionId}},\n      \"quantity\": 20\n    }\n  ]\n}"
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Chin\",\n  \"description\": \"Pho bo chin sample created from Postman\",\n  \"price\": 89000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.22\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.16\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/menu-items",
@@ -870,7 +870,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai\",\n  \"description\": \"Duplicate menu item name\",\n  \"price\": 70000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 100\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 150\n    }\n  ]\n}"
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Chin\",\n  \"description\": \"Duplicate menu item name\",\n  \"price\": 90000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.20\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.15\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/menu-items",
@@ -892,7 +892,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{staffAccessToken}}"
+                "value": "Bearer {{adminAccessToken}}"
               }
             ],
             "url": {
@@ -929,7 +929,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{staffAccessToken}}"
+                "value": "Bearer {{adminAccessToken}}"
               }
             ],
             "url": {
@@ -947,7 +947,7 @@
           }
         },
         {
-          "name": "Update Menu Item",
+          "name": "Update Seeded Menu Item",
           "request": {
             "method": "PUT",
             "header": [
@@ -962,7 +962,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai Special\",\n  \"description\": \"Updated pho item\",\n  \"price\": 70000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 140\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 180\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 550\n    },\n    {\n      \"ingredientId\": {{ingredientOnionId}},\n      \"quantity\": 25\n    }\n  ]\n}"
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai Dac Biet\",\n  \"description\": \"Updated seeded pho item\",\n  \"price\": 95000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.25\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.18\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/menu-items/{{menuItemId}}",
@@ -984,7 +984,7 @@
       "name": "Kitchen",
       "item": [
         {
-          "name": "Complete Order Item As Admin",
+          "name": "Complete Seeded Order Item As Admin",
           "request": {
             "method": "POST",
             "header": [
@@ -1005,6 +1005,282 @@
                 "order-items",
                 "{{orderItemId}}",
                 "complete"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Get Measurement Units",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const units = pm.response.json().data || [];",
+                  "  units.forEach(unit => {",
+                  "    const code = (unit.code || '').toUpperCase();",
+                  "    if (code === 'KG') pm.environment.set('kgUnitId', unit.id);",
+                  "    if (code === 'PIECE') pm.environment.set('pieceUnitId', unit.id);",
+                  "    if (code === 'LITER') pm.environment.set('literUnitId', unit.id);",
+                  "    if (code === 'GRAM') pm.environment.set('gramUnitId', unit.id);",
+                  "    if (code === 'MILLILITER') pm.environment.set('milliliterUnitId', unit.id);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/units",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "units"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory?page=0&size=20&branchId={{branch1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "branchId",
+                  "value": "{{branch1Id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Item By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/{{inventoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "{{inventoryId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Inventory Item Chicken Egg As Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('createdInventoryId', pm.response.json().data.inventoryId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"ingredientName\": \"{{inventoryTestIngredientName}}\",\n  \"unitId\": {{pieceUnitId}},\n  \"quantity\": 5,\n  \"minStockLevel\": 10,\n  \"reorderLevel\": 20,\n  \"averageUnitCost\": 3500,\n  \"note\": \"Tạo nguyên liệu test inventory bằng Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Low Stock Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/alerts?branchId={{branch1Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "branchId",
+                  "value": "{{branch1Id}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Created Inventory Item Set Quantity Zero",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 0,\n  \"minStockLevel\": 2,\n  \"reorderLevel\": 5,\n  \"averageUnitCost\": 4000,\n  \"note\": \"Đưa tồn kho về 0 để test xóa mềm\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "{{createdInventoryId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Created Inventory History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}/history?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "{{createdInventoryId}}",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Inventory Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inventory",
+                "{{createdInventoryId}}"
               ]
             }
           }

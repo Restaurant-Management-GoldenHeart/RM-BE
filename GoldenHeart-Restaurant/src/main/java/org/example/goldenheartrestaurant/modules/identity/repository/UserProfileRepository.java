@@ -8,6 +8,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Repository cho UserProfile.
+ *
+ * Các method trong đây tập trung nhiều vào uniqueness logic,
+ * vì email / phone / employeeCode thực tế nằm ở profile chứ không nằm ở bảng users.
+ */
 public interface UserProfileRepository extends JpaRepository<UserProfile, Integer> {
 
     boolean existsByActiveEmailIgnoreCase(String activeEmail);

@@ -29,9 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/employees")
 @RequiredArgsConstructor
 /**
- * Employee management endpoints.
+ * Controller quản lý nhân viên.
  *
- * Method-level role checks block broad access, while EmployeeService applies finer business rules.
+ * Tầng controller chịu trách nhiệm chính:
+ * - nhận request/response HTTP
+ * - validate input bằng @Valid
+ * - chặn quyền thô bằng @PreAuthorize
+ *
+ * Các rule nghiệp vụ tinh hơn vẫn để trong EmployeeService để tránh phụ thuộc hoàn toàn vào annotation.
  */
 public class EmployeeController {
 
@@ -111,7 +116,7 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<EmployeeSelfResponse>> getMyProfile(
             @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        // currentUser comes from SecurityContext populated by JwtAuthenticationFilter.
+        // currentUser được đổ vào từ SecurityContext sau khi JwtAuthenticationFilter chạy xong.
         return ResponseEntity.ok(
                 ApiResponse.<EmployeeSelfResponse>builder()
                         .message("My profile retrieved successfully")

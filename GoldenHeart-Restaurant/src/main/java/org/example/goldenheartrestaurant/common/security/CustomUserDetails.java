@@ -11,9 +11,15 @@ import java.util.List;
 
 @Getter
 /**
- * Security-oriented projection of {@code User}.
+ * Phiên bản rút gọn của User dành riêng cho Spring Security.
  *
- * Spring Security only needs credentials and authorities, not the whole entity graph.
+ * Thay vì giữ nguyên cả entity User trong SecurityContext, ta chỉ giữ đúng dữ liệu
+ * phục vụ xác thực và phân quyền:
+ * - userId
+ * - username
+ * - password hash
+ * - roleName
+ * - authorities
  */
 public class CustomUserDetails implements UserDetails {
 
@@ -43,7 +49,8 @@ public class CustomUserDetails implements UserDetails {
                 user.getUsername(),
                 user.getPasswordHash(),
                 normalizedRole,
-                // hasRole('ADMIN') resolves through ROLE_ADMIN authority generated here.
+                // Spring Security với hasRole('ADMIN') thực chất sẽ kiểm tra authority ROLE_ADMIN.
+                // Vì vậy cần chuẩn hóa authority theo format ROLE_<TEN_ROLE>.
                 List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole))
         );
     }

@@ -26,7 +26,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 /**
- * Coordinates password authentication with JWT issuing and refresh-token rotation.
+ * Service điều phối toàn bộ nghiệp vụ xác thực:
+ * - register
+ * - login
+ * - refresh
+ * - logout
+ *
+ * Đây là nơi nối 4 phần lại với nhau:
+ * - User / UserProfile trong DB
+ * - Spring Security AuthenticationManager
+ * - JwtService
+ * - RefreshTokenService
  */
 public class AuthService {
 
@@ -41,15 +51,17 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
 
     /**
-     * Register flow:
+     * Luồng đăng ký:
      * 1. kiểm tra username/email đã tồn tại hay chưa
      * 2. hash password bằng BCrypt
      * 3. gán role mặc định CUSTOMER
-     * 4. lưu User và UserProfile
+     * 4. lưu cả User và UserProfile trong cùng transaction
      */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-        // Registration creates both the credential record and the profile record together.
+        // Đăng ký phải tạo đồng thời:
+        // - bản ghi đăng nhập (User)
+        // - bản ghi hồ sơ cơ bản (UserProfile)
         if (userRepository.existsByUsernameIgnoreCase(request.getUsername())) {
             throw new ConflictException("Username already exists");
         }
@@ -96,11 +108,12 @@ public class AuthService {
 
     /**
      * AuthenticationManager sẽ dùng UserDetailsService + PasswordEncoder
-     * để xác thực username/password một cách chuẩn của Spring Security.
+     * để xác thực username/password theo chuẩn của Spring Security.
      */
     @Transactional
     public IssuedTokens login(LoginRequest request) {
-        // This lets Spring Security own password checking instead of custom manual comparison.
+        // Cho Spring Security tự xử lý so sánh password
+        // thay vì tự so thủ công trong service.
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
@@ -113,22 +126,24 @@ public class AuthService {
     }
 
     /**
-     * Refresh token flow:
-     * - validate refresh token
+     * Luồng refresh token:
+     * - validate refresh token ở cả tầng JWT lẫn DB
      * - lấy username từ token
      * - load user mới nhất từ DB
-     * - cấp lại access token và refresh token
+     * - revoke refresh token cũ
+     * - phát access token mới + refresh token mới
      */
     @Transactional
     public IssuedTokens refresh(String refreshToken) {
-        // Refresh validation is two-layered: JWT parsing plus DB-backed token lifecycle checks.
+        // Kiểm tra 2 lớp:
+        // 1. token phải parse và verify được
+        // 2. token phải còn active trong DB
         String username = jwtService.extractUsernameFromRefreshToken(refreshToken);
         RefreshToken storedToken = refreshTokenService.requireActiveToken(refreshToken, username);
         User user = storedToken.getUser();
 
-        // Rotate refresh token:
-        // token cũ bị revoke, token mới được phát và lưu lại.
-        // Each successful refresh invalidates the previous refresh token.
+        // Mỗi lần refresh thành công sẽ vô hiệu hóa refresh token cũ.
+        // Đây là kỹ thuật rotation để giảm rủi ro nếu refresh token bị lộ.
         refreshTokenService.revoke(storedToken);
 
         return issueTokens(user);
@@ -136,6 +151,7 @@ public class AuthService {
 
     @Transactional
     public void logout(String refreshToken) {
+        // Logout chỉ cần revoke refresh token hiện tại là đủ.
         refreshTokenService.revokeByRawToken(refreshToken);
     }
 
@@ -143,7 +159,12 @@ public class AuthService {
         CustomUserDetails userDetails = CustomUserDetails.from(user);
         String accessToken = jwtService.generateAccessToken(userDetails);
         String refreshToken = jwtService.generateRefreshToken(userDetails);
-        // Persist refresh-token state server-side so logout, revocation and rotation remain possible.
+
+        // Lưu trạng thái refresh token ở DB để còn:
+        // - logout
+        // - revoke
+        // - rotate
+        // - audit session
         refreshTokenService.store(user, refreshToken, jwtService.extractRefreshTokenExpiry(refreshToken));
 
         return new IssuedTokens(

@@ -22,10 +22,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 @RequiredArgsConstructor
 /**
- * Main Spring Security configuration for stateless JWT-based authentication.
+ * Cấu hình Spring Security chính cho toàn bộ hệ thống.
  *
- * Login happens once with username/password. After that, protected APIs rely on access tokens
- * instead of server-side sessions.
+ * Dự án đi theo hướng stateless:
+ * - login một lần bằng username/password
+ * - các request sau mang access token JWT
+ * - server không giữ session đăng nhập kiểu truyền thống
  */
 public class SecurityConfig {
 
@@ -35,19 +37,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // API dùng JWT nên không cần CSRF token kiểu form truyền thống.
                 .csrf(AbstractHttpConfigurer::disable)
+                // Tắt form login mặc định của Spring vì đây là REST API.
                 .formLogin(AbstractHttpConfigurer::disable)
+                // Không dùng HTTP Basic vì dự án đã có JWT.
                 .httpBasic(AbstractHttpConfigurer::disable)
-                // Every request must carry its own identity through JWT.
+                // Mỗi request tự mang danh tính qua JWT, không tạo session phía server.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints used to obtain, rotate or clear tokens.
+                        // Các endpoint auth phải mở public để user còn login / refresh / logout được.
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        // Endpoint nào không nằm trong nhóm public thì bắt buộc phải xác thực.
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
-                // Parse JWT before Spring reaches the standard username/password filter chain.
+                // Filter JWT phải chạy trước filter username/password mặc định
+                // để SecurityContext có dữ liệu user từ sớm.
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -55,7 +62,9 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        // Delegates username lookup to CustomUserDetailsService and password checking to BCrypt.
+        // Provider này làm hai việc chính:
+        // - load user qua CustomUserDetailsService
+        // - so sánh password raw với password hash bằng BCrypt
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
@@ -68,7 +77,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Cost factor 12 là cân bằng tốt giữa bảo mật và hiệu năng cho nhiều ứng dụng web.
+        // BCrypt cost = 12 là mức khá cân bằng:
+        // - đủ an toàn cho ứng dụng web thông thường
+        // - không quá nặng để login bị chậm quá mức
         return new BCryptPasswordEncoder(12);
     }
 }

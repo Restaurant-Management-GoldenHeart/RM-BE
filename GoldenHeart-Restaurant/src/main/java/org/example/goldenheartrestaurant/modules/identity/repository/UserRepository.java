@@ -9,6 +9,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Repository truy vấn User cho cả auth và employee module.
+ *
+ * Phần khó của repository này nằm ở các JPQL có join fetch,
+ * vì ta cần vừa lấy đủ dữ liệu cho service vừa tránh N+1 query.
+ */
 public interface UserRepository extends JpaRepository<User, Integer> {
 
     boolean existsByUsernameIgnoreCase(String username);

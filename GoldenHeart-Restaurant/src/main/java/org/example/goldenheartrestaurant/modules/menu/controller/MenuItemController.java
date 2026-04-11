@@ -25,9 +25,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/menu-items")
 @RequiredArgsConstructor
 /**
- * Menu management endpoints.
+ * Controller quản lý menu.
  *
- * Read access is broader because staff and kitchen need the dish catalog, while writes stay admin-only.
+ * Rule phân quyền ở mức controller:
+ * - ADMIN: create/update/delete
+ * - ADMIN, MANAGER, STAFF, KITCHEN: read
+ *
+ * Lý do read mở rộng:
+ * - staff cần xem catalog món để phục vụ order
+ * - kitchen cần xem cấu hình món/recipe để vận hành
  */
 public class MenuItemController {
 

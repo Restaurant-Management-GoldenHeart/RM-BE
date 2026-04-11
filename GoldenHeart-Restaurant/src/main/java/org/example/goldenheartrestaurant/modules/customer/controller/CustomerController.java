@@ -25,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
 /**
- * Customer CRUD endpoints.
+ * Controller CRUD khách hàng.
  *
- * Managers can maintain customer data, but destructive delete stays admin-only.
+ * Quyền hiện tại:
+ * - ADMIN, MANAGER: create/read/update
+ * - ADMIN: delete
  */
 public class CustomerController {
 

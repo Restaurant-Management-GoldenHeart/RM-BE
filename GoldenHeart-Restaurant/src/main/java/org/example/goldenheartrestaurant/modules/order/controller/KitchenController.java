@@ -17,9 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/kitchen")
 @RequiredArgsConstructor
 /**
- * Kitchen operations API.
+ * API nghiệp vụ cho bếp.
  *
- * Only ADMIN and KITCHEN can complete order items because this action also mutates inventory.
+ * Endpoint hiện tại là complete order item, và thao tác này không chỉ đổi status món
+ * mà còn đụng tới tồn kho, nên chỉ ADMIN và KITCHEN mới được phép gọi.
  */
 public class KitchenController {
 

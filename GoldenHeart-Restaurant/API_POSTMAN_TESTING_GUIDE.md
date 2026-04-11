@@ -1,1948 +1,1043 @@
-# GoldenHeart Restaurant API Testing Guide
+﻿# Hướng dẫn test API bằng Postman cho GoldenHeart Restaurant
 
-This guide lists the APIs that currently exist in the project, shows how to call them, and gives a practical Postman test order for a fresh local database.
+Tài liệu này dùng cho trạng thái hiện tại của dự án, bám theo đúng:
 
-## 1. Current API Scope
+- collection Postman đang có trong thư mục `postman`
+- environment local đang có trong thư mục `postman`
+- bộ SQL đã được gộp còn 3 file trong thư mục `sql`
 
-The project currently exposes these API groups:
+Mục tiêu của tài liệu:
 
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/roles`
-- `GET /api/v1/employees`
-- `GET /api/v1/employees/{employeeId}`
-- `POST /api/v1/employees`
-- `PUT /api/v1/employees/{employeeId}`
-- `DELETE /api/v1/employees/{employeeId}`
-- `GET /api/v1/employees/me`
-- `PUT /api/v1/employees/me`
-- `GET /api/v1/customers`
-- `GET /api/v1/customers/{customerId}`
-- `POST /api/v1/customers`
-- `PUT /api/v1/customers/{customerId}`
-- `DELETE /api/v1/customers/{customerId}`
-- `GET /api/v1/menu-items`
-- `GET /api/v1/menu-items/{menuItemId}`
-- `POST /api/v1/menu-items`
-- `PUT /api/v1/menu-items/{menuItemId}`
-- `DELETE /api/v1/menu-items/{menuItemId}`
-- `POST /api/v1/kitchen/order-items/{orderItemId}/complete`
+- giúp bạn test được cả API cũ và API mới theo đúng thứ tự
+- tránh trường hợp DB trống làm API lỗi dù code không sai
+- chỉ rõ request nào cần chạy trước, request nào chỉ chạy được một lần
+- giải thích biến môi trường nào sẽ được Postman tự cập nhật
 
-## 2. Recommended Test Order For Empty Database
+---
 
-Because your database is empty, use this order:
+## 1. Các file bạn sẽ dùng
 
-1. Run [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql) in MySQL Workbench.
-2. Start the Spring Boot app once.
-   The app will auto-create tables because `spring.jpa.hibernate.ddl-auto=update`.
-3. Let the app bootstrap roles and the local admin account from `application.properties`.
-4. Optionally run [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql) to add sample restaurant and branch records.
-5. If you want to test `menu-items`, run [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql) to seed categories, ingredients and inventory.
-6. Import the Postman files:
-   - [GoldenHeart-Restaurant.postman_collection.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant.postman_collection.json)
-   - [GoldenHeart-Restaurant.local.postman_environment.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant.local.postman_environment.json)
-7. Run requests in this order:
-   - `Auth / Login Admin`
-   - `Roles / Get Roles`
-   - `Employees / Create Manager By Admin`
-   - `Auth / Login Manager`
-   - `Employees / Manager Create Staff Without RoleId`
-   - `Auth / Login Staff`
-   - `Menu / Create Menu Item Pho Bo Tai`
-   - `Menu / Get Menu Items`
-   - `Menu / Get Menu Item By Id`
-   - `Menu / Update Menu Item`
-   - `Employees / Staff Get My Profile`
-   - `Customers / Create Customer 01`
-   - `Customers / Get Customers`
-   - then run [06_seed_order_item_for_kitchen_test.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/06_seed_order_item_for_kitchen_test.sql)
-   - set `orderItemId` in Postman environment from SQL result
-   - `Kitchen / Complete Order Item As Admin`
-   - then run the negative cases
+### 1.1 File Postman
 
-## 3. Authentication Notes
+- `postman/GoldenHeart-Restaurant.postman_collection.json`
+- `postman/GoldenHeart-Restaurant.local.postman_environment.json`
 
-- Base URL local: `http://localhost:1010`
-- Access token goes in header:
+### 1.2 File SQL
 
-```http
-Authorization: Bearer <access-token>
+- `sql/01_reset_local_database.sql`
+- `sql/02_seed_reference_data.sql`
+- `sql/03_postman_db_check_queries.sql`
+
+Ý nghĩa:
+
+- `01`: reset DB local về trạng thái sạch
+- `02`: seed dữ liệu mẫu để DB không còn trống
+- `03`: query kiểm tra DB sau khi test API
+
+---
+
+## 2. Các nhóm API hiện có trong collection
+
+Collection hiện tại có các folder sau:
+
+- `Auth`
+- `Roles`
+- `Employees`
+- `Menu`
+- `Kitchen`
+- `Inventory`
+- `Customers`
+
+Tức là hiện tại bạn có thể test được các nhóm nghiệp vụ chính sau:
+
+- xác thực và vòng đời token
+- phân quyền và vai trò
+- CRUD nhân viên
+- CRUD khách hàng
+- CRUD menu và recipe
+- hoàn thành món từ bếp và tự động trừ kho
+- quản lý inventory, lịch sử thay đổi, low-stock alerts, đơn vị tính
+
+---
+
+## 3. Chuẩn bị trước khi test
+
+### 3.1 Chuẩn bị database
+
+Thứ tự đúng:
+
+1. Chạy `sql/01_reset_local_database.sql`
+2. Start Spring Boot app 1 lần
+3. Chạy `sql/02_seed_reference_data.sql`
+
+Vì sao phải làm như vậy:
+
+- file `01` chỉ tạo lại database rỗng
+- khi app start, Hibernate mới tạo schema và bootstrap dữ liệu hệ thống như role/admin
+- file `02` cần các bảng đã tồn tại để thêm dữ liệu mẫu phục vụ test Postman
+
+### 3.2 Start backend
+
+Chạy app như bình thường bằng:
+
+- `./gradlew bootRun`
+- hoặc `Shift + F10` trong IntelliJ
+
+Base URL local hiện tại:
+
+```text
+http://localhost:1010
 ```
 
-- Refresh token is returned as an `HttpOnly` cookie on login.
-- In Postman, keep cookie jar enabled. `refresh` and `logout` use the cookie automatically if you stay on the same host.
+### 3.3 Dữ liệu hệ thống sẽ có sau khi app start
 
-## 4. Default Bootstrap Account
+Trên DB sạch, sau khi app start thành công bạn nên có:
 
-When the app starts on a clean database, it auto-seeds:
+- các role hệ thống: `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN`, `CUSTOMER`
+- tài khoản admin mặc định:
+  - username: `admin`
+  - password: `Admin123`
 
-- username: `admin`
-- password: `Admin123`
+---
 
-## 5. Response Shape
+## 4. Import Postman đúng cách
 
-### Success response
+### 4.1 Import collection
 
-```json
-{
-  "success": true,
-  "message": "Customers retrieved successfully",
-  "data": {
-    "content": [],
-    "page": 0,
-    "size": 10,
-    "totalElements": 0,
-    "totalPages": 0,
-    "last": true
-  },
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
+Trong Postman:
 
-### Business error response
+1. bấm `Import`
+2. chọn file `GoldenHeart-Restaurant.postman_collection.json`
 
-```json
-{
-  "success": false,
-  "message": "Email already exists",
-  "errors": null,
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
+### 4.2 Import environment
 
-### Validation error response
+Trong Postman:
 
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": {
-    "password": "Password must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number"
-  },
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
+1. bấm `Import`
+2. chọn file `GoldenHeart-Restaurant.local.postman_environment.json`
+3. ở góc phải trên cùng, chọn environment `GoldenHeart Restaurant Local`
 
-## 6. Endpoint Summary With Examples
+### 4.3 Lưu ý về tab `Scripts`
 
-### 6.1 Auth
+Nhiều request trong collection đã có script sẵn trong tab `Scripts`.
 
-#### `POST /api/v1/auth/register`
+Các script này dùng để:
 
-Use this for customer self-registration.
+- lưu `accessToken`
+- lưu `managerId`, `staffId`, `customerId`
+- lưu `createdMenuItemId`
+- lưu `createdInventoryId`
+- lưu các `unitId`
+
+Nghĩa là trong đa số trường hợp, bạn chỉ cần chạy đúng thứ tự, không cần copy tay ID quá nhiều.
+
+### 4.4 Tab `Test Results`
+
+Sau khi bấm `Send`, ở phần response phía dưới bạn có thể mở tab:
+
+- `Body`
+- `Headers`
+- `Cookies`
+- `Test Results`
+
+Nếu request có script test, kết quả pass/fail sẽ hiện ở `Test Results`.
+
+---
+
+## 5. Các biến môi trường quan trọng
+
+Environment local hiện có các biến nền sau:
+
+- `baseUrl = http://localhost:1010`
+- `adminUsername = admin`
+- `adminPassword = Admin123`
+- `managerUsername = manager01`
+- `managerPassword = Manager123`
+- `staffUsername = staff01`
+- `staffPassword = Staff123`
+- `customerUsername = customer01`
+- `customerPassword = Customer123`
+
+Các biến dữ liệu seed có sẵn:
+
+- `branch1Id = 1`
+- `phoCategoryId = 1`
+- `miCategoryId = 2`
+- `ingredientBeefId = 1`
+- `ingredientRiceNoodleId = 2`
+- `ingredientBrothId = 3`
+- `ingredientOnionId = 4`
+- `kgUnitId = 1`
+- `pieceUnitId = 2`
+- `literUnitId = 3`
+- `gramUnitId = 4`
+- `milliliterUnitId = 5`
+- `menuItemId = 1`
+- `orderItemId = 1`
+- `inventoryId = 1`
+
+Các biến sẽ được Postman cập nhật dần khi bạn test:
+
+- `adminAccessToken`
+- `managerAccessToken`
+- `staffAccessToken`
+- `customerAccessToken`
+- `managerRoleId`
+- `staffRoleId`
+- `managerId`
+- `staffId`
+- `customerId`
+- `createdMenuItemId`
+- `createdInventoryId`
+
+---
+
+## 6. Dữ liệu mẫu có sẵn sau khi chạy file seed
+
+Sau khi chạy `sql/02_seed_reference_data.sql`, bạn đã có sẵn dữ liệu đủ để test nhanh:
+
+- nhà hàng `GoldenHeart Restaurant`
+- chi nhánh:
+  - `branchId = 1`
+  - `branchId = 2`
+- category:
+  - `categoryId = 1` là `Pho`
+  - `categoryId = 2` là `Mon Them`
+- nguyên liệu:
+  - `ingredientId = 1` là `Beef`
+  - `ingredientId = 2` là `Rice Noodle`
+  - `ingredientId = 3` là `Broth`
+  - `ingredientId = 4` là `Onion`
+- inventory seed:
+  - `inventoryId = 1` trở đi
+- menu seed:
+  - `menuItemId = 1` là `Pho Bo Tai`
+- kitchen seed:
+  - `orderItemId = 1` là món pending để test complete
+
+Nhờ vậy bạn không cần tự thêm dữ liệu nền bằng tay trước khi test menu, inventory, kitchen.
+
+---
+
+## 7. Thứ tự test khuyến nghị từ database trống
+
+Đây là thứ tự mình khuyên dùng để ít lỗi nhất:
+
+1. reset DB
+2. start backend
+3. seed dữ liệu mẫu
+4. login admin
+5. lấy roles
+6. tạo manager
+7. login manager
+8. tạo staff
+9. login staff
+10. test profile của staff
+11. test CRUD customer
+12. test GET menu
+13. test create/update menu
+14. test inventory units/list/detail/create/update/history/delete
+15. test low stock alerts
+16. test kitchen complete
+17. test refresh/logout
+18. chạy các case lỗi
+19. dùng file `03_postman_db_check_queries.sql` để soi DB
+
+---
+
+## 8. Hướng dẫn test chi tiết theo từng nhóm
+
+## 8.1 Phase A - Chuẩn bị dữ liệu
+
+### Bước A1. Reset DB
+
+Chạy:
+
+- `sql/01_reset_local_database.sql`
+
+Kỳ vọng:
+
+- database `goldenheart_restaurant` được tạo lại
+
+### Bước A2. Start backend
+
+Kỳ vọng:
+
+- app start thành công
+- Hibernate tạo bảng
+- bootstrap tạo role và admin mặc định
+
+### Bước A3. Seed dữ liệu mẫu
+
+Chạy:
+
+- `sql/02_seed_reference_data.sql`
+
+Kỳ vọng:
+
+- DB có branch, category, ingredient, inventory, menu item, order item mẫu
+
+---
+
+## 8.2 Phase B - Auth
+
+### B1. Login admin
 
 Request:
-
-```json
-{
-  "username": "customer01",
-  "email": "customer01@example.com",
-  "password": "Customer123",
-  "fullName": "Customer One"
-}
-```
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Register successfully",
-  "data": {
-    "userId": 2,
-    "username": "customer01",
-    "email": "customer01@example.com",
-    "fullName": "Customer One",
-    "role": "CUSTOMER",
-    "createdAt": "2026-04-10T00:10:00"
-  },
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
-
-#### `POST /api/v1/auth/login`
-
-Request:
-
-```json
-{
-  "username": "admin",
-  "password": "Admin123"
-}
-```
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Login successfully",
-  "data": {
-    "accessToken": "<jwt-access-token>",
-    "tokenType": "Bearer",
-    "expiresAt": "2026-04-10T00:25:00Z",
-    "username": "admin",
-    "role": "ADMIN"
-  },
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
-
-#### `POST /api/v1/auth/refresh`
-
-No JSON body.
-Needs the refresh cookie from login.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Refresh token successfully",
-  "data": {
-    "accessToken": "<new-jwt-access-token>",
-    "tokenType": "Bearer",
-    "expiresAt": "2026-04-10T00:40:00Z",
-    "username": "admin",
-    "role": "ADMIN"
-  },
-  "timestamp": "2026-04-10T00:25:10Z"
-}
-```
-
-#### `POST /api/v1/auth/logout`
-
-No JSON body.
-Needs the refresh cookie from login.
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Logout successfully",
-  "data": null,
-  "timestamp": "2026-04-10T00:30:00Z"
-}
-```
-
-### 6.2 Roles
-
-#### `GET /api/v1/roles`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Example response:
-
-```json
-{
-  "success": true,
-  "message": "Roles retrieved successfully",
-  "data": [
-    {
-      "id": 1,
-      "name": "ADMIN",
-      "description": "ADMIN role"
-    },
-    {
-      "id": 5,
-      "name": "CUSTOMER",
-      "description": "CUSTOMER role"
-    },
-    {
-      "id": 4,
-      "name": "KITCHEN",
-      "description": "KITCHEN role"
-    },
-    {
-      "id": 2,
-      "name": "MANAGER",
-      "description": "MANAGER role"
-    },
-    {
-      "id": 3,
-      "name": "STAFF",
-      "description": "STAFF role"
-    }
-  ],
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
-
-### 6.3 Employees
-
-#### `GET /api/v1/employees`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Example:
-
-```http
-GET /api/v1/employees?page=0&size=10&keyword=staff
-Authorization: Bearer <admin-token>
-```
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Employees retrieved successfully",
-  "data": {
-    "content": [
-      {
-        "id": 3,
-        "username": "staff01",
-        "status": "ACTIVE",
-        "roleId": 3,
-        "roleName": "STAFF",
-        "fullName": "Staff One",
-        "employeeCode": "EMP001",
-        "email": "staff01@goldenheart.com",
-        "phone": "0900000001",
-        "branchId": null,
-        "branchName": null,
-        "dateOfBirth": "2001-01-10",
-        "gender": "Male",
-        "hireDate": "2026-04-10",
-        "salary": 7000000,
-        "address": "HCM City",
-        "internalNotes": "Night shift",
-        "createdAt": "2026-04-10T00:15:00",
-        "updatedAt": "2026-04-10T00:15:00"
-      }
-    ],
-    "page": 0,
-    "size": 10,
-    "totalElements": 1,
-    "totalPages": 1,
-    "last": true
-  },
-  "timestamp": "2026-04-10T00:16:00Z"
-}
-```
-
-#### `GET /api/v1/employees/{employeeId}`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Employee retrieved successfully",
-  "data": {
-    "id": 3,
-    "username": "staff01",
-    "status": "ACTIVE",
-    "roleId": 3,
-    "roleName": "STAFF",
-    "fullName": "Staff One",
-    "employeeCode": "EMP001",
-    "email": "staff01@goldenheart.com",
-    "phone": "0900000001",
-    "branchId": null,
-    "branchName": null,
-    "dateOfBirth": "2001-01-10",
-    "gender": "Male",
-    "hireDate": "2026-04-10",
-    "salary": 7000000,
-    "address": "HCM City",
-    "internalNotes": "Night shift",
-    "createdAt": "2026-04-10T00:15:00",
-    "updatedAt": "2026-04-10T00:15:00"
-  },
-  "timestamp": "2026-04-10T00:16:30Z"
-}
-```
-
-#### `POST /api/v1/employees`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Admin example:
-
-```json
-{
-  "username": "manager01",
-  "password": "Manager123",
-  "roleId": 2,
-  "fullName": "Manager One",
-  "employeeCode": "MGR001",
-  "email": "manager01@goldenheart.com",
-  "phone": "0900000002",
-  "branchId": null,
-  "dateOfBirth": "1995-05-10",
-  "gender": "Male",
-  "hireDate": "2026-04-10",
-  "salary": 15000000,
-  "address": "District 1",
-  "internalNotes": "Created by admin"
-}
-```
-
-Important:
-- If actor is `ADMIN`, `roleId` is required.
-- If actor is `MANAGER`, do not send `roleId`.
-- Manager-created employee will default to `STAFF`.
-
-#### `PUT /api/v1/employees/{employeeId}`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Example:
-
-```json
-{
-  "fullName": "Staff One Updated",
-  "phone": "0900000099",
-  "address": "District 3",
-  "salary": 8000000,
-  "status": "ACTIVE"
-}
-```
-
-#### `DELETE /api/v1/employees/{employeeId}`
-
-Auth:
-- `ADMIN`
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Employee deleted successfully",
-  "data": null,
-  "timestamp": "2026-04-10T00:22:00Z"
-}
-```
-
-#### `GET /api/v1/employees/me`
-
-Auth:
-- any authenticated user
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "My profile retrieved successfully",
-  "data": {
-    "id": 3,
-    "username": "staff01",
-    "status": "ACTIVE",
-    "roleName": "STAFF",
-    "fullName": "Staff One",
-    "employeeCode": "EMP001",
-    "email": "staff01@goldenheart.com",
-    "phone": "0900000001",
-    "branchId": null,
-    "branchName": null,
-    "dateOfBirth": "2001-01-10",
-    "gender": "Male",
-    "hireDate": "2026-04-10",
-    "address": "HCM City",
-    "createdAt": "2026-04-10T00:15:00",
-    "updatedAt": "2026-04-10T00:15:00"
-  },
-  "timestamp": "2026-04-10T00:20:00Z"
-}
-```
-
-#### `PUT /api/v1/employees/me`
-
-Auth:
-- any authenticated user
-
-Example:
-
-```json
-{
-  "fullName": "Staff Self Updated",
-  "email": "staff01.updated@goldenheart.com",
-  "phone": "0900000010",
-  "address": "Thu Duc",
-  "dateOfBirth": "2001-01-10",
-  "gender": "Male"
-}
-```
-
-### 6.4 Customers
-
-#### `GET /api/v1/customers`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Example:
-
-```http
-GET /api/v1/customers?page=0&size=10&keyword=nguyen
-Authorization: Bearer <manager-token>
-```
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Customers retrieved successfully",
-  "data": {
-    "content": [
-      {
-        "id": 1,
-        "customerCode": "CUS001",
-        "name": "Nguyen Van A",
-        "phone": "0911111111",
-        "email": "customerA@example.com",
-        "loyaltyPoints": 0,
-        "address": "HCM City",
-        "dateOfBirth": "2000-02-20",
-        "gender": "Male",
-        "note": "VIP",
-        "lastVisitAt": null,
-        "createdAt": "2026-04-10T00:30:00",
-        "updatedAt": "2026-04-10T00:30:00"
-      }
-    ],
-    "page": 0,
-    "size": 10,
-    "totalElements": 1,
-    "totalPages": 1,
-    "last": true
-  },
-  "timestamp": "2026-04-10T00:31:00Z"
-}
-```
-
-### 6.5 Menu Items
-
-#### `GET /api/v1/menu-items`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-- `STAFF`
-- `KITCHEN`
-
-Query params:
-- `keyword` optional
-- `branchId` optional
-- `categoryId` optional
-- `page` default `0`
-- `size` default `10`
-
-Example:
-
-```http
-GET /api/v1/menu-items?page=0&size=10&branchId=1&categoryId=1
-Authorization: Bearer <staff-token>
-```
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Menu items retrieved successfully",
-  "data": {
-    "content": [
-      {
-        "id": 1,
-        "branchId": 1,
-        "branchName": "Golden Heart Branch 1",
-        "categoryId": 1,
-        "categoryName": "Pho",
-        "name": "Pho Bo Tai",
-        "description": "Pho bo tai tai branch 1",
-        "price": 65000,
-        "status": "AVAILABLE",
-        "recipes": [
-          {
-            "ingredientId": 1,
-            "ingredientName": "Beef",
-            "unit": "gram",
-            "quantity": 120
-          },
-          {
-            "ingredientId": 2,
-            "ingredientName": "Rice Noodle",
-            "unit": "gram",
-            "quantity": 180
-          }
-        ]
-      }
-    ],
-    "page": 0,
-    "size": 10,
-    "totalElements": 1,
-    "totalPages": 1,
-    "last": true
-  },
-  "timestamp": "2026-04-10T00:40:00Z"
-}
-```
-
-#### `GET /api/v1/menu-items/{menuItemId}`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-- `STAFF`
-- `KITCHEN`
-
-#### `POST /api/v1/menu-items`
-
-Auth:
-- `ADMIN`
-
-Request:
-
-```json
-{
-  "branchId": 1,
-  "categoryId": 1,
-  "name": "Pho Bo Tai",
-  "description": "Pho bo tai tai branch 1",
-  "price": 65000,
-  "status": "AVAILABLE",
-  "recipes": [
-    {
-      "ingredientId": 1,
-      "quantity": 120
-    },
-    {
-      "ingredientId": 2,
-      "quantity": 180
-    },
-    {
-      "ingredientId": 3,
-      "quantity": 500
-    },
-    {
-      "ingredientId": 4,
-      "quantity": 20
-    }
-  ]
-}
-```
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Menu item created successfully",
-  "data": {
-    "id": 1,
-    "branchId": 1,
-    "branchName": "Golden Heart Branch 1",
-    "categoryId": 1,
-    "categoryName": "Pho",
-    "name": "Pho Bo Tai",
-    "description": "Pho bo tai tai branch 1",
-    "price": 65000,
-    "status": "AVAILABLE",
-    "recipes": [
-      {
-        "ingredientId": 1,
-        "ingredientName": "Beef",
-        "unit": "gram",
-        "quantity": 120
-      },
-      {
-        "ingredientId": 2,
-        "ingredientName": "Rice Noodle",
-        "unit": "gram",
-        "quantity": 180
-      },
-      {
-        "ingredientId": 3,
-        "ingredientName": "Broth",
-        "unit": "ml",
-        "quantity": 500
-      },
-      {
-        "ingredientId": 4,
-        "ingredientName": "Onion",
-        "unit": "gram",
-        "quantity": 20
-      }
-    ]
-  },
-  "timestamp": "2026-04-10T00:39:00Z"
-}
-```
-
-#### `PUT /api/v1/menu-items/{menuItemId}`
-
-Auth:
-- `ADMIN`
-
-Request:
-
-```json
-{
-  "branchId": 1,
-  "categoryId": 1,
-  "name": "Pho Bo Tai Special",
-  "description": "Updated pho item",
-  "price": 70000,
-  "status": "AVAILABLE",
-  "recipes": [
-    {
-      "ingredientId": 1,
-      "quantity": 140
-    },
-    {
-      "ingredientId": 2,
-      "quantity": 180
-    },
-    {
-      "ingredientId": 3,
-      "quantity": 550
-    },
-    {
-      "ingredientId": 4,
-      "quantity": 25
-    }
-  ]
-}
-```
-
-#### `DELETE /api/v1/menu-items/{menuItemId}`
-
-Auth:
-- `ADMIN`
-
-### 6.6 Kitchen
-
-#### `POST /api/v1/kitchen/order-items/{orderItemId}/complete`
-
-Auth:
-- `ADMIN`
-- `KITCHEN`
-
-No request body.
-
-This endpoint:
-- loads `order_item`
-- loads its `menu_item` recipe
-- locks inventory by branch and ingredient
-- deducts stock
-- creates `stock_movements`
-- updates `order_item.status` to `COMPLETED`
-- updates parent `order.status` to `PROCESSING` or `COMPLETED`
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Order item completed and stock deducted successfully",
-  "data": {
-    "orderItemId": 1,
-    "orderId": 1,
-    "menuItemName": "Pho Bo Tai",
-    "status": "COMPLETED",
-    "deductions": [
-      {
-        "ingredientId": 1,
-        "ingredientName": "Beef",
-        "unit": "gram",
-        "deductedQuantity": 240,
-        "remainingQuantity": 4760
-      },
-      {
-        "ingredientId": 2,
-        "ingredientName": "Rice Noodle",
-        "unit": "gram",
-        "deductedQuantity": 360,
-        "remainingQuantity": 7640
-      }
-    ]
-  },
-  "timestamp": "2026-04-10T00:50:00Z"
-}
-```
-
-#### `GET /api/v1/customers/{customerId}`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Customer retrieved successfully",
-  "data": {
-    "id": 1,
-    "customerCode": "CUS001",
-    "name": "Nguyen Van A",
-    "phone": "0911111111",
-    "email": "customerA@example.com",
-    "loyaltyPoints": 0,
-    "address": "HCM City",
-    "dateOfBirth": "2000-02-20",
-    "gender": "Male",
-    "note": "VIP",
-    "lastVisitAt": null,
-    "createdAt": "2026-04-10T00:30:00",
-    "updatedAt": "2026-04-10T00:30:00"
-  },
-  "timestamp": "2026-04-10T00:31:10Z"
-}
-```
-
-#### `POST /api/v1/customers`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Request:
-
-```json
-{
-  "name": "Nguyen Van A",
-  "email": "customerA@example.com",
-  "phone": "0911111111",
-  "customerCode": "CUS001",
-  "address": "HCM City",
-  "dateOfBirth": "2000-02-20",
-  "gender": "Male",
-  "note": "VIP"
-}
-```
-
-Sample response:
-
-```json
-{
-  "success": true,
-  "message": "Customer created successfully",
-  "data": {
-    "id": 1,
-    "customerCode": "CUS001",
-    "name": "Nguyen Van A",
-    "phone": "0911111111",
-    "email": "customerA@example.com",
-    "loyaltyPoints": 0,
-    "address": "HCM City",
-    "dateOfBirth": "2000-02-20",
-    "gender": "Male",
-    "note": "VIP",
-    "lastVisitAt": null,
-    "createdAt": "2026-04-10T00:30:00",
-    "updatedAt": "2026-04-10T00:30:00"
-  },
-  "timestamp": "2026-04-10T00:30:00Z"
-}
-```
-
-#### `PUT /api/v1/customers/{customerId}`
-
-Auth:
-- `ADMIN`
-- `MANAGER`
-
-Example:
-
-```json
-{
-  "name": "Nguyen Van A Updated",
-  "phone": "0922222222",
-  "address": "District 7",
-  "note": "Returned customer"
-}
-```
-
-#### `DELETE /api/v1/customers/{customerId}`
-
-Auth:
-- `ADMIN`
-
-Success response:
-
-```json
-{
-  "success": true,
-  "message": "Customer deleted successfully",
-  "data": null,
-  "timestamp": "2026-04-10T00:35:00Z"
-}
-```
-
-## 7. Best Postman Test Cases
-
-### Happy path
-
-1. Login admin.
-2. Get roles and store `managerRoleId` and `staffRoleId`.
-3. Create manager by admin.
-4. Login manager.
-5. Manager creates staff without roleId.
-6. Login staff.
-7. Staff gets own profile.
-8. Staff updates own profile.
-9. Admin creates customers.
-10. Manager lists customers and employees.
-
-### Negative path
-
-1. Login with wrong password -> `401`
-2. Register duplicate email -> `409`
-3. Create employee with duplicate username -> `409`
-4. Manager create employee with `roleId` -> `403`
-5. Manager update employee role -> `403`
-6. Staff get employee list -> `403`
-7. Admin delete self -> `403`
-8. Get missing customer -> `404`
-9. Refresh without cookie -> `401`
-
-## 8. Optional Reference Data
-
-If you want branch data available for future employee tests, run [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql).
-
-If you want 3 sample customers directly from MySQL Workbench, run [04_optional_seed_customers.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/04_optional_seed_customers.sql).
-
-If you want to test `menu-items`, run [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql).
-
-If you want to test the kitchen complete API after creating a menu item named `Pho Bo Tai`, run [06_seed_order_item_for_kitchen_test.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/06_seed_order_item_for_kitchen_test.sql).
-
-## 9. Full API Matrix
-
-| Method | Path | Auth | Main purpose |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/register` | Public | Customer self-register |
-| `POST` | `/api/v1/auth/login` | Public | Login and receive access token + refresh cookie |
-| `POST` | `/api/v1/auth/refresh` | Refresh cookie | Rotate tokens |
-| `POST` | `/api/v1/auth/logout` | Refresh cookie | Revoke refresh token and clear cookie |
-| `GET` | `/api/v1/roles` | `ADMIN`, `MANAGER` | Get role list |
-| `GET` | `/api/v1/employees` | `ADMIN`, `MANAGER` | Paginated employee list |
-| `GET` | `/api/v1/employees/{employeeId}` | `ADMIN`, `MANAGER` | Employee detail |
-| `POST` | `/api/v1/employees` | `ADMIN`, `MANAGER` | Create employee |
-| `PUT` | `/api/v1/employees/{employeeId}` | `ADMIN`, `MANAGER` | Update employee |
-| `DELETE` | `/api/v1/employees/{employeeId}` | `ADMIN` | Soft-delete employee |
-| `GET` | `/api/v1/employees/me` | Any authenticated user | View current profile |
-| `PUT` | `/api/v1/employees/me` | Any authenticated user | Update current profile |
-| `GET` | `/api/v1/customers` | `ADMIN`, `MANAGER` | Paginated customer list |
-| `GET` | `/api/v1/customers/{customerId}` | `ADMIN`, `MANAGER` | Customer detail |
-| `POST` | `/api/v1/customers` | `ADMIN`, `MANAGER` | Create customer |
-| `PUT` | `/api/v1/customers/{customerId}` | `ADMIN`, `MANAGER` | Update customer |
-| `DELETE` | `/api/v1/customers/{customerId}` | `ADMIN` | Soft-delete customer |
-| `GET` | `/api/v1/menu-items` | `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN` | List menu items |
-| `GET` | `/api/v1/menu-items/{menuItemId}` | `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN` | Menu item detail |
-| `POST` | `/api/v1/menu-items` | `ADMIN` | Create menu item with recipe |
-| `PUT` | `/api/v1/menu-items/{menuItemId}` | `ADMIN` | Update menu item with recipe |
-| `DELETE` | `/api/v1/menu-items/{menuItemId}` | `ADMIN` | Delete menu item |
-| `POST` | `/api/v1/kitchen/order-items/{orderItemId}/complete` | `ADMIN`, `KITCHEN` | Complete kitchen production and deduct stock |
-
-## 10. Postman Test Flow From Empty Database
-
-### Phase A. Prepare database
-
-1. Open MySQL Workbench.
-2. Run [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql).
-3. Start the backend.
-4. Wait until app starts successfully.
-5. Optional: run [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql).
-6. Optional: run [04_optional_seed_customers.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/04_optional_seed_customers.sql) if you want immediate customer data before testing list/detail APIs.
-7. Run [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql) before menu tests.
-
-Expected result:
-
-- tables are auto-created
-- roles are bootstrapped
-- admin account is created
-- branch `1` exists after reference seed
-- category `1` and ingredient ids `1..4` exist after menu inventory seed
-
-### Phase B. Import Postman artifacts
-
-1. Import [GoldenHeart-Restaurant.postman_collection.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant.postman_collection.json)
-2. Import [GoldenHeart-Restaurant.local.postman_environment.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant.local.postman_environment.json)
-3. Select environment `GoldenHeart Restaurant Local`
-
-### Phase C. Detailed test cases in execution order
-
-#### C1. Login admin
-
-- Request: `Auth / Login Admin`
-- Expected status: `200`
-- Why first: this gives you `adminAccessToken`
-
-Success example:
-
-```json
-{
-  "success": true,
-  "message": "Login successfully",
-  "data": {
-    "accessToken": "<jwt>",
-    "tokenType": "Bearer",
-    "expiresAt": "2026-04-10T00:25:00Z",
-    "username": "admin",
-    "role": "ADMIN"
-  },
-  "timestamp": "2026-04-10T00:10:00Z"
-}
-```
-
-#### C2. Get roles
-
-- Request: `Roles / Get Roles`
-- Expected status: `200`
-- After this request, Postman will store:
-  - `adminRoleId`
-  - `managerRoleId`
-  - `staffRoleId`
-  - `kitchenRoleId`
-  - `customerRoleId`
-
-#### C3. Create manager by admin
-
-- Request: `Employees / Create Manager By Admin`
-- Expected status: `201`
-- Postman stores `managerId`
-
-#### C4. Login manager
-
-- Request: `Auth / Login Manager`
-- Expected status: `200`
-- Postman stores `managerAccessToken`
-
-#### C5. Create staff by admin
-
-- Request: `Employees / Create Staff By Admin`
-- Expected status: `201`
-- Postman stores `staffId`
-
-#### C6. Login staff
-
-- Request: `Auth / Login Staff`
-- Expected status: `200`
-- Postman stores `staffAccessToken`
-
-#### C7. Staff view own profile
-
-- Request: `Employees / Staff Get My Profile`
-- Expected status: `200`
-
-#### C8. Staff update own profile
-
-- Request: `Employees / Staff Update My Profile`
-- Expected status: `200`
-
-#### C9. Manager creates a staff account without roleId
-
-- Request: `Employees / Manager Create Staff Without RoleId`
-- Expected status: `201`
-- Meaning: manager can create employee, but role is auto-defaulted to `STAFF`
-
-#### C10. Manager tries to create employee with roleId
-
-- Request: `Employees / Manager Create With RoleId Forbidden`
-- Expected status: `403`
-
-Error example:
-
-```json
-{
-  "success": false,
-  "message": "Manager cannot assign role when creating employee",
-  "errors": null,
-  "timestamp": "2026-04-10T00:15:00Z"
-}
-```
-
-#### C11. Manager updates employee basic info
-
-- Request: `Employees / Manager Update Employee Basic Info`
-- Expected status: `200`
-
-#### C12. Manager tries to update role
-
-- Request: `Employees / Manager Update Role Forbidden`
-- Expected status: `403`
-
-#### C13. Staff tries to list employees
-
-- Request: `Employees / Staff Get Employees Forbidden`
-- Expected status: `403`
-
-#### C14. Create customer 01 by admin
-
-- Request: `Customers / Create Customer 01`
-- Expected status: `201`
-- Postman stores `customerId`
-
-#### C15. Create customer 02 by manager
-
-- Request: `Customers / Create Customer 02`
-- Expected status: `201`
-
-#### C16. Create duplicate customer email
-
-- Request: `Customers / Create Customer Duplicate Email`
-- Expected status: `409`
-
-Conflict example:
-
-```json
-{
-  "success": false,
-  "message": "Email already exists",
-  "errors": null,
-  "timestamp": "2026-04-10T00:20:00Z"
-}
-```
-
-#### C17. Get customers list
-
-- Request: `Customers / Get Customers`
-- Expected status: `200`
-
-#### C18. Get customer by id
-
-- Request: `Customers / Get Customer By Id`
-- Expected status: `200`
-
-#### C19. Update customer
-
-- Request: `Customers / Update Customer`
-- Expected status: `200`
-
-#### C20. Delete customer
-
-- Request: `Customers / Delete Customer`
-- Expected status: `200`
-
-#### C21. Get deleted customer
-
-- Request: `Customers / Get Deleted Customer 404`
-- Expected status: `404`
-
-Not found example:
-
-```json
-{
-  "success": false,
-  "message": "Customer not found",
-  "errors": null,
-  "timestamp": "2026-04-10T00:25:00Z"
-}
-```
-
-#### C22. Refresh token
-
-- Request: `Auth / Refresh Current Session`
-- Expected status: `200`
-- Important: run this in the same Postman session after a successful login so the refresh cookie still exists
-
-#### C23. Logout
-
-- Request: `Auth / Logout Current Session`
-- Expected status: `200`
-
-#### C24. Create menu item
-
-- Request: `Menu / Create Menu Item Pho Bo Tai`
-- Expected status: `201`
-- Requires `branchId=1`, `categoryId=1`, `ingredientIds=1..4`
-- Postman stores `menuItemId`
-
-#### C25. Get menu items
-
-- Request: `Menu / Get Menu Items`
-- Expected status: `200`
-
-#### C26. Get menu item by id
-
-- Request: `Menu / Get Menu Item By Id`
-- Expected status: `200`
-
-#### C27. Update menu item
-
-- Request: `Menu / Update Menu Item`
-- Expected status: `200`
-
-#### C28. Seed order item for kitchen complete test
-
-1. Run [06_seed_order_item_for_kitchen_test.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/06_seed_order_item_for_kitchen_test.sql)
-2. Copy the returned `order_item_id`
-3. Put that value into Postman environment variable `orderItemId`
-
-#### C29. Complete kitchen order item
-
-- Request: `Kitchen / Complete Order Item As Admin`
-- Expected status: `200`
-- After success, inventory should decrease and a stock movement should be created
-
-### Phase D. Extra negative tests you should also run
-
-1. Wrong admin password on login -> expect `401`
-2. Register customer with duplicate email -> expect `409`
-3. Create employee with duplicate username -> expect `409`
-4. Admin delete self -> expect `403`
-5. Refresh without cookie -> expect `401`
-6. Create menu item duplicate name in same branch/category -> expect `409`
-7. Complete kitchen item twice -> expect `409`
-8. Complete kitchen item with insufficient stock -> expect `409`
-
-## 11. Suggested Manual DB Checks In MySQL Workbench
-
-After important phases, run these queries in Workbench.
-
-You can either run the snippets below one by one, or run [03_postman_db_check_queries.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/03_postman_db_check_queries.sql).
-
-### Check roles
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT id, name, description, created_at, updated_at, deleted_at
-FROM roles
-ORDER BY id;
-```
-
-### Check users and profiles
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    u.id,
-    u.username,
-    u.status,
-    u.role_id,
-    u.created_at,
-    u.updated_at,
-    u.deleted_at,
-    up.full_name,
-    up.employee_code,
-    up.email,
-    up.phone,
-    up.branch_id
-FROM users u
-LEFT JOIN user_profiles up ON up.user_id = u.id
-ORDER BY u.id;
-```
-
-### Check refresh tokens
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    id,
-    user_id,
-    token_hash,
-    expires_at,
-    revoked,
-    created_at,
-    last_used_at,
-    revoked_at
-FROM refresh_tokens
-ORDER BY id DESC;
-```
-
-### Check customers
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    id,
-    customer_code,
-    name,
-    email,
-    phone,
-    loyalty_points,
-    created_at,
-    updated_at,
-    deleted_at
-FROM customers
-ORDER BY id;
-```
-
-### Check menu items and recipes
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    mi.id,
-    mi.branch_id,
-    mi.category_id,
-    mi.name,
-    mi.price,
-    mi.status
-FROM menu_items mi
-ORDER BY mi.id;
-
-SELECT
-    r.id,
-    r.menu_item_id,
-    r.ingredient_id,
-    r.quantity
-FROM recipes r
-ORDER BY r.id;
-```
-
-### Check order items for kitchen test
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    o.id AS order_id,
-    o.status AS order_status,
-    oi.id AS order_item_id,
-    oi.menu_item_id,
-    oi.quantity,
-    oi.status AS order_item_status,
-    oi.note
-FROM order_items oi
-JOIN orders o ON o.id = oi.order_id
-ORDER BY oi.id;
-```
-
-### Check inventory after kitchen completion
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT
-    i.id,
-    i.branch_id,
-    i.ingredient_id,
-    i.quantity,
-    i.average_unit_cost
-FROM inventory i
-ORDER BY i.id;
-
-SELECT
-    sm.id,
-    sm.branch_id,
-    sm.ingredient_id,
-    sm.order_id,
-    sm.order_item_id,
-    sm.movement_type,
-    sm.quantity_change,
-    sm.balance_after,
-    sm.total_cost,
-    sm.occurred_at
-FROM stock_movements sm
-ORDER BY sm.id DESC;
-```
-
-## 12. Common Problems During Testing
-
-### App does not start
-
-- Cause: old schema mismatch from previous database
-- Fix: rerun [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql), then start app again
-
-### Refresh returns `401`
-
-- Cause: missing or revoked refresh cookie
-- Fix: login again first, then call refresh in the same Postman session
-
-### Employee create returns `409`
-
-- Cause: duplicate `username`, `email`, `phone`, or `employeeCode`
-- Fix: change values in request body
-
-### Customer create returns `409`
-
-- Cause: duplicate `email`, `phone`, or `customerCode`
-- Fix: change values in request body
-
-### `403 Forbidden` on list/detail endpoints
-
-- Cause: using `STAFF` or `CUSTOMER` token on admin/manager-only endpoints
-- Fix: switch back to `adminAccessToken` or `managerAccessToken`
-
-### Menu create returns `404`
-
-- Cause: `branchId`, `categoryId` or `ingredientId` does not exist
-- Fix: rerun [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql) and [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql)
-
-### Kitchen complete returns `409`
-
-- Possible causes:
-  - order item already completed
-  - order item was cancelled
-  - menu item has no recipe
-  - inventory not found
-  - not enough stock
-- Fix:
-  - reseed order item with [06_seed_order_item_for_kitchen_test.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/06_seed_order_item_for_kitchen_test.sql)
-  - verify inventory quantity in [03_postman_db_check_queries.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/03_postman_db_check_queries.sql)
-
-## 13. Practical Runbook
-
-This section is the fastest way to test the project from an empty database.
-
-### 13.1 Data You Should Add First
-
-Because some modules still do not have CRUD APIs for their master data, use SQL for the base records first.
-
-Run in this order:
-
-1. [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql)
-2. Start backend
-3. [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql)
-4. [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql)
-5. Optional: [04_optional_seed_customers.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/04_optional_seed_customers.sql)
-
-After those scripts, you should have:
-
-- `roles`: seeded automatically by app startup
-- `users`: at least admin account
-- `restaurants`: `id=1`
-- `branches`: `id=1`, `id=2`
-- `categories`: `id=1` for `Pho`, `id=2` for `Mi`
-- `ingredients`: `id=1..4`
-- `inventory`: stock records for branch `1`
-
-### 13.2 Runbook Table
-
-| Step | What to run | Type | Expected status | Seed/data needed first | Main tables affected |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Reset DB | Workbench SQL | Success in Workbench | None | Drops and recreates database |
-| 2 | Start backend | App run | App starts | Reset DB done | Auto-creates tables, seeds `roles`, creates admin user |
-| 3 | Seed branches | Workbench SQL | Success in Workbench | Backend must have started once | `restaurants`, `branches` |
-| 4 | Seed menu refs | Workbench SQL | Success in Workbench | Step 3 done | `categories`, `ingredients`, `inventory` |
-| 5 | `Auth / Login Admin` | Postman | `200` | Step 2 done | Inserts 1 row in `refresh_tokens` |
-| 6 | `Roles / Get Roles` | Postman | `200` | Step 5 done | No data change |
-| 7 | `Employees / Create Manager By Admin` | Postman | `201` | Step 6 done | `users`, `user_profiles` |
-| 8 | `Auth / Login Manager` | Postman | `200` | Step 7 done | Adds row in `refresh_tokens` |
-| 9 | `Employees / Create Staff By Admin` | Postman | `201` | Step 6 done | `users`, `user_profiles` |
-| 10 | `Auth / Login Staff` | Postman | `200` | Step 9 done | Adds row in `refresh_tokens` |
-| 11 | `Employees / Staff Get My Profile` | Postman | `200` | Step 10 done | No data change |
-| 12 | `Employees / Staff Update My Profile` | Postman | `200` | Step 10 done | Updates `user_profiles` |
-| 13 | `Employees / Manager Create Staff Without RoleId` | Postman | `201` | Step 8 done | `users`, `user_profiles` |
-| 14 | `Customers / Create Customer 01` | Postman | `201` | Step 5 done | `customers` |
-| 15 | `Customers / Create Customer 02` | Postman | `201` | Step 8 done | `customers` |
-| 16 | `Menu / Create Menu Item Pho Bo Tai` | Postman | `201` | Step 4 and Step 5 done | `menu_items`, `recipes` |
-| 17 | `Menu / Get Menu Items` | Postman | `200` | Step 16 done | No data change |
-| 18 | `Menu / Update Menu Item` | Postman | `200` | Step 16 done | Updates `menu_items`, replaces `recipes` |
-| 19 | Seed order item for kitchen test | Workbench SQL | Success in Workbench | Step 16 done | `orders`, `order_items` |
-| 20 | `Kitchen / Complete Order Item As Admin` | Postman | `200` | Step 19 done | Updates `order_items`, `orders`, `inventory`; inserts `stock_movements` |
-| 21 | `Auth / Refresh Current Session` | Postman | `200` | A valid cookie session exists | Revokes old `refresh_tokens` row, inserts new one |
-| 22 | `Auth / Logout Current Session` | Postman | `200` | A valid cookie session exists | Marks refresh token revoked |
-
-### 13.3 Detailed Step-By-Step Runbook
-
-#### Step 1. Reset database
-
-Run:
-
-- [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql)
-
-Expected:
-
-- Workbench runs without error
-- database `goldenheart_restaurant` exists
-
-Check:
-
-```sql
-SHOW DATABASES LIKE 'goldenheart_restaurant';
-```
-
-#### Step 2. Start backend
-
-Expected:
-
-- Spring Boot starts successfully
-- no schema mismatch error
-
-What should appear in DB right after app startup:
-
-- `roles` contains `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN`, `CUSTOMER`
-- `users` contains `admin`
-- `user_profiles` contains `System Admin`
-
-Check:
-
-```sql
-USE goldenheart_restaurant;
-
-SELECT id, name FROM roles ORDER BY id;
-
-SELECT id, username, role_id, status FROM users ORDER BY id;
-
-SELECT user_id, full_name, email FROM user_profiles ORDER BY user_id;
-```
-
-#### Step 3. Seed restaurant and branch data
-
-Run:
-
-- [02_seed_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/02_seed_reference_data.sql)
-
-Expected:
-
-- branch `1` exists
-- branch `2` exists
-
-Check:
-
-```sql
-SELECT id, restaurant_id, name FROM branches ORDER BY id;
-```
-
-#### Step 4. Seed category, ingredient and inventory data
-
-Run:
-
-- [05_seed_menu_inventory_reference_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_menu_inventory_reference_data.sql)
-
-Expected:
-
-- category `1` = `Pho`
-- category `2` = `Mi`
-- ingredient ids `1,2,3,4` exist
-- inventory exists for branch `1`
-
-Check:
-
-```sql
-SELECT id, name FROM categories ORDER BY id;
-SELECT id, name, unit FROM ingredients ORDER BY id;
-SELECT id, branch_id, ingredient_id, quantity FROM inventory ORDER BY id;
-```
-
-#### Step 5. Login as admin
-
-Run in Postman:
 
 - `Auth / Login Admin`
 
-Expected:
+Mục tiêu:
+
+- lấy `adminAccessToken`
+
+Kỳ vọng:
 
 - status `200`
-- response contains `accessToken`
-- Postman saves `adminAccessToken`
-- cookie jar stores refresh token
+- response có `accessToken`
+- Postman lưu `adminAccessToken`
+- cookie jar có `refreshToken`
 
-DB effect:
+### B2. Login sai mật khẩu
 
-- 1 new row in `refresh_tokens`
+Request:
 
-Check:
+- `Auth / Login Wrong Password`
 
-```sql
-SELECT id, user_id, revoked, expires_at
-FROM refresh_tokens
-ORDER BY id DESC;
-```
+Kỳ vọng:
 
-#### Step 6. Get roles
+- status `401`
 
-Run in Postman:
+### B3. Register customer tự do
 
-- `Roles / Get Roles`
+Request:
 
-Expected:
+- `Auth / Register Customer Self`
 
-- status `200`
-- Postman stores role ids into environment
+Mục tiêu:
 
-DB effect:
+- test luồng self-register của customer
 
-- no data change
-
-#### Step 7. Create manager by admin
-
-Run in Postman:
-
-- `Employees / Create Manager By Admin`
-
-Expected:
-
-- status `201`
-- response contains employee id
-- Postman stores `managerId`
-
-DB effect:
-
-- new row in `users`
-- new row in `user_profiles`
-
-Check:
-
-```sql
-SELECT u.id, u.username, u.role_id, up.full_name, up.employee_code, up.email
-FROM users u
-JOIN user_profiles up ON up.user_id = u.id
-WHERE u.username = 'manager01';
-```
-
-#### Step 8. Login manager
-
-Run in Postman:
-
-- `Auth / Login Manager`
-
-Expected:
-
-- status `200`
-- Postman stores `managerAccessToken`
-
-DB effect:
-
-- new row in `refresh_tokens`
-
-#### Step 9. Create staff by admin
-
-Run in Postman:
-
-- `Employees / Create Staff By Admin`
-
-Expected:
-
-- status `201`
-- Postman stores `staffId`
-
-DB effect:
-
-- new row in `users`
-- new row in `user_profiles`
-
-#### Step 10. Login staff
-
-Run in Postman:
-
-- `Auth / Login Staff`
-
-Expected:
-
-- status `200`
-- Postman stores `staffAccessToken`
-
-DB effect:
-
-- new row in `refresh_tokens`
-
-#### Step 11. Staff views own profile
-
-Run in Postman:
-
-- `Employees / Staff Get My Profile`
-
-Expected:
-
-- status `200`
-- returned profile does not contain salary
-
-DB effect:
-
-- no data change
-
-#### Step 12. Staff updates own profile
-
-Run in Postman:
-
-- `Employees / Staff Update My Profile`
-
-Expected:
-
-- status `200`
-- `fullName`, `email`, `phone`, `address` can change
-
-DB effect:
-
-- `user_profiles.updated_at` changes
-- current employee email/phone values change
-
-Check:
-
-```sql
-SELECT user_id, full_name, email, phone, address, updated_at
-FROM user_profiles
-WHERE user_id = {{staffId}};
-```
-
-In Workbench, replace `{{staffId}}` with the real id from Postman environment.
-
-#### Step 13. Manager creates another staff without roleId
-
-Run in Postman:
-
-- `Employees / Manager Create Staff Without RoleId`
-
-Expected:
-
-- status `201`
-- created employee gets default role `STAFF`
-
-DB effect:
-
-- new row in `users`
-- new row in `user_profiles`
-
-Check:
-
-```sql
-SELECT u.id, u.username, r.name AS role_name
-FROM users u
-JOIN roles r ON r.id = u.role_id
-WHERE u.username = 'staff02';
-```
-
-#### Step 14. Create first customer
-
-Run in Postman:
-
-- `Customers / Create Customer 01`
-
-Expected:
-
-- status `201`
-- Postman stores `customerId`
-
-DB effect:
-
-- new row in `customers`
-
-#### Step 15. Create second customer
-
-Run in Postman:
-
-- `Customers / Create Customer 02`
-
-Expected:
+Kỳ vọng:
 
 - status `201`
 
-DB effect:
+### B4. Register trùng email
 
-- another row in `customers`
+Request:
 
-#### Step 16. Create menu item
+- `Auth / Register Customer Duplicate Email`
 
-Run in Postman:
+Kỳ vọng:
 
-- `Menu / Create Menu Item Pho Bo Tai`
+- status `409`
 
-Expected:
+### B5. Refresh token
 
-- status `201`
-- Postman stores `menuItemId`
-
-DB effect:
-
-- 1 new row in `menu_items`
-- 4 new rows in `recipes`
-
-Check:
-
-```sql
-SELECT id, branch_id, category_id, name, price, status
-FROM menu_items
-ORDER BY id;
-
-SELECT id, menu_item_id, ingredient_id, quantity
-FROM recipes
-ORDER BY id;
-```
-
-#### Step 17. Get menu items
-
-Run in Postman:
-
-- `Menu / Get Menu Items`
-
-Expected:
-
-- status `200`
-- `STAFF` token can read menu items
-
-DB effect:
-
-- no data change
-
-#### Step 18. Update menu item
-
-Run in Postman:
-
-- `Menu / Update Menu Item`
-
-Expected:
-
-- status `200`
-- name becomes `Pho Bo Tai Special`
-- recipe quantities change
-
-DB effect:
-
-- row in `menu_items` updated
-- old recipe rows removed and replaced with new recipe rows
-
-#### Step 19. Seed order item for kitchen test
-
-Run:
-
-- [06_seed_order_item_for_kitchen_test.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/06_seed_order_item_for_kitchen_test.sql)
-
-Important:
-
-- this script looks for a menu item named `Pho Bo Tai`
-- if you already renamed it to `Pho Bo Tai Special`, either:
-  - run the kitchen seed before updating the menu item, or
-  - temporarily change the script/menu item name to match
-
-Expected:
-
-- one `orders` row exists with status `PENDING`
-- one `order_items` row exists with status `PENDING`
-
-What to do next:
-
-- copy returned `order_item_id`
-- paste it into Postman environment variable `orderItemId`
-
-#### Step 20. Complete order item in kitchen
-
-Run in Postman:
-
-- `Kitchen / Complete Order Item As Admin`
-
-Expected:
-
-- status `200`
-- `order_item.status = COMPLETED`
-- parent `order.status = PROCESSING` or `COMPLETED`
-- inventory quantities decrease
-- stock movement rows are inserted
-
-Check:
-
-```sql
-SELECT
-    o.id AS order_id,
-    o.status AS order_status,
-    oi.id AS order_item_id,
-    oi.status AS order_item_status
-FROM orders o
-JOIN order_items oi ON oi.order_id = o.id
-ORDER BY oi.id DESC;
-
-SELECT id, ingredient_id, quantity
-FROM inventory
-ORDER BY id;
-
-SELECT id, order_item_id, ingredient_id, movement_type, quantity_change, balance_after
-FROM stock_movements
-ORDER BY id DESC;
-```
-
-#### Step 21. Refresh token
-
-Run in Postman:
+Request:
 
 - `Auth / Refresh Current Session`
 
-Expected:
+Điều kiện:
+
+- đã login thành công trước đó trong cùng session Postman
+
+Kỳ vọng:
 
 - status `200`
-- new access token returned
+- access token mới được trả về
 
-DB effect:
+### B6. Refresh không có cookie
 
-- current refresh token row becomes `revoked = true`
-- new refresh token row is inserted
+Request:
 
-#### Step 22. Logout
+- `Auth / Refresh Without Cookie`
 
-Run in Postman:
+Kỳ vọng:
+
+- status `401`
+
+### B7. Logout
+
+Request:
 
 - `Auth / Logout Current Session`
 
-Expected:
+Kỳ vọng:
+
+- status `200`
+- refresh token bị revoke
+
+---
+
+## 8.3 Phase C - Roles và Employees
+
+### C1. Lấy danh sách role
+
+Request:
+
+- `Roles / Get Roles`
+
+Điều kiện:
+
+- đã login admin
+
+Kỳ vọng:
+
+- status `200`
+- Postman lưu `managerRoleId`, `staffRoleId`
+
+### C2. Tạo manager bằng admin
+
+Request:
+
+- `Employees / Create Manager By Admin`
+
+Kỳ vọng:
+
+- status `201`
+- Postman lưu `managerId`
+
+### C3. Login manager
+
+Request:
+
+- `Auth / Login Manager`
+
+Kỳ vọng:
+
+- status `200`
+- Postman lưu `managerAccessToken`
+
+### C4. Tạo staff bằng admin
+
+Request:
+
+- `Employees / Create Staff By Admin`
+
+Kỳ vọng:
+
+- status `201`
+- Postman lưu `staffId`
+
+### C5. Login staff
+
+Request:
+
+- `Auth / Login Staff`
+
+Kỳ vọng:
+
+- status `200`
+- Postman lưu `staffAccessToken`
+
+### C6. Tạo trùng username
+
+Request:
+
+- `Employees / Create Employee Duplicate Username`
+
+Kỳ vọng:
+
+- status `409`
+
+### C7. Manager tạo staff không truyền roleId
+
+Request:
+
+- `Employees / Manager Create Staff Without RoleId`
+
+Kỳ vọng:
+
+- status `201`
+- user mới mặc định nhận role `STAFF`
+
+### C8. Manager cố tình truyền roleId
+
+Request:
+
+- `Employees / Manager Create With RoleId Forbidden`
+
+Kỳ vọng:
+
+- status `403`
+
+### C9. Admin xem danh sách nhân viên
+
+Request:
+
+- `Employees / Get Employees Admin`
+
+Kỳ vọng:
 
 - status `200`
 
-DB effect:
+### C10. Xem chi tiết nhân viên
 
-- current refresh token row becomes revoked
+Request:
 
-### 13.4 Recommended Negative Test Order
+- `Employees / Get Employee By Id`
 
-Run these after the main happy path:
+Kỳ vọng:
 
-1. `Auth / Login Wrong Password`
-   Expected: `401`
-   DB effect: none
-2. `Auth / Register Customer Duplicate Email`
-   Expected: `409`
-   DB effect: none
-3. `Employees / Create Employee Duplicate Username`
-   Expected: `409`
-   DB effect: none
-4. `Employees / Manager Create With RoleId Forbidden`
-   Expected: `403`
-   DB effect: none
-5. `Employees / Manager Update Role Forbidden`
-   Expected: `403`
-   DB effect: none
-6. `Employees / Staff Get Employees Forbidden`
-   Expected: `403`
-   DB effect: none
-7. `Customers / Create Customer Duplicate Email`
-   Expected: `409`
-   DB effect: none
-8. `Menu / Create Menu Duplicate Name Conflict`
-   Expected: `409`
-   DB effect: none
-9. `Auth / Refresh Without Cookie`
-   Expected: `401`
-   DB effect: none
-10. `Employees / Admin Delete Self Forbidden`
-    Expected: `403`
-    DB effect: none
+- status `200`
 
-### 13.5 Best Practical Order If You Want The Smoothest Session
+### C11. Manager cập nhật thông tin nhân viên
 
-Use this exact order:
+Request:
 
-1. Reset DB
-2. Start backend
-3. Seed reference data
-4. Seed menu inventory reference data
-5. Login admin
-6. Get roles
-7. Create manager
-8. Login manager
-9. Create staff by admin
-10. Login staff
-11. Create customers
-12. Create menu item
-13. Get menu items
-14. Seed order item for kitchen
-15. Complete kitchen order item
-16. Run negative tests
-17. Run DB check script [03_postman_db_check_queries.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/03_postman_db_check_queries.sql)
+- `Employees / Manager Update Employee Basic Info`
+
+Kỳ vọng:
+
+- status `200`
+
+### C12. Manager cố cập nhật role
+
+Request:
+
+- `Employees / Manager Update Role Forbidden`
+
+Kỳ vọng:
+
+- status `403`
+
+### C13. Staff xem hồ sơ cá nhân
+
+Request:
+
+- `Employees / Staff Get My Profile`
+
+Kỳ vọng:
+
+- status `200`
+- response không lộ các trường nhạy cảm kiểu `salary`, `passwordHash`
+
+### C14. Staff tự cập nhật hồ sơ
+
+Request:
+
+- `Employees / Staff Update My Profile`
+
+Kỳ vọng:
+
+- status `200`
+
+### C15. Staff cố xem danh sách nhân viên
+
+Request:
+
+- `Employees / Staff Get Employees Forbidden`
+
+Kỳ vọng:
+
+- status `403`
+
+### C16. Admin xóa nhân viên
+
+Request:
+
+- `Employees / Admin Delete Employee`
+
+Kỳ vọng:
+
+- status `200`
+- đây là xóa mềm
+
+### C17. Admin cố xóa chính mình
+
+Request:
+
+- `Employees / Admin Delete Self Forbidden`
+
+Kỳ vọng:
+
+- status `403`
+
+---
+
+## 8.4 Phase D - Customers
+
+### D1. Tạo customer 01
+
+Request:
+
+- `Customers / Create Customer 01`
+
+Kỳ vọng:
+
+- status `201`
+- Postman lưu `customerId`
+
+### D2. Tạo customer 02
+
+Request:
+
+- `Customers / Create Customer 02`
+
+Kỳ vọng:
+
+- status `201`
+
+### D3. Tạo customer trùng email
+
+Request:
+
+- `Customers / Create Customer Duplicate Email`
+
+Kỳ vọng:
+
+- status `409`
+
+### D4. Lấy danh sách customer
+
+Request:
+
+- `Customers / Get Customers`
+
+Kỳ vọng:
+
+- status `200`
+
+### D5. Lấy customer theo id
+
+Request:
+
+- `Customers / Get Customer By Id`
+
+Kỳ vọng:
+
+- status `200`
+
+### D6. Cập nhật customer
+
+Request:
+
+- `Customers / Update Customer`
+
+Kỳ vọng:
+
+- status `200`
+
+### D7. Xóa customer
+
+Request:
+
+- `Customers / Delete Customer`
+
+Kỳ vọng:
+
+- status `200`
+- đây là xóa mềm
+
+### D8. Lấy lại customer đã xóa
+
+Request:
+
+- `Customers / Get Deleted Customer 404`
+
+Kỳ vọng:
+
+- status `404`
+
+---
+
+## 8.5 Phase E - Menu và Recipe
+
+### E1. Tạo menu item mới
+
+Request:
+
+- `Menu / Create Menu Item Pho Bo Chin`
+
+Kỳ vọng:
+
+- status `201`
+- Postman lưu `createdMenuItemId`
+
+Dữ liệu request hiện đang dùng:
+
+- `branchId = 1`
+- `categoryId = 1`
+- ingredient:
+  - `Beef`
+  - `Rice Noodle`
+
+### E2. Tạo menu trùng tên
+
+Request:
+
+- `Menu / Create Menu Duplicate Name Conflict`
+
+Kỳ vọng:
+
+- status `409`
+
+### E3. Lấy danh sách menu
+
+Request:
+
+- `Menu / Get Menu Items`
+
+Kỳ vọng:
+
+- status `200`
+
+### E4. Lấy menu theo id
+
+Request:
+
+- `Menu / Get Menu Item By Id`
+
+Kỳ vọng:
+
+- status `200`
+
+### E5. Cập nhật menu seed sẵn
+
+Request:
+
+- `Menu / Update Seeded Menu Item`
+
+Kỳ vọng:
+
+- status `200`
+
+Lưu ý:
+
+- request này đang update `menuItemId = 1`
+- món seed `Pho Bo Tai` sẽ được cập nhật lại recipe và giá
+
+---
+
+## 8.6 Phase F - Inventory, đơn vị tính, lịch sử, cảnh báo
+
+### F1. Lấy danh sách đơn vị tính
+
+Request:
+
+- `Inventory / Get Measurement Units`
+
+Kỳ vọng:
+
+- status `200`
+- Postman cập nhật lại các biến:
+  - `kgUnitId`
+  - `pieceUnitId`
+  - `literUnitId`
+  - `gramUnitId`
+  - `milliliterUnitId`
+
+### F2. Lấy danh sách inventory
+
+Request:
+
+- `Inventory / Get Inventory Items`
+
+Kỳ vọng:
+
+- status `200`
+
+### F3. Lấy chi tiết inventory item
+
+Request:
+
+- `Inventory / Get Inventory Item By Id`
+
+Kỳ vọng:
+
+- status `200`
+
+### F4. Tạo inventory item mới
+
+Request:
+
+- `Inventory / Create Inventory Item Chicken Egg As Admin`
+
+Kỳ vọng:
+
+- status `201`
+- Postman lưu `createdInventoryId`
+
+Ý nghĩa:
+
+- request này vừa tạo nguyên liệu mới kiểu `Chicken Egg Test API`
+- đồng thời tạo inventory record tương ứng
+
+### F5. Lấy danh sách cảnh báo tồn kho thấp
+
+Request:
+
+- `Inventory / Get Low Stock Alerts`
+
+Kỳ vọng:
+
+- status `200`
+- nếu item nào dưới `min_stock_level` thì response trả về danh sách alert + message tương ứng
+
+### F6. Cập nhật inventory mới tạo về quantity = 0
+
+Request:
+
+- `Inventory / Update Created Inventory Item Set Quantity Zero`
+
+Kỳ vọng:
+
+- status `200`
+
+Vì sao collection làm bước này:
+
+- service đang chặn xóa inventory nếu `quantity > 0`
+- nên request này là bước chuẩn bị trước khi xóa mềm
+
+### F7. Xem lịch sử thay đổi inventory
+
+Request:
+
+- `Inventory / Get Created Inventory History`
+
+Kỳ vọng:
+
+- status `200`
+- thấy được log tạo mới và log cập nhật số lượng
+
+### F8. Xóa inventory item vừa tạo
+
+Request:
+
+- `Inventory / Delete Created Inventory Item`
+
+Kỳ vọng:
+
+- status `200`
+- đây là xóa mềm
+
+Lưu ý:
+
+- request này nên chạy sau bước F6
+- nếu bạn chưa đưa quantity về `0`, API có thể từ chối xóa theo đúng business rule
+
+---
+
+## 8.7 Phase G - Kitchen
+
+### G1. Hoàn thành món bếp với order item seed sẵn
+
+Request:
+
+- `Kitchen / Complete Seeded Order Item As Admin`
+
+Kỳ vọng:
+
+- status `200`
+
+API này sẽ:
+
+- lấy `orderItemId = 1`
+- đọc recipe của món
+- kiểm tra tồn kho theo từng ingredient
+- trừ kho
+- ghi `stock_movements`
+- cập nhật trạng thái `order_item`
+
+Lưu ý rất quan trọng:
+
+- request này là kiểu gần như one-shot
+- nếu bạn đã complete `orderItemId = 1` rồi, chạy lại thường sẽ nhận `409`
+- đó là đúng logic nghiệp vụ, không phải lỗi Postman
+
+---
+
+## 9. Ma trận quyền nhanh để đối chiếu khi test
+
+### Auth
+
+- public:
+  - register
+  - login
+- cần refresh cookie:
+  - refresh
+  - logout
+
+### Roles
+
+- `ADMIN`, `MANAGER`: được xem
+
+### Employees
+
+- `ADMIN`: full mạnh nhất
+- `MANAGER`: create/read/update, nhưng không delete và không được tự gán role tùy ý
+- `STAFF`, `KITCHEN`: chỉ xem/sửa thông tin cá nhân
+
+### Customers
+
+- `ADMIN`, `MANAGER`: CRUD theo logic hiện tại
+- `ADMIN`: có quyền xóa
+
+### Menu
+
+- `ADMIN`: create/update/delete
+- `MANAGER`, `STAFF`, `KITCHEN`: chỉ get
+
+### Inventory
+
+- `ADMIN`, `MANAGER`: create/update/delete
+- `STAFF`, `KITCHEN`: chỉ get
+
+### Kitchen complete
+
+- `ADMIN`, `KITCHEN`: được complete món
+
+---
+
+## 10. Những request nào nên chạy theo thứ tự cố định
+
+Các request dưới đây nên chạy theo đúng thứ tự vì có phụ thuộc dữ liệu:
+
+1. `Auth / Login Admin`
+2. `Roles / Get Roles`
+3. `Employees / Create Manager By Admin`
+4. `Auth / Login Manager`
+5. `Employees / Create Staff By Admin`
+6. `Auth / Login Staff`
+7. `Menu / Create Menu Item Pho Bo Chin`
+8. `Inventory / Create Inventory Item Chicken Egg As Admin`
+9. `Inventory / Update Created Inventory Item Set Quantity Zero`
+10. `Inventory / Get Created Inventory History`
+11. `Inventory / Delete Created Inventory Item`
+12. `Kitchen / Complete Seeded Order Item As Admin`
+
+Lý do:
+
+- một số request sẽ tạo ra ID mới cho request sau
+- một số request test đúng business rule, ví dụ phải update quantity về `0` rồi mới delete inventory
+
+---
+
+## 11. Kiểm tra DB sau khi test
+
+Khi muốn soi DB nhanh sau một phase test, chạy:
+
+- `sql/03_postman_db_check_queries.sql`
+
+File này đã có sẵn các section:
+
+- roles
+- users_and_profiles
+- refresh_tokens
+- customers
+- measurement_units
+- ingredients_with_units
+- inventory
+- inventory_low_stock_alerts
+- inventory_action_logs
+- menu_items
+- recipes
+- orders_and_order_items
+- stock_movements
+
+Gợi ý:
+
+- sau phase Auth: xem `refresh_tokens`
+- sau phase Employees: xem `users_and_profiles`
+- sau phase Customers: xem `customers`
+- sau phase Menu: xem `menu_items`, `recipes`
+- sau phase Inventory: xem `inventory`, `inventory_action_logs`, `inventory_low_stock_alerts`
+- sau phase Kitchen: xem `orders_and_order_items`, `stock_movements`, `inventory`
+
+---
+
+## 12. Các lỗi thường gặp và cách hiểu đúng
+
+### `401 Unauthorized`
+
+Nguyên nhân thường gặp:
+
+- access token sai
+- token hết hạn
+- refresh không có cookie
+
+### `403 Forbidden`
+
+Nguyên nhân thường gặp:
+
+- đúng là bạn đã login, nhưng role không đủ quyền
+- ví dụ staff đi gọi API list employee
+
+### `404 Not Found`
+
+Nguyên nhân thường gặp:
+
+- record không tồn tại
+- record đã bị xóa mềm
+
+### `409 Conflict`
+
+Nguyên nhân thường gặp:
+
+- trùng email/username/customerCode
+- complete lại order item đã hoàn thành
+- tạo menu trùng tên trong phạm vi bị ràng buộc
+- xóa inventory không hợp lệ theo business rule
+
+### `500 Internal Server Error`
+
+Nếu còn gặp `500`, nên kiểm tra theo thứ tự:
+
+1. request body có đúng JSON không
+2. environment variable có bị rỗng không
+3. DB đã seed đúng theo file `02` chưa
+4. terminal backend báo lỗi gì
+
+---
+
+## 13. Runbook nhanh nhất nếu bạn chỉ muốn test một mạch
+
+Nếu muốn test nhanh toàn bộ luồng chính, làm đúng thứ tự này:
+
+1. chạy `01_reset_local_database.sql`
+2. start app
+3. chạy `02_seed_reference_data.sql`
+4. import collection + environment
+5. chọn environment local
+6. chạy `Auth / Login Admin`
+7. chạy `Roles / Get Roles`
+8. chạy `Employees / Create Manager By Admin`
+9. chạy `Auth / Login Manager`
+10. chạy `Employees / Create Staff By Admin`
+11. chạy `Auth / Login Staff`
+12. chạy `Employees / Staff Get My Profile`
+13. chạy `Customers / Create Customer 01`
+14. chạy `Customers / Get Customers`
+15. chạy `Menu / Get Menu Items`
+16. chạy `Menu / Create Menu Item Pho Bo Chin`
+17. chạy `Menu / Update Seeded Menu Item`
+18. chạy `Inventory / Get Measurement Units`
+19. chạy `Inventory / Get Inventory Items`
+20. chạy `Inventory / Create Inventory Item Chicken Egg As Admin`
+21. chạy `Inventory / Update Created Inventory Item Set Quantity Zero`
+22. chạy `Inventory / Get Created Inventory History`
+23. chạy `Inventory / Delete Created Inventory Item`
+24. chạy `Inventory / Get Low Stock Alerts`
+25. chạy `Kitchen / Complete Seeded Order Item As Admin`
+26. chạy `Auth / Refresh Current Session`
+27. chạy `Auth / Logout Current Session`
+28. chạy `03_postman_db_check_queries.sql` để kiểm tra DB
+
+---
+
+## 14. Kết luận
+
+Ở trạng thái hiện tại, bạn không cần tạo dữ liệu tay để test các nhóm chính nữa. Chỉ cần:
+
+1. reset DB
+2. start app
+3. seed file `02`
+4. import Postman
+5. test theo đúng thứ tự trong tài liệu này
+
+Nếu về sau bạn thêm API mới, cách cập nhật guide tốt nhất là:
+
+- thêm request vào collection trước
+- thêm hoặc cập nhật biến trong environment nếu cần
+- rồi mới cập nhật lại tài liệu này để tên request và thứ tự test luôn khớp 1:1 với Postman

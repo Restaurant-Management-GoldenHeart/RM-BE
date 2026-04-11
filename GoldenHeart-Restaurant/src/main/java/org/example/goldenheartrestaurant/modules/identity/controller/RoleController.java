@@ -16,7 +16,9 @@ import java.util.List;
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
 /**
- * Read-only role lookup endpoint used by admin/manager screens.
+ * Endpoint đọc danh sách role phục vụ màn hình quản trị và các flow cần map role id.
+ *
+ * Role ở đây chỉ cho xem, không có API sửa/xóa role trong phạm vi hiện tại của dự án.
  */
 public class RoleController {
 

@@ -25,7 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 /**
- * Public authentication API for register, login, refresh and logout.
+ * Controller public cho các thao tác xác thực cơ bản:
+ * - register
+ * - login
+ * - refresh
+ * - logout
  */
 public class AuthController {
 
@@ -53,7 +57,8 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(HttpServletRequest request) {
-        // Refresh token is intentionally read from cookie rather than request body.
+        // Refresh token được đọc từ cookie thay vì body để giảm nguy cơ frontend
+        // thao tác trực tiếp với token nhạy cảm này.
         String refreshToken = readCookie(request, jwtProperties.getRefreshCookieName());
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new IllegalArgumentException("Refresh token cookie is missing");
@@ -67,6 +72,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         String refreshToken = readCookie(request, jwtProperties.getRefreshCookieName());
         if (refreshToken != null && !refreshToken.isBlank()) {
+            // Nếu có refresh token trong cookie thì revoke luôn phía server.
             authService.logout(refreshToken);
         }
 
@@ -78,7 +84,8 @@ public class AuthController {
     }
 
     private ResponseEntity<ApiResponse<AuthResponse>> buildTokenResponse(String message, IssuedTokens issuedTokens) {
-        // Only access token is returned in JSON. Refresh token is written to Set-Cookie.
+        // Chỉ access token trả về trong JSON response body.
+        // Refresh token sẽ được đẩy vào cookie HttpOnly ở header Set-Cookie.
         AuthResponse response = AuthResponse.builder()
                 .accessToken(issuedTokens.accessToken())
                 .tokenType("Bearer")
@@ -103,6 +110,7 @@ public class AuthController {
 
         for (Cookie cookie : cookies) {
             if (cookieName.equals(cookie.getName())) {
+                // Trả đúng giá trị cookie theo tên đã cấu hình.
                 return cookie.getValue();
             }
         }

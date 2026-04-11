@@ -18,7 +18,12 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 /**
- * Customer management use cases with explicit uniqueness validation.
+ * Service xử lý nghiệp vụ khách hàng.
+ *
+ * Các rule chính nằm ở đây:
+ * - tìm kiếm phân trang
+ * - uniqueness cho email / phone / customerCode
+ * - soft delete thông qua repository / entity
  */
 public class CustomerService {
 
@@ -61,7 +66,8 @@ public class CustomerService {
                 .note(request.note())
                 .build();
 
-        // New customers start with zero loyalty points; future order/billing flows can increase this.
+        // Khách mới luôn bắt đầu từ 0 loyalty point.
+        // Sau này order/billing flow có thể tăng điểm.
         return toCustomerResponse(customerRepository.save(customer));
     }
 

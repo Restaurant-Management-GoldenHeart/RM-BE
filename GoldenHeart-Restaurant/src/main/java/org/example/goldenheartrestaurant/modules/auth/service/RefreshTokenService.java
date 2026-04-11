@@ -16,7 +16,13 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 /**
- * Stores server-side state for refresh tokens so long-lived sessions can be revoked and rotated.
+ * Service quản lý vòng đời refresh token ở phía server.
+ *
+ * Ý nghĩa:
+ * - không chỉ tin vào JWT tự chứa
+ * - cho phép revoke token
+ * - cho phép rotation khi refresh
+ * - hỗ trợ logout thật sự
  */
 public class RefreshTokenService {
 
@@ -24,7 +30,8 @@ public class RefreshTokenService {
 
     /**
      * Lưu refresh token dưới dạng hash.
-     * Backend không lưu raw token để giảm thiểu rủi ro nếu DB bị lộ.
+     *
+     * Backend không lưu raw token để giảm thiểu rủi ro nếu database bị lộ.
      */
     @Transactional
     public RefreshToken store(User user, String rawRefreshToken, LocalDateTime expiresAt) {
@@ -48,7 +55,8 @@ public class RefreshTokenService {
      */
     @Transactional(readOnly = true)
     public RefreshToken requireActiveToken(String rawRefreshToken, String expectedUsername) {
-        // Signature validation alone is not enough here; token must still be active in DB too.
+        // Chữ ký JWT đúng là chưa đủ.
+        // Token còn phải tồn tại và còn hiệu lực trong DB.
         RefreshToken storedToken = refreshTokenRepository.findByTokenHash(hashToken(rawRefreshToken))
                 .orElseThrow(() -> new JwtException("Refresh token is not recognized"));
 
@@ -70,7 +78,7 @@ public class RefreshTokenService {
     @Transactional
     public void revoke(RefreshToken refreshToken) {
         if (!refreshToken.isRevoked()) {
-            // These timestamps make later audit or suspicious-session analysis easier.
+            // Lưu thêm thời điểm revoke / last used để sau này audit session dễ hơn.
             refreshToken.setRevoked(true);
             refreshToken.setRevokedAt(LocalDateTime.now());
             refreshToken.setLastUsedAt(LocalDateTime.now());
@@ -91,11 +99,13 @@ public class RefreshTokenService {
             StringBuilder builder = new StringBuilder();
 
             for (byte value : digest) {
+                // Chuyển mảng byte sang chuỗi hex để lưu DB.
                 builder.append(String.format("%02x", value));
             }
 
             return builder.toString();
         } catch (NoSuchAlgorithmException exception) {
+            // SHA-256 gần như luôn có; nếu lỗi ở đây thì là lỗi môi trường runtime.
             throw new IllegalStateException("SHA-256 is not available", exception);
         }
     }

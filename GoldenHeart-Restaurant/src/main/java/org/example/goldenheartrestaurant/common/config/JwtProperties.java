@@ -13,7 +13,12 @@ import java.time.Duration;
 @Validated
 @ConfigurationProperties(prefix = "app.security.jwt")
 /**
- * Central JWT and refresh-cookie configuration loaded from application properties.
+ * Nơi gom toàn bộ cấu hình liên quan đến JWT và refresh-token cookie.
+ *
+ * Ý nghĩa:
+ * - tách cấu hình ra khỏi code nghiệp vụ
+ * - dễ thay đổi theo từng môi trường local / staging / production
+ * - tránh hard-code secret, issuer, thời gian sống của token ngay trong service
  */
 public class JwtProperties {
 
@@ -35,5 +40,6 @@ public class JwtProperties {
 
     private String refreshCookieSameSite = "Strict";
 
+    // Chỉ cho cookie refresh đi vào nhóm endpoint auth để thu hẹp phạm vi gửi cookie.
     private String refreshCookiePath = "/api/v1/auth";
 }

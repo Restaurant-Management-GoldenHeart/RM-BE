@@ -33,9 +33,12 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 /**
- * Handles menu CRUD plus recipe maintenance.
+ * Service xử lý CRUD menu và đồng bộ recipe.
  *
- * The main tricky area is keeping recipe rows in sync when an admin edits a dish definition.
+ * Điểm khó nhất ở đây là:
+ * - kiểm tra uniqueness của tên món theo branch + category
+ * - validate recipe không bị trùng ingredient
+ * - thay recipe cũ bằng recipe mới một cách nhất quán khi update món
  */
 public class MenuManagementService {
 
@@ -67,6 +70,9 @@ public class MenuManagementService {
 
     @Transactional
     public MenuItemResponse createMenuItem(CreateMenuItemRequest request) {
+        // Trước khi tạo món phải kiểm tra:
+        // - tên món có bị trùng trong cùng branch/category hay không
+        // - recipe có bị lặp ingredient hay không
         validateMenuUniqueness(request.branchId(), request.categoryId(), request.name(), null);
         validateRecipeRequests(request.recipes());
 
@@ -86,7 +92,8 @@ public class MenuManagementService {
 
     @Transactional
     public MenuItemResponse updateMenuItem(Integer menuItemId, UpdateMenuItemRequest request) {
-        MenuItem menuItem = getMenuItemOrThrow(menuItemId);
+        MenuItem menuItem = menuItemRepository.findById(menuItemId)
+                .orElseThrow(() -> new NotFoundException("Menu item not found"));
         validateMenuUniqueness(request.branchId(), request.categoryId(), request.name(), menuItemId);
         validateRecipeRequests(request.recipes());
 
@@ -97,13 +104,15 @@ public class MenuManagementService {
         menuItem.setPrice(request.price());
         menuItem.setStatus(resolveMenuStatus(request.status()));
 
-        // Replace-all strategy:
-        // the incoming request becomes the full source of truth for the menu item's recipe.
-        recipeRepository.deleteByMenuItemId(menuItemId);
-        menuItem.getRecipes().clear();
-        replaceRecipes(menuItem, request.recipes());
+        // Save trước để các field chính của menu item được cập nhật ổn định.
+        MenuItem savedMenuItem = menuItemRepository.saveAndFlush(menuItem);
 
-        return toMenuItemResponse(menuItemRepository.save(menuItem));
+        // Xóa toàn bộ recipe cũ rồi insert recipe mới.
+        // Cách này đơn giản và an toàn hơn so với việc diff từng dòng recipe.
+        recipeRepository.deleteByMenuItemId(menuItemId);
+        recipeRepository.saveAll(buildRecipes(savedMenuItem, request.recipes()));
+
+        return toMenuItemResponse(getMenuItemOrThrow(menuItemId));
     }
 
     @Transactional
@@ -112,19 +121,7 @@ public class MenuManagementService {
     }
 
     private void replaceRecipes(MenuItem menuItem, List<RecipeIngredientRequest> recipes) {
-        for (RecipeIngredientRequest recipeRequest : recipes) {
-            Ingredient ingredient = ingredientRepository.findById(recipeRequest.ingredientId())
-                    .orElseThrow(() -> new NotFoundException("Ingredient not found: " + recipeRequest.ingredientId()));
-
-            menuItem.getRecipes().add(
-                    Recipe.builder()
-                            .menuItem(menuItem)
-                            .ingredient(ingredient)
-                            // This quantity is later multiplied by order item quantity in kitchen stock deduction.
-                            .quantity(recipeRequest.quantity())
-                            .build()
-            );
-        }
+        menuItem.getRecipes().addAll(buildRecipes(menuItem, recipes));
     }
 
     private void validateRecipeRequests(List<RecipeIngredientRequest> recipes) {
@@ -132,7 +129,8 @@ public class MenuManagementService {
 
         for (RecipeIngredientRequest recipe : recipes) {
             if (!ingredientIds.add(recipe.ingredientId())) {
-                // Duplicate ingredient lines would make stock consumption ambiguous.
+                // Nếu cùng một ingredient xuất hiện 2 lần trong recipe,
+                // nghiệp vụ trừ kho về sau sẽ mơ hồ và dễ sai.
                 throw new ConflictException("Duplicate ingredient in recipe: " + recipe.ingredientId());
             }
         }
@@ -160,6 +158,7 @@ public class MenuManagementService {
 
     private MenuItemStatus resolveMenuStatus(String status) {
         if (!StringUtils.hasText(status)) {
+            // Không truyền status thì mặc định món đang bán được.
             return MenuItemStatus.AVAILABLE;
         }
         return MenuItemStatus.valueOf(status.trim().toUpperCase());
@@ -167,6 +166,21 @@ public class MenuManagementService {
 
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
+    }
+
+    private List<Recipe> buildRecipes(MenuItem menuItem, List<RecipeIngredientRequest> recipes) {
+        return recipes.stream()
+                .map(recipeRequest -> {
+                    Ingredient ingredient = ingredientRepository.findById(recipeRequest.ingredientId())
+                            .orElseThrow(() -> new NotFoundException("Ingredient not found: " + recipeRequest.ingredientId()));
+
+                    return Recipe.builder()
+                            .menuItem(menuItem)
+                            .ingredient(ingredient)
+                            .quantity(recipeRequest.quantity())
+                            .build();
+                })
+                .toList();
     }
 
     private MenuItem getMenuItemOrThrow(Integer menuItemId) {
@@ -189,7 +203,7 @@ public class MenuManagementService {
                         .map(recipe -> new RecipeResponse(
                                 recipe.getIngredient().getId(),
                                 recipe.getIngredient().getName(),
-                                recipe.getIngredient().getUnit(),
+                                recipe.getIngredient().resolveUnitSymbol(),
                                 recipe.getQuantity()
                         ))
                         .toList()

@@ -11,10 +11,13 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 /**
- * Loads application users for Spring Security.
+ * Service trung gian để Spring Security lấy user từ database.
  *
- * Both login and request-time JWT authentication reuse this service so permissions always reflect
- * the latest persisted user/role state.
+ * Cả hai luồng đều dùng class này:
+ * - lúc login bằng username/password
+ * - lúc JwtAuthenticationFilter xác thực token ở các request sau
+ *
+ * Nhờ đó quyền luôn phản ánh dữ liệu mới nhất trong DB.
  */
 public class CustomUserDetailsService implements UserDetailsService {
 
@@ -22,7 +25,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // Repository method is the gatekeeper for which accounts are allowed to authenticate.
+        // Repository này đóng vai trò "cổng kiểm tra" xem account nào còn được phép đăng nhập.
         User user = userRepository.findActiveAuthUserByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 

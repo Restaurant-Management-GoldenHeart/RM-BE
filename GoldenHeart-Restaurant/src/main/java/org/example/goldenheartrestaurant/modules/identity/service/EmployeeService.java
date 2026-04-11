@@ -31,11 +31,14 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 /**
- * Employee domain service.
+ * Service xử lý nghiệp vụ nhân viên.
  *
- * Important design choice: some authorization is duplicated here even though controllers already use
- * @PreAuthorize, because rules like "manager cannot assign role" are business constraints, not just
- * simple role membership checks.
+ * Đây là tầng chứa các rule quan trọng về sản phẩm:
+ * - ai được tạo nhân viên
+ * - ai được gán role
+ * - ai được sửa field nào
+ * - uniqueness của username / email / phone / employeeCode
+ * - soft delete đúng thứ tự giữa User và UserProfile
  */
 public class EmployeeService {
 
@@ -74,7 +77,8 @@ public class EmployeeService {
         boolean isAdmin = hasRole(currentUser, ROLE_ADMIN);
         boolean isManager = hasRole(currentUser, ROLE_MANAGER);
 
-        // Service-layer validation keeps permission-sensitive write rules close to the mutation itself.
+        // Validate ở tầng service để tránh việc controller chỉ chặn role thô,
+        // còn rule nghiệp vụ cụ thể bị bỏ sót.
         validateCreateRequest(request, isAdmin, isManager);
 
         Role role = resolveRoleForCreate(request.roleId(), isAdmin);
@@ -104,6 +108,8 @@ public class EmployeeService {
                 .internalNotes(request.internalNotes())
                 .build();
 
+        // User là entity cha, profile là entity con 1-1.
+        // Gắn ngược lại để JPA cascade lưu đúng quan hệ.
         user.setProfile(profile);
 
         return toEmployeeResponse(userRepository.save(user));
@@ -119,8 +125,8 @@ public class EmployeeService {
             throw new ForbiddenException("You do not have permission to update employees");
         }
 
+        // Manager được sửa thông tin nghiệp vụ cơ bản nhưng không được thay role.
         if (!isAdmin && request.roleId() != null) {
-            // Manager can create employees but cannot choose arbitrary roles.
             throw new ForbiddenException("Manager cannot change employee role");
         }
 
@@ -165,6 +171,7 @@ public class EmployeeService {
             profile.setInternalNotes(request.internalNotes());
         }
         if (request.status() != null) {
+            // Chuẩn hóa sang uppercase để tránh lỗi nhập status thường / hoa-thường lẫn lộn.
             employee.setStatus(UserStatus.valueOf(request.status().trim().toUpperCase()));
         }
         if (isAdmin && request.roleId() != null && !request.roleId().equals(employee.getRole().getId())) {
@@ -180,11 +187,14 @@ public class EmployeeService {
             throw new ForbiddenException("Only admin can delete employees");
         }
         if (employeeId.equals(currentUser.getUserId())) {
-            // Prevent accidental self-delete of the current authenticated account.
+            // Chặn admin tự xóa chính mình để tránh mất tài khoản điều hành cuối cùng.
             throw new ForbiddenException("You cannot delete your own account");
         }
 
         User employee = getEmployeeOrThrow(employeeId);
+
+        // Xóa mềm profile trước để null hóa activeEmail / activePhone,
+        // tránh vướng unique constraint khi tạo user mới sau này.
         userProfileRepository.softDeleteByUserId(employeeId);
         userRepository.delete(employee);
     }
@@ -230,16 +240,21 @@ public class EmployeeService {
         if (!isAdmin && !isManager) {
             throw new ForbiddenException("You do not have permission to create employees");
         }
+
+        // Manager không được chỉ định role trong request để tránh leo quyền.
         if (!isAdmin && request.roleId() != null) {
-            // Managers are limited to creating operational STAFF accounts.
             throw new ForbiddenException("Manager cannot assign role when creating employee");
         }
+
+        // Admin tạo nhân viên thì phải nói rõ role cần gán.
         if (isAdmin && request.roleId() == null) {
             throw new ConflictException("Role is required for admin when creating employee");
         }
+
         if (userRepository.existsByUsernameIgnoreCase(request.username())) {
             throw new ConflictException("Username already exists");
         }
+
         validateEmailForCreate(request.email());
         validatePhoneForCreate(request.phone());
         validateEmployeeCodeForCreate(request.employeeCode());
@@ -250,7 +265,7 @@ public class EmployeeService {
             return resolveRoleById(roleId);
         }
 
-        // Manager-created accounts default to STAFF to avoid privilege escalation by request body tampering.
+        // Manager tạo user thì luôn rơi về STAFF để chặn privilege escalation.
         return roleRepository.findByNameIgnoreCase(ROLE_STAFF)
                 .orElseThrow(() -> new NotFoundException("Default STAFF role not found"));
     }
@@ -348,6 +363,7 @@ public class EmployeeService {
         UserProfile profile = user.getProfile();
         Branch branch = profile.getBranch();
 
+        // DTO self-response chủ ý không trả salary / internalNotes để tránh lộ thông tin nhạy cảm.
         return new EmployeeSelfResponse(
                 user.getId(),
                 user.getUsername(),

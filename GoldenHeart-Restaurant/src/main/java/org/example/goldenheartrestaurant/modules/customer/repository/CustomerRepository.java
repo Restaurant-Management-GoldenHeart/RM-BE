@@ -10,6 +10,14 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Repository của Customer.
+ *
+ * Tập trung vào 3 nhóm việc:
+ * - search phân trang
+ * - check uniqueness cho các field business key
+ * - update loyalty point theo id
+ */
 public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     @Query("""

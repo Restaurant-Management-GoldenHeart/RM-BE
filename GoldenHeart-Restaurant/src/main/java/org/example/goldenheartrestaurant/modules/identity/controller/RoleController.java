@@ -5,7 +5,7 @@ import org.example.goldenheartrestaurant.common.response.ApiResponse;
 import org.example.goldenheartrestaurant.modules.identity.dto.response.RoleResponse;
 import org.example.goldenheartrestaurant.modules.identity.repository.RoleRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,7 +25,7 @@ public class RoleController {
     private final RoleRepository roleRepository;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<List<RoleResponse>>> getRoles() {
         List<RoleResponse> roles = roleRepository.findAllByOrderByNameAsc()
                 .stream()

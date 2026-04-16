@@ -2,6 +2,10 @@ package org.example.goldenheartrestaurant.modules.inventory.repository;
 
 import org.example.goldenheartrestaurant.modules.inventory.entity.StockMovement;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.math.BigDecimal;
 
 /**
  * Repository log biến động kho.
@@ -17,4 +21,11 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, In
      * ví dụ đổi đơn vị đo hoặc xóa ingredient khi đã có movement.
      */
     boolean existsByIngredientId(Integer ingredientId);
+
+    @Query("""
+            select coalesce(sum(sm.totalCost), 0)
+            from StockMovement sm
+            where sm.order.id = :orderId
+            """)
+    BigDecimal sumTotalCostByOrderId(@Param("orderId") Integer orderId);
 }

@@ -14,7 +14,7 @@ import org.example.goldenheartrestaurant.modules.inventory.dto.response.Measurem
 import org.example.goldenheartrestaurant.modules.inventory.service.InventoryManagementService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -43,7 +43,7 @@ public class InventoryController {
     private final InventoryManagementService inventoryManagementService;
 
     @GetMapping("/units")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','KITCHEN')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<List<MeasurementUnitResponse>>> getMeasurementUnits() {
         return ResponseEntity.ok(
                 ApiResponse.<List<MeasurementUnitResponse>>builder()
@@ -54,7 +54,7 @@ public class InventoryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','KITCHEN')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<PageResponse<InventoryItemResponse>>> getInventoryItems(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer branchId,
@@ -71,7 +71,7 @@ public class InventoryController {
     }
 
     @GetMapping("/alerts")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','KITCHEN')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<List<InventoryAlertResponse>>> getLowStockAlerts(
             @RequestParam(required = false) Integer branchId
     ) {
@@ -84,7 +84,7 @@ public class InventoryController {
     }
 
     @GetMapping("/{inventoryId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','KITCHEN')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<InventoryItemResponse>> getInventoryItemById(@PathVariable Integer inventoryId) {
         return ResponseEntity.ok(
                 ApiResponse.<InventoryItemResponse>builder()
@@ -95,7 +95,7 @@ public class InventoryController {
     }
 
     @GetMapping("/{inventoryId}/history")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','KITCHEN')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<PageResponse<InventoryActionLogResponse>>> getInventoryHistory(
             @PathVariable Integer inventoryId,
             @RequestParam(defaultValue = "0") int page,
@@ -110,7 +110,7 @@ public class InventoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<InventoryItemResponse>> createInventoryItem(
             @Valid @RequestBody CreateInventoryItemRequest request,
             @AuthenticationPrincipal CustomUserDetails currentUser
@@ -124,7 +124,7 @@ public class InventoryController {
     }
 
     @PutMapping("/{inventoryId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<InventoryItemResponse>> updateInventoryItem(
             @PathVariable Integer inventoryId,
             @Valid @RequestBody UpdateInventoryItemRequest request,
@@ -139,7 +139,7 @@ public class InventoryController {
     }
 
     @DeleteMapping("/{inventoryId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<Void>> deleteInventoryItem(
             @PathVariable Integer inventoryId,
             @AuthenticationPrincipal CustomUserDetails currentUser

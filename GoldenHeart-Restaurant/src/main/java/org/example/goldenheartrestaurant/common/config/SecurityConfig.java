@@ -17,9 +17,15 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.List;
 
 @Configuration
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
 @RequiredArgsConstructor
 /**
  * Cấu hình Spring Security chính cho toàn bộ hệ thống.
@@ -43,8 +49,19 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 // Không dùng HTTP Basic vì dự án đã có JWT.
                 .httpBasic(AbstractHttpConfigurer::disable)
+                // Bật CORS.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Mỗi request tự mang danh tính qua JWT, không tạo session phía server.
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Bắt gọn lỗi unauthenticated để trả về 401 thay vì 403 mặc định của Spring.
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            String safeMessage = authException.getMessage() == null ? "Unauthorized" : authException.getMessage().replace("\"", "\\\"");
+                            response.getWriter().write("{\"success\":false,\"message\":\"" + safeMessage + "\"}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Các endpoint auth phải mở public để user còn login / refresh / logout được.
                         .requestMatchers("/api/v1/auth/**").permitAll()
@@ -81,5 +98,22 @@ public class SecurityConfig {
         // - đủ an toàn cho ứng dụng web thông thường
         // - không quá nặng để login bị chậm quá mức
         return new BCryptPasswordEncoder(12);
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        // AllowedOriginPatterns("*") cho phép tất cả các nguồn (cần thiết cho test cục bộ FE)
+        // và tương thích với việc bật allowCredentials=true.
+        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Áp dụng CORS cho mọi endpoint.
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

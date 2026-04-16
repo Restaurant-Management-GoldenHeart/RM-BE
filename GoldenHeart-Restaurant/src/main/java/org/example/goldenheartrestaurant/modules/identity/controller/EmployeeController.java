@@ -13,6 +13,7 @@ import org.example.goldenheartrestaurant.modules.identity.dto.response.EmployeeS
 import org.example.goldenheartrestaurant.modules.identity.service.EmployeeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,7 +44,7 @@ public class EmployeeController {
     private final EmployeeService employeeService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<PageResponse<EmployeeResponse>>> getEmployees(
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -58,7 +59,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{employeeId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<EmployeeResponse>> getEmployeeById(@PathVariable Integer employeeId) {
         return ResponseEntity.ok(
                 ApiResponse.<EmployeeResponse>builder()
@@ -69,7 +70,7 @@ public class EmployeeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<EmployeeResponse>> createEmployee(
             @Valid @RequestBody CreateEmployeeRequest request,
             @AuthenticationPrincipal CustomUserDetails currentUser
@@ -83,7 +84,7 @@ public class EmployeeController {
     }
 
     @PutMapping("/{employeeId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<EmployeeResponse>> updateEmployee(
             @PathVariable Integer employeeId,
             @Valid @RequestBody UpdateEmployeeRequest request,
@@ -98,7 +99,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{employeeId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Secured("ROLE_ADMIN")
     public ResponseEntity<ApiResponse<Void>> deleteEmployee(
             @PathVariable Integer employeeId,
             @AuthenticationPrincipal CustomUserDetails currentUser

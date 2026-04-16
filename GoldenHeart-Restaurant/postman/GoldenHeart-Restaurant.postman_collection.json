@@ -1,1539 +1,1916 @@
-{
-  "info": {
-    "_postman_id": "4df596d5-f561-4bc6-8575-0a48ea4fc05f",
-    "name": "GoldenHeart Restaurant API",
-    "description": "Postman collection for the currently implemented GoldenHeart Restaurant APIs.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Register Customer Self",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{customerUsername}}\",\n  \"email\": \"customer01@example.com\",\n  \"password\": \"{{customerPassword}}\",\n  \"fullName\": \"Customer One\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": [
-                "{{baseUrl}}"
+﻿{
+    "info":  {
+                 "_postman_id":  "7ef75984-47ae-46cd-b871-45649ccb63db",
+                 "name":  "GoldenHeart Restaurant API",
+                 "description":  "Deterministic end-to-end Postman collection aligned with the refreshed SQL seed and API testing guide.",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "event":  [
+                  {
+                      "listen":  "prerequest",
+                      "script":  {
+                                     "type":  "text/javascript",
+                                     "exec":  [
+                                                  "const resolvedUrl = pm.variables.replaceIn(pm.request.url.toString());",
+                                                  "const hasLiteralPlaceholder = /\\{[^{}]+\\}/.test(resolvedUrl);",
+                                                  "const hasUnresolvedDoubleCurly = /\\{\\{[^{}]+\\}\\}/.test(resolvedUrl);",
+                                                  "if (hasLiteralPlaceholder || hasUnresolvedDoubleCurly) {",
+                                                  "  throw new Error('Request URL still contains unresolved placeholders: ' + resolvedUrl + '. Select the synced collection/environment and run the prerequisite capture requests first.');",
+                                                  "}"
+                                              ]
+                                 }
+                  }
               ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "register"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Register Customer Duplicate Email",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"customer02\",\n  \"email\": \"customer01@example.com\",\n  \"password\": \"Customer123\",\n  \"fullName\": \"Customer Duplicate\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "register"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Login Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  pm.environment.set('adminAccessToken', pm.response.json().data.accessToken);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Login Manager",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  pm.environment.set('managerAccessToken', pm.response.json().data.accessToken);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{managerUsername}}\",\n  \"password\": \"{{managerPassword}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Login Staff",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  pm.environment.set('staffAccessToken', pm.response.json().data.accessToken);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Login Customer",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  pm.environment.set('customerAccessToken', pm.response.json().data.accessToken);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{customerUsername}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Login Wrong Password",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"WrongPassword123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Refresh Current Session",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/refresh",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Refresh Without Cookie",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Cookie",
-                "value": ""
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/refresh",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Logout Current Session",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/logout",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "logout"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Roles",
-      "item": [
-        {
-          "name": "Get Roles",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  const roles = pm.response.json().data || [];",
-                  "  roles.forEach(role => pm.environment.set(role.name.toLowerCase() + 'RoleId', role.id));",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/roles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "roles"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Employees",
-      "item": [
-        {
-          "name": "Create Manager By Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.environment.set('managerId', pm.response.json().data.id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{managerUsername}}\",\n  \"password\": \"{{managerPassword}}\",\n  \"roleId\": {{managerRoleId}},\n  \"fullName\": \"Manager One\",\n  \"employeeCode\": \"MGR001\",\n  \"email\": \"manager01@goldenheart.com\",\n  \"phone\": \"0900000002\",\n  \"branchId\": null,\n  \"dateOfBirth\": \"1995-05-10\",\n  \"gender\": \"Male\",\n  \"hireDate\": \"2026-04-10\",\n  \"salary\": 15000000,\n  \"address\": \"District 1\",\n  \"internalNotes\": \"Created by admin\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Staff By Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.environment.set('staffId', pm.response.json().data.id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Staff One\",\n  \"employeeCode\": \"EMP001\",\n  \"email\": \"staff01@goldenheart.com\",\n  \"phone\": \"0900000001\",\n  \"branchId\": null,\n  \"dateOfBirth\": \"2001-01-10\",\n  \"gender\": \"Male\",\n  \"hireDate\": \"2026-04-10\",\n  \"salary\": 7000000,\n  \"address\": \"HCM City\",\n  \"internalNotes\": \"Night shift\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Employee Duplicate Username",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"Staff999\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Duplicate Staff\",\n  \"employeeCode\": \"EMP009\",\n  \"email\": \"duplicate.staff@goldenheart.com\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Manager Create Staff Without RoleId",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"staff02\",\n  \"password\": \"Staff234\",\n  \"fullName\": \"Staff Two\",\n  \"employeeCode\": \"EMP002\",\n  \"email\": \"staff02@goldenheart.com\",\n  \"phone\": \"0900000003\",\n  \"address\": \"District 2\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Manager Create With RoleId Forbidden",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"staff03\",\n  \"password\": \"Staff345\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Staff Three\",\n  \"employeeCode\": \"EMP003\",\n  \"email\": \"staff03@goldenheart.com\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Employees Admin",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees?page=0&size=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Employee By Id",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "{{staffId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Manager Update Employee Basic Info",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Staff One Updated\",\n  \"phone\": \"0900000099\",\n  \"address\": \"District 3\",\n  \"salary\": 8000000,\n  \"status\": \"ACTIVE\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "{{staffId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Manager Update Role Forbidden",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"roleId\": {{managerRoleId}}\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "{{staffId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Staff Get My Profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{staffAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/me",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "me"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Staff Update My Profile",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{staffAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Staff Self Updated\",\n  \"email\": \"staff01.updated@goldenheart.com\",\n  \"phone\": \"0900000010\",\n  \"address\": \"Thu Duc\",\n  \"dateOfBirth\": \"2001-01-10\",\n  \"gender\": \"Male\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/me",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "me"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Staff Get Employees Forbidden",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{staffAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees?page=0&size=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Admin Delete Employee",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/{{staffId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "{{staffId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Admin Delete Self Forbidden",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/employees/1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "employees",
-                "1"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Menu",
-      "item": [
-        {
-          "name": "Create Menu Item Pho Bo Chin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.environment.set('createdMenuItemId', pm.response.json().data.id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Chin\",\n  \"description\": \"Pho bo chin sample created from Postman\",\n  \"price\": 89000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.22\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.16\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/menu-items",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "menu-items"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Menu Duplicate Name Conflict",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Chin\",\n  \"description\": \"Duplicate menu item name\",\n  \"price\": 90000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.20\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.15\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/menu-items",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "menu-items"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Menu Items",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/menu-items?page=0&size=10&branchId={{branch1Id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "menu-items"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "10"
-                },
-                {
-                  "key": "branchId",
-                  "value": "{{branch1Id}}"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Menu Item By Id",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/menu-items/{{menuItemId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "menu-items",
-                "{{menuItemId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Seeded Menu Item",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"Pho Bo Tai Dac Biet\",\n  \"description\": \"Updated seeded pho item\",\n  \"price\": 95000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.25\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.18\n    }\n  ]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/menu-items/{{menuItemId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "menu-items",
-                "{{menuItemId}}"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Kitchen",
-      "item": [
-        {
-          "name": "Complete Seeded Order Item As Admin",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId}}/complete",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "kitchen",
-                "order-items",
-                "{{orderItemId}}",
-                "complete"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Inventory",
-      "item": [
-        {
-          "name": "Get Measurement Units",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "  const units = pm.response.json().data || [];",
-                  "  units.forEach(unit => {",
-                  "    const code = (unit.code || '').toUpperCase();",
-                  "    if (code === 'KG') pm.environment.set('kgUnitId', unit.id);",
-                  "    if (code === 'PIECE') pm.environment.set('pieceUnitId', unit.id);",
-                  "    if (code === 'LITER') pm.environment.set('literUnitId', unit.id);",
-                  "    if (code === 'GRAM') pm.environment.set('gramUnitId', unit.id);",
-                  "    if (code === 'MILLILITER') pm.environment.set('milliliterUnitId', unit.id);",
-                  "  });",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/units",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "units"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Inventory Items",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory?page=0&size=20&branchId={{branch1Id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "20"
-                },
-                {
-                  "key": "branchId",
-                  "value": "{{branch1Id}}"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Inventory Item By Id",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/{{inventoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "{{inventoryId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Inventory Item Chicken Egg As Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.environment.set('createdInventoryId', pm.response.json().data.inventoryId);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"branchId\": {{branch1Id}},\n  \"ingredientName\": \"{{inventoryTestIngredientName}}\",\n  \"unitId\": {{pieceUnitId}},\n  \"quantity\": 5,\n  \"minStockLevel\": 10,\n  \"reorderLevel\": 20,\n  \"averageUnitCost\": 3500,\n  \"note\": \"Tạo nguyên liệu test inventory bằng Postman\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Low Stock Alerts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/alerts?branchId={{branch1Id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "alerts"
-              ],
-              "query": [
-                {
-                  "key": "branchId",
-                  "value": "{{branch1Id}}"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Created Inventory Item Set Quantity Zero",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"quantity\": 0,\n  \"minStockLevel\": 2,\n  \"reorderLevel\": 5,\n  \"averageUnitCost\": 4000,\n  \"note\": \"Đưa tồn kho về 0 để test xóa mềm\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "{{createdInventoryId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Created Inventory History",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}/history?page=0&size=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "{{createdInventoryId}}",
-                "history"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "20"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Created Inventory Item",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "inventory",
-                "{{createdInventoryId}}"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Customers",
-      "item": [
-        {
-          "name": "Create Customer 01",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  pm.environment.set('customerId', pm.response.json().data.id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Nguyen Van A\",\n  \"email\": \"customerA@example.com\",\n  \"phone\": \"0911111111\",\n  \"customerCode\": \"CUS001\",\n  \"address\": \"HCM City\",\n  \"dateOfBirth\": \"2000-02-20\",\n  \"gender\": \"Male\",\n  \"note\": \"VIP\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Customer 02",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Tran Thi B\",\n  \"email\": \"customerB@example.com\",\n  \"phone\": \"0911111112\",\n  \"customerCode\": \"CUS002\",\n  \"address\": \"Ha Noi\",\n  \"dateOfBirth\": \"1998-08-08\",\n  \"gender\": \"Female\",\n  \"note\": \"Loyal customer\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Customer Duplicate Email",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Duplicate Customer\",\n  \"email\": \"customerA@example.com\",\n  \"phone\": \"0911111199\",\n  \"customerCode\": \"CUS099\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Customers",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers?page=0&size=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "0"
-                },
-                {
-                  "key": "size",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Customer By Id",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers",
-                "{{customerId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Customer",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{managerAccessToken}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Nguyen Van A Updated\",\n  \"phone\": \"0922222222\",\n  \"address\": \"District 7\",\n  \"note\": \"Returned customer\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers",
-                "{{customerId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Customer",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers",
-                "{{customerId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Deleted Customer 404",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{adminAccessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "customers",
-                "{{customerId}}"
-              ]
-            }
-          }
-        }
-      ]
-    }
-  ]
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:1010"
+                     },
+                     {
+                         "key":  "adminUsername",
+                         "value":  "admin"
+                     },
+                     {
+                         "key":  "adminPassword",
+                         "value":  "Admin123"
+                     },
+                     {
+                         "key":  "managerUsername",
+                         "value":  "manager.d1"
+                     },
+                     {
+                         "key":  "managerPassword",
+                         "value":  "Password123"
+                     },
+                     {
+                         "key":  "staffUsername",
+                         "value":  "staff.d1"
+                     },
+                     {
+                         "key":  "staffPassword",
+                         "value":  "Password123"
+                     },
+                     {
+                         "key":  "kitchenUsername",
+                         "value":  "kitchen.d1"
+                     },
+                     {
+                         "key":  "kitchenPassword",
+                         "value":  "Password123"
+                     },
+                     {
+                         "key":  "customerSelfPassword",
+                         "value":  "Customer123"
+                     },
+                     {
+                         "key":  "adminRoleId",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "managerRoleId",
+                         "value":  "2"
+                     },
+                     {
+                         "key":  "staffRoleId",
+                         "value":  "3"
+                     },
+                     {
+                         "key":  "kitchenRoleId",
+                         "value":  "4"
+                     },
+                     {
+                         "key":  "customerRoleId",
+                         "value":  "5"
+                     },
+                     {
+                         "key":  "branch1Id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "branch2Id",
+                         "value":  "2"
+                     },
+                     {
+                         "key":  "tableT01Id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "tableT02Id",
+                         "value":  "2"
+                     },
+                     {
+                         "key":  "tableT03Id",
+                         "value":  "3"
+                     },
+                     {
+                         "key":  "tableT04Id",
+                         "value":  "4"
+                     },
+                     {
+                         "key":  "tableT05Id",
+                         "value":  "5"
+                     },
+                     {
+                         "key":  "tableTd01Id",
+                         "value":  "6"
+                     },
+                     {
+                         "key":  "seedCustomerId",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "menuPhoBoTaiId",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "menuPhoGaId",
+                         "value":  "2"
+                     },
+                     {
+                         "key":  "menuTraDaoId",
+                         "value":  "3"
+                     },
+                     {
+                         "key":  "adminAccessToken",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "managerAccessToken",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "staffAccessToken",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "kitchenAccessToken",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "mainOrderId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "mainOrderPhoBoItemId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "mainOrderPhoGaItemId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "splitOrderId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "splitOrderItemId",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "splitTargetOrderId",
+                         "value":  ""
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "01 Auth Sessions",
+                     "item":  [
+                                  {
+                                      "name":  "Login Admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/login"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login admin returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.expect(json.success).to.eql(true);",
+                                                                                    "pm.environment.set(\u0027adminAccessToken\u0027, json.data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027adminAccessToken\u0027, json.data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Refresh Admin Session",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/refresh"
+                                                              }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Refresh admin session returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.expect(json.success).to.eql(true);",
+                                                                                    "pm.environment.set(\u0027adminAccessToken\u0027, json.data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027adminAccessToken\u0027, json.data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login Manager",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/login"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{managerUsername}}\",\n  \"password\": \"{{managerPassword}}\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login manager returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.expect(json.success).to.eql(true);",
+                                                                                    "pm.environment.set(\u0027managerAccessToken\u0027, json.data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027managerAccessToken\u0027, json.data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login Staff",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/login"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login staff returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.expect(json.success).to.eql(true);",
+                                                                                    "pm.environment.set(\u0027staffAccessToken\u0027, json.data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027staffAccessToken\u0027, json.data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login Kitchen",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/login"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{kitchenUsername}}\",\n  \"password\": \"{{kitchenPassword}}\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login kitchen returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.expect(json.success).to.eql(true);",
+                                                                                    "pm.environment.set(\u0027kitchenAccessToken\u0027, json.data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027kitchenAccessToken\u0027, json.data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "02 Roles",
+                     "item":  [
+                                  {
+                                      "name":  "Get Roles",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/roles"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get roles returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const roles = pm.response.json().data || [];",
+                                                                                    "roles.forEach(role =\u003e {",
+                                                                                    "  const key = (role.name || \u0027\u0027).toLowerCase() + \u0027RoleId\u0027;",
+                                                                                    "  const value = String(role.id);",
+                                                                                    "  pm.environment.set(key, value);",
+                                                                                    "  pm.collectionVariables.set(key, value);",
+                                                                                    "});"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "03 Employees",
+                     "item":  [
+                                  {
+                                      "name":  "Get Employees",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees?page=0\u0026size=20"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get employees returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.expect(pm.response.json().data.content).to.be.an(\"array\");"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Seeded Staff By Id",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees/{{staffId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get seeded staff returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get(\u0027staffId\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Create Temp Employee As Admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{tempEmployeeUsername}}\",\n  \"password\": \"Password123\",\n  \"roleId\": {{staffRoleId}},\n  \"fullName\": \"Staff Temp Admin\",\n  \"employeeCode\": \"{{tempEmployeeCode}}\",\n  \"email\": \"{{tempEmployeeEmail}}\",\n  \"phone\": \"{{tempEmployeePhone}}\",\n  \"branchId\": {{branch1Id}},\n  \"dateOfBirth\": \"1999-05-05\",\n  \"gender\": \"Male\",\n  \"hireDate\": \"2026-04-10\",\n  \"salary\": 8500000,\n  \"address\": \"District 1\",\n  \"internalNotes\": \"Created by Postman collection\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "prerequest",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const suffix = Date.now().toString();",
+                                                                                    "pm.environment.set(\u0027tempEmployeeUsername\u0027, \u0027staff.temp.\u0027 + suffix);",
+                                                                                    "pm.environment.set(\u0027tempEmployeeEmail\u0027, \u0027staff.temp.\u0027 + suffix + \u0027@goldenheart.local\u0027);",
+                                                                                    "pm.environment.set(\u0027tempEmployeePhone\u0027, \u00270907\u0027 + suffix.slice(-6));",
+                                                                                    "pm.environment.set(\u0027tempEmployeeCode\u0027, \u0027EMP-TEMP-\u0027 + suffix.slice(-6));"
+                                                                                ]
+                                                                   }
+                                                    },
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create temp employee returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "pm.environment.set(\u0027tempEmployeeId\u0027, String(pm.response.json().data.id));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update Temp Employee As Manager",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees/{{tempEmployeeId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"fullName\": \"Staff Temp Admin Updated\",\n  \"address\": \"District 3\",\n  \"salary\": 9000000,\n  \"status\": \"ACTIVE\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Manager updates temp employee returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get My Profile As Staff",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees/me"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get my profile returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.expect(pm.response.json().data.username).to.eql(pm.environment.get(\u0027staffUsername\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update My Profile As Staff",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees/me"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"address\": \"Updated by staff profile endpoint\",\n  \"phone\": \"0901000099\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Update my profile returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Delete Temp Employee As Admin",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/employees/{{tempEmployeeId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Delete temp employee returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "04 Customers",
+                     "item":  [
+                                  {
+                                      "name":  "Create Temp Customer As Manager",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/customers"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"name\": \"Temp Customer Postman\",\n  \"email\": \"{{tempCustomerEmail}}\",\n  \"phone\": \"{{tempCustomerPhone}}\",\n  \"customerCode\": \"{{tempCustomerCode}}\",\n  \"address\": \"District 7\",\n  \"dateOfBirth\": \"1996-01-20\",\n  \"gender\": \"Female\",\n  \"note\": \"Temporary customer created by Postman\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "prerequest",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const suffix = Date.now().toString();",
+                                                                                    "pm.environment.set(\u0027tempCustomerCode\u0027, \u0027CUS-TEMP-\u0027 + suffix.slice(-6));",
+                                                                                    "pm.environment.set(\u0027tempCustomerEmail\u0027, \u0027customer.temp.\u0027 + suffix + \u0027@goldenheart.local\u0027);",
+                                                                                    "pm.environment.set(\u0027tempCustomerPhone\u0027, \u00270913\u0027 + suffix.slice(-6));"
+                                                                                ]
+                                                                   }
+                                                    },
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create temp customer returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "pm.environment.set(\u0027tempCustomerId\u0027, String(pm.response.json().data.id));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Customers",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/customers?page=0\u0026size=20"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get customers returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Temp Customer By Id",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/customers/{{tempCustomerId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get temp customer returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get(\u0027tempCustomerId\u0027));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update Temp Customer",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/customers/{{tempCustomerId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"name\": \"Temp Customer Postman Updated\",\n  \"address\": \"District 4\",\n  \"note\": \"Updated by collection\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Update temp customer returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Delete Temp Customer As Admin",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/customers/{{tempCustomerId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Delete temp customer returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "05 Inventory",
+                     "item":  [
+                                  {
+                                      "name":  "Get Measurement Units",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/units"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get measurement units returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "const units = pm.response.json().data || [];",
+                                                                                    "units.forEach(unit =\u003e pm.environment.set((unit.code || \u0027\u0027).toLowerCase() + \u0027UnitId\u0027, String(unit.id)));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Inventory Branch 1",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory?page=0\u0026size=20\u0026branchId={{branch1Id}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get inventory branch 1 returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Low Stock Alerts Branch 1",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/alerts?branchId={{branch1Id}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get low stock alerts returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Beef Inventory By Id",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/{{inventoryBeefId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get beef inventory returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Create Temp Inventory Item As Admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"branchId\": {{branch1Id}},\n  \"ingredientName\": \"{{inventoryTestIngredientName}}\",\n  \"unitId\": {{pieceUnitId}},\n  \"quantity\": 8,\n  \"minStockLevel\": 2,\n  \"reorderLevel\": 4,\n  \"averageUnitCost\": 3500,\n  \"note\": \"Create inventory item from Postman collection\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "prerequest",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.environment.set(\u0027inventoryTestIngredientName\u0027, \u0027Chicken Egg API \u0027 + Date.now());"
+                                                                                ]
+                                                                   }
+                                                    },
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create temp inventory item returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "pm.environment.set(\u0027createdInventoryId\u0027, String(pm.response.json().data.inventoryId));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update Temp Inventory Item To Zero",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"quantity\": 0,\n  \"minStockLevel\": 1,\n  \"reorderLevel\": 2,\n  \"averageUnitCost\": 3600,\n  \"note\": \"Bring quantity to zero before delete\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Update temp inventory item returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Temp Inventory History",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}/history?page=0\u0026size=20"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get temp inventory history returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Delete Temp Inventory Item As Admin",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/inventory/{{createdInventoryId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Delete temp inventory item returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "06 Menu",
+                     "item":  [
+                                  {
+                                      "name":  "Get Menu Items Branch 1",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/menu-items?page=0\u0026size=20\u0026branchId={{branch1Id}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get menu items returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Seeded Menu Item By Id",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/menu-items/{{menuPhoBoTaiId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get seeded menu item returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Create Temp Menu Item As Admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/menu-items"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"{{tempMenuItemName}}\",\n  \"description\": \"Temporary menu item created by Postman\",\n  \"price\": 91000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.15\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.12\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 0.40\n    }\n  ]\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "prerequest",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.environment.set(\u0027tempMenuItemName\u0027, \u0027Pho Collection Temp \u0027 + Date.now());"
+                                                                                ]
+                                                                   }
+                                                    },
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create temp menu item returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "pm.environment.set(\u0027createdMenuItemId\u0027, String(pm.response.json().data.id));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update Temp Menu Item",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/menu-items/{{createdMenuItemId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"branchId\": {{branch1Id}},\n  \"categoryId\": {{phoCategoryId}},\n  \"name\": \"{{tempMenuItemName}} Updated\",\n  \"description\": \"Temporary menu item updated by Postman\",\n  \"price\": 93000,\n  \"status\": \"AVAILABLE\",\n  \"recipes\": [\n    {\n      \"ingredientId\": {{ingredientBeefId}},\n      \"quantity\": 0.16\n    },\n    {\n      \"ingredientId\": {{ingredientRiceNoodleId}},\n      \"quantity\": 0.12\n    },\n    {\n      \"ingredientId\": {{ingredientBrothId}},\n      \"quantity\": 0.42\n    }\n  ]\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Update temp menu item returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Delete Temp Menu Item As Admin",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/menu-items/{{createdMenuItemId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{adminAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Delete temp menu item returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "07 Tables",
+                     "item":  [
+                                  {
+                                      "name":  "Get Tables Branch 1",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables?branchId={{branch1Id}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get tables returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Reserve T05",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT05Id}}/status"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"status\": \"RESERVED\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Reserve T05 returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Set T05 Back To AVAILABLE",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT05Id}}/status"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"status\": \"AVAILABLE\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Set T05 back to available returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Active Order By T02 Before Create",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT02Id}}/active-order"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get active order before create returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.expect(pm.response.json().data).to.eql(null);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "08 Order Lifecycle",
+                     "item":  [
+                                  {
+                                      "name":  "Create Main Order On T02",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/orders"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"branchId\": {{branch1Id}},\n  \"tableId\": {{tableT02Id}},\n  \"customerId\": {{seedCustomerId}},\n  \"items\": [\n    {\n      \"menuItemId\": {{menuPhoBoTaiId}},\n      \"quantity\": 1,\n      \"note\": \"Less onion\"\n    },\n    {\n      \"menuItemId\": {{menuPhoGaId}},\n      \"quantity\": 2,\n      \"note\": \"Extra herb\"\n    }\n  ]\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create main order returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.environment.set(\u0027mainOrderId\u0027, String(json.data.orderId));",
+                                                                                    "pm.collectionVariables.set(\u0027mainOrderId\u0027, String(json.data.orderId));",
+                                                                                    "const items = json.data.items || [];",
+                                                                                    "const phoBoItem = items.find(item =\u003e String(item.menuItemId) === pm.environment.get(\u0027menuPhoBoTaiId\u0027));",
+                                                                                    "const phoGaItem = items.find(item =\u003e String(item.menuItemId) === pm.environment.get(\u0027menuPhoGaId\u0027));",
+                                                                                    "pm.environment.set(\u0027mainOrderPhoBoItemId\u0027, String(phoBoItem.id));",
+                                                                                    "pm.collectionVariables.set(\u0027mainOrderPhoBoItemId\u0027, String(phoBoItem.id));",
+                                                                                    "pm.environment.set(\u0027mainOrderPhoGaItemId\u0027, String(phoGaItem.id));",
+                                                                                    "pm.collectionVariables.set(\u0027mainOrderPhoGaItemId\u0027, String(phoGaItem.id));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Main Order By Id",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/orders/{{mainOrderId}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get main order returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Get Active Order By T02 After Create",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT02Id}}/active-order"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Get active order after create returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Kitchen Get Pending Branch 1",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/kitchen/orders/pending?branchId={{branch1Id}}"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{kitchenAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Kitchen get pending returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Kitchen Start Pho Bo Tai",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/kitchen/order-items/{{mainOrderPhoBoItemId}}/status"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{kitchenAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"status\": \"PROCESSING\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Kitchen start pho bo tai returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Kitchen Complete Pho Bo Tai",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/kitchen/order-items/{{mainOrderPhoBoItemId}}/complete"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{kitchenAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Kitchen complete pho bo tai returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Staff Serve Pho Bo Tai",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/orders/order-items/{{mainOrderPhoBoItemId}}/serve"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Serve pho bo tai returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Kitchen Start Pho Ga",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/kitchen/order-items/{{mainOrderPhoGaItemId}}/status"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{kitchenAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"status\": \"PROCESSING\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Kitchen start pho ga returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Kitchen Complete Pho Ga",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/kitchen/order-items/{{mainOrderPhoGaItemId}}/complete"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{kitchenAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Kitchen complete pho ga returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Staff Serve Pho Ga",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/orders/order-items/{{mainOrderPhoGaItemId}}/serve"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Serve pho ga returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Create Partial Bill",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/bills"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"orderId\": {{mainOrderId}},\n  \"discount\": 15000,\n  \"taxRate\": 10,\n  \"paidAmount\": 100000,\n  \"paymentMethod\": \"CASH\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create partial bill returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.environment.set(\u0027mainBillId\u0027, String(json.data.id));",
+                                                                                    "pm.environment.set(\u0027mainBillRemainingAmount\u0027, String(json.data.remainingAmount));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Add Remaining Payment",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/bills/{{mainBillId}}/payments"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{managerAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"amount\": {{mainBillRemainingAmount}},\n  \"method\": \"BANK_TRANSFER\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Add remaining payment returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Update T02 Back To AVAILABLE",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT02Id}}/status"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"status\": \"AVAILABLE\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Update T02 back to available returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "09 Table Transfer",
+                     "item":  [
+                                  {
+                                      "name":  "Create Split Source Order On T03",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/orders"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"branchId\": {{branch1Id}},\n  \"tableId\": {{tableT03Id}},\n  \"customerId\": {{seedCustomerId}},\n  \"items\": [\n    {\n      \"menuItemId\": {{menuPhoBoTaiId}},\n      \"quantity\": 2,\n      \"note\": \"Split flow\"\n    }\n  ]\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Create split source order returns 201\u0027, function () { pm.response.to.have.status(201); });",
+                                                                                    "const json = pm.response.json();",
+                                                                                    "pm.environment.set(\u0027splitOrderId\u0027, String(json.data.orderId));",
+                                                                                    "pm.collectionVariables.set(\u0027splitOrderId\u0027, String(json.data.orderId));",
+                                                                                    "pm.environment.set(\u0027splitOrderItemId\u0027, String(json.data.items[0].id));",
+                                                                                    "pm.collectionVariables.set(\u0027splitOrderItemId\u0027, String(json.data.items[0].id));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Split T03 To T04",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/{{tableT03Id}}/split"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"targetTableId\": {{tableT04Id}},\n  \"items\": [\n    {\n      \"orderItemId\": {{splitOrderItemId}},\n      \"quantity\": 1\n    }\n  ]\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Split T03 to T04 returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.environment.set(\u0027splitTargetOrderId\u0027, String(pm.response.json().data.targetOrderId));",
+                                                                                    "pm.collectionVariables.set(\u0027splitTargetOrderId\u0027, String(pm.response.json().data.targetOrderId));"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Merge T03 Into T04",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/tables/merge"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "value":  "Bearer {{staffAccessToken}}"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"sourceTableId\": {{tableT03Id}},\n  \"targetTableId\": {{tableT04Id}}\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Merge T03 into T04 returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "10 Customer Auth",
+                     "item":  [
+                                  {
+                                      "name":  "Register Customer Self",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/register"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{selfRegisterUsername}}\",\n  \"email\": \"{{selfRegisterEmail}}\",\n  \"password\": \"{{customerSelfPassword}}\",\n  \"fullName\": \"Customer Self Registered\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "prerequest",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "const suffix = Date.now().toString();",
+                                                                                    "pm.environment.set(\u0027selfRegisterUsername\u0027, \u0027customer.self.\u0027 + suffix);",
+                                                                                    "pm.environment.set(\u0027selfRegisterEmail\u0027, \u0027customer.self.\u0027 + suffix + \u0027@goldenheart.local\u0027);"
+                                                                                ]
+                                                                   }
+                                                    },
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Register customer self returns 201\u0027, function () { pm.response.to.have.status(201); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Login Customer Self",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/login"
+                                                              },
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\n  \"username\": \"{{selfRegisterUsername}}\",\n  \"password\": \"{{customerSelfPassword}}\"\n}"
+                                                               }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login customer self returns 200\u0027, function () { pm.response.to.have.status(200); });",
+                                                                                    "pm.environment.set(\u0027customerSelfAccessToken\u0027, pm.response.json().data.accessToken);",
+                                                                                    "pm.collectionVariables.set(\u0027customerSelfAccessToken\u0027, pm.response.json().data.accessToken);"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "Logout Current Session",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  {
+                                                                  "raw":  "{{baseUrl}}/api/v1/auth/logout"
+                                                              }
+                                                  },
+                                      "event":  [
+                                                    {
+                                                        "listen":  "test",
+                                                        "script":  {
+                                                                       "type":  "text/javascript",
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Logout current session returns 200\u0027, function () { pm.response.to.have.status(200); });"
+                                                                                ]
+                                                                   }
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 }
+             ]
 }

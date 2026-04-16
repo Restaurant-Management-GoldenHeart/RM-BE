@@ -27,6 +27,7 @@ import org.example.goldenheartrestaurant.modules.restaurant.entity.Restaurant;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.BranchRepository;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.RestaurantRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ import java.time.LocalDateTime;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.bootstrap.sample-data.enabled", havingValue = "true", matchIfMissing = false)
 @org.springframework.core.annotation.Order(3)
 @RequiredArgsConstructor
 public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
@@ -51,7 +53,7 @@ public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
 
-    @Value("${app.bootstrap.sample-data.enabled:true}")
+    @Value("${app.bootstrap.sample-data.enabled:false}")
     private boolean sampleDataEnabled;
 
     @Override
@@ -60,7 +62,15 @@ public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
             return;
         }
 
-        if (branchRepository.count() > 0 || menuItemRepository.count() > 0 || orderItemRepository.count() > 0) {
+        // Skip seeding when any baseline business data already exists to keep startup idempotent
+        // even if DB was partially seeded by SQL scripts.
+        if (restaurantRepository.count() > 0
+                || branchRepository.count() > 0
+                || categoryRepository.count() > 0
+                || ingredientRepository.count() > 0
+                || inventoryRepository.count() > 0
+                || menuItemRepository.count() > 0
+                || orderItemRepository.count() > 0) {
             return;
         }
 

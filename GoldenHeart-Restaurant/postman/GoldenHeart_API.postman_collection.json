@@ -1,0 +1,1258 @@
+{
+  "info": {
+    "_postman_id": "goldenheart-restaurant-api",
+    "name": "GoldenHeart Restaurant API",
+    "description": "Complete API test collection for GoldenHeart Restaurant Backend.\nSeed data: sql/05_seed_full_test_data.sql\nBase URL: http://localhost:1010\n\nPassword for all seeded users: GoldenHeart@2026\nAdmin bootstrap password: Admin123 (from application.properties)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",       "value": "http://localhost:1010", "type": "string" },
+    { "key": "adminToken",    "value": "", "type": "string" },
+    { "key": "managerQ1Token","value": "", "type": "string" },
+    { "key": "staffQ1Token",  "value": "", "type": "string" },
+    { "key": "kitchenQ1Token","value": "", "type": "string" },
+    { "key": "orderId1",      "value": "", "type": "string" },
+    { "key": "orderItemId1",  "value": "", "type": "string" },
+    { "key": "orderItemId2",  "value": "", "type": "string" },
+    { "key": "billId1",       "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "PHASE 1 – Auth & Identity",
+      "item": [
+        {
+          "name": "1.1 Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('adminToken', res.data.accessToken);",
+                  "  pm.test('Admin login OK – token saved', () => pm.response.to.have.status(200));",
+                  "} else {",
+                  "  pm.test('Login failed', () => { throw new Error('No accessToken in response'); });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "1.2 Login Manager Q1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('managerQ1Token', res.data.accessToken);",
+                  "  pm.test('Manager Q1 login OK', () => pm.response.to.have.status(200));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"manager_q1\",\n  \"password\": \"GoldenHeart@2026\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "1.3 Login Staff Q1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('staffQ1Token', res.data.accessToken);",
+                  "  pm.test('Staff Q1 login OK', () => pm.response.to.have.status(200));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"staff_q1_a\",\n  \"password\": \"GoldenHeart@2026\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "1.4 Login Kitchen Q1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('kitchenQ1Token', res.data.accessToken);",
+                  "  pm.test('Kitchen Q1 login OK', () => pm.response.to.have.status(200));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"kitchen_q1\",\n  \"password\": \"GoldenHeart@2026\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "1.5 Get My Profile (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get profile 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Profile is admin', () => pm.expect(res.data.role).to.eql('ADMIN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/employees/me", "host": ["{{baseUrl}}"], "path": ["api","v1","employees","me"] }
+          }
+        },
+        {
+          "name": "1.6 Create Employee (Admin creates new Staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create employee 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"staff_new_01\",\n  \"password\": \"GoldenHeart@2026\",\n  \"roleId\": 3,\n  \"fullName\": \"Nhân Viên Mới Test\",\n  \"employeeCode\": \"EMP-099\",\n  \"email\": \"staff.new01@goldenheart.com\",\n  \"phone\": \"0909099099\",\n  \"branchId\": 1,\n  \"gender\": \"female\",\n  \"hireDate\": \"2026-04-15\",\n  \"salary\": 8000000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/employees", "host": ["{{baseUrl}}"], "path": ["api","v1","employees"] }
+          }
+        },
+        {
+          "name": "1.7 List Employees (paginated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List employees 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/employees?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","employees"],
+              "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "10" }]
+            }
+          }
+        },
+        {
+          "name": "1.8 List Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Roles 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('At least 5 roles', () => pm.expect(res.data.length).to.be.gte(5));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/roles", "host": ["{{baseUrl}}"], "path": ["api","v1","roles"] }
+          }
+        },
+        {
+          "name": "1.9 Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refresh 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","refresh"] }
+          }
+        },
+        {
+          "name": "[NEG] 1.10 Login – Wrong Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Wrong password → 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"WrongPassword!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "[NEG] 1.11 No Token – 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('No token → 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/employees", "host": ["{{baseUrl}}"], "path": ["api","v1","employees"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 2 – Master Data",
+      "item": [
+        {
+          "name": "2.1 Get Measurement Units",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Units 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('At least 5 units', () => pm.expect(res.data.length).to.be.gte(5));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/inventory/units", "host": ["{{baseUrl}}"], "path": ["api","v1","inventory","units"] }
+          }
+        },
+        {
+          "name": "2.2 List Inventory – Branch 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Inventory 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory?branchId=1&page=0&size=20",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","inventory"],
+              "query": [{ "key": "branchId", "value": "1" }, { "key": "page", "value": "0" }, { "key": "size", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "2.3 Get Inventory Alerts – Branch 1",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/alerts?branchId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","inventory","alerts"],
+              "query": [{ "key": "branchId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "2.4 List Menu Items – Branch 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Menu items 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/menu-items?branchId=1&page=0&size=20",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","menu-items"],
+              "query": [{ "key": "branchId", "value": "1" }, { "key": "page", "value": "0" }, { "key": "size", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "2.5 Create Inventory Item (new ingredient)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create inventory 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": 1,\n  \"ingredientName\": \"Cà Chua Tươi\",\n  \"unitId\": 1,\n  \"quantity\": 20.00,\n  \"minStockLevel\": 2.00,\n  \"reorderLevel\": 5.00,\n  \"averageUnitCost\": 15000,\n  \"note\": \"Nhập kho lần đầu\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/inventory", "host": ["{{baseUrl}}"], "path": ["api","v1","inventory"] }
+          }
+        },
+        {
+          "name": "2.6 Update Inventory Item #1 (adjust stock)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Update inventory 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 50.00,\n  \"minStockLevel\": 5.00,\n  \"reorderLevel\": 10.00,\n  \"averageUnitCost\": 285000,\n  \"note\": \"Kiểm kê và điều chỉnh tồn kho\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/inventory/1", "host": ["{{baseUrl}}"], "path": ["api","v1","inventory","1"] }
+          }
+        },
+        {
+          "name": "2.7 Get Inventory History #1",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/inventory/1/history?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","inventory","1","history"],
+              "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "10" }]
+            }
+          }
+        },
+        {
+          "name": "2.8 List Customers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","customers"],
+              "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "10" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 3 – Table Management",
+      "item": [
+        {
+          "name": "3.1 List Tables – Branch 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tables 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tables?branchId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","tables"],
+              "query": [{ "key": "branchId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "3.2 List Tables – AVAILABLE only",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tables?branchId=1&status=AVAILABLE",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","tables"],
+              "query": [{ "key": "branchId", "value": "1" }, { "key": "status", "value": "AVAILABLE" }]
+            }
+          }
+        },
+        {
+          "name": "3.3 Get Active Order by Table 1 (before order)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 & no active order', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.data).to.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/1/active-order", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","1","active-order"] }
+          }
+        },
+        {
+          "name": "3.4 Update Table T02 → RESERVED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Table RESERVED 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Status is RESERVED', () => pm.expect(res.data.status).to.eql('RESERVED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"RESERVED\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/2/status", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","2","status"] }
+          }
+        },
+        {
+          "name": "3.5 Reset Table T02 → AVAILABLE",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"AVAILABLE\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/2/status", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","2","status"] }
+          }
+        },
+        {
+          "name": "[NEG] 3.6 Staff Q1 views Branch 2 tables → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cross-branch → 403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tables?branchId=2",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","tables"],
+              "query": [{ "key": "branchId", "value": "2" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 4 – Order Flow",
+      "item": [
+        {
+          "name": "4.1 Create Order – Table T01 (2 món Bò Lúc Lắc + 1 Phở Bò)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create order 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('orderId1', res.data.id);",
+                  "pm.test('Order status PENDING', () => pm.expect(res.data.status).to.eql('PENDING'));",
+                  "// Lưu orderItemId của 2 item đầu tiên",
+                  "if (res.data.orderItems && res.data.orderItems.length >= 2) {",
+                  "  pm.collectionVariables.set('orderItemId1', res.data.orderItems[0].id);",
+                  "  pm.collectionVariables.set('orderItemId2', res.data.orderItems[1].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": 1,\n  \"branchId\": 1,\n  \"customerId\": 1,\n  \"items\": [\n    { \"menuItemId\": 1, \"quantity\": 2, \"note\": \"ít cay\" },\n    { \"menuItemId\": 7, \"quantity\": 1, \"note\": null }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/orders", "host": ["{{baseUrl}}"], "path": ["api","v1","orders"] }
+          }
+        },
+        {
+          "name": "4.2 Get Order by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get order 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/orders/{{orderId1}}", "host": ["{{baseUrl}}"], "path": ["api","v1","orders","{{orderId1}}"] }
+          }
+        },
+        {
+          "name": "4.3 Get Active Order by Table 1 (after order)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Active order found', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.data).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/1/active-order", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","1","active-order"] }
+          }
+        },
+        {
+          "name": "4.4 Table T01 is now OCCUPIED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Table OCCUPIED', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  const t01 = res.data.find(t => t.id == 1);",
+                  "  pm.expect(t01.status).to.eql('OCCUPIED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tables?branchId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","tables"],
+              "query": [{ "key": "branchId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "4.5 Add More Items to Same Table (Tôm hấp)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": 1,\n  \"branchId\": 1,\n  \"items\": [\n    { \"menuItemId\": 3, \"quantity\": 1, \"note\": \"cho nhiều tôm\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/orders", "host": ["{{baseUrl}}"], "path": ["api","v1","orders"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 5 – Kitchen Flow",
+      "item": [
+        {
+          "name": "5.1 Kitchen – Get Pending Items (Branch 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Pending items 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Has pending items', () => pm.expect(res.data.length).to.be.gte(1));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/orders/pending?branchId=1",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","orders","pending"],
+              "query": [{ "key": "branchId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "5.2 Kitchen – Start Processing Item 1 (PENDING → PROCESSING, trừ kho)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Processing 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Status = PROCESSING', () => pm.expect(res.data.status).to.eql('PROCESSING'));",
+                  "pm.test('Stock was deducted', () => pm.expect(res.data.deductions.length).to.be.gte(1));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\",\n  \"reason\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId1}}/status",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","order-items","{{orderItemId1}}","status"]
+            }
+          }
+        },
+        {
+          "name": "5.3 Kitchen – Complete Item 1 (PROCESSING → COMPLETED, không trừ kho)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Complete 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Status = COMPLETED', () => pm.expect(res.data.status).to.eql('COMPLETED'));",
+                  "pm.test('No deductions at complete', () => pm.expect(res.data.deductions.length).to.eql(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId1}}/complete",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","order-items","{{orderItemId1}}","complete"]
+            }
+          }
+        },
+        {
+          "name": "5.4 Kitchen – Cancel Item 2 (Phở Bò – lý do hết bánh phở)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cancel 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Status = CANCELLED', () => pm.expect(res.data.status).to.eql('CANCELLED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\",\n  \"reason\": \"Hết bánh phở tươi, không thể làm món này hôm nay\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId2}}/status",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","order-items","{{orderItemId2}}","status"]
+            }
+          }
+        },
+        {
+          "name": "[NEG] 5.5 Kitchen – Complete PENDING item → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Complete on non-PROCESSING → 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/999/complete",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","order-items","999","complete"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 6 – Serve & Bill",
+      "item": [
+        {
+          "name": "6.1 Staff – Serve Item 1 (COMPLETED → SERVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Serve 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Status = SERVED', () => pm.expect(res.data.status).to.eql('SERVED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/order-items/{{orderItemId1}}/serve",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","orders","order-items","{{orderItemId1}}","serve"]
+            }
+          }
+        },
+        {
+          "name": "6.2 Create Bill for Order 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create bill 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('billId1', res.data.id);",
+                  "pm.test('Bill status UNPAID', () => pm.expect(res.data.status).to.eql('UNPAID'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": {{orderId1}},\n  \"taxRate\": 10,\n  \"discount\": 20000,\n  \"paidAmount\": 0,\n  \"paymentMethod\": \"CASH\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/bills", "host": ["{{baseUrl}}"], "path": ["api","v1","bills"] }
+          }
+        },
+        {
+          "name": "6.3 Payment – Partial (300,000 VND cash)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Payment 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Bill PARTIAL', () => pm.expect(res.data.status).to.eql('PARTIAL'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300000,\n  \"method\": \"CASH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bills/{{billId1}}/payments",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","bills","{{billId1}}","payments"]
+            }
+          }
+        },
+        {
+          "name": "6.4 Payment – Remaining (pay full, card)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Full payment 200', () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test('Bill PAID', () => pm.expect(res.data.status).to.eql('PAID'));",
+                  "pm.test('Order COMPLETED', () => pm.expect(res.data.orderStatus).to.eql('COMPLETED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 999999,\n  \"method\": \"CARD\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bills/{{billId1}}/payments",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","bills","{{billId1}}","payments"]
+            }
+          }
+        },
+        {
+          "name": "6.5 Reset Table T01 CLEANING → AVAILABLE",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"AVAILABLE\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/1/status", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","1","status"] }
+          }
+        },
+        {
+          "name": "[NEG] 6.6 Overpayment → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Overpayment → 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 99999999,\n  \"method\": \"CASH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bills/{{billId1}}/payments",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","bills","{{billId1}}","payments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 7 – Split & Merge Tables",
+      "item": [
+        {
+          "name": "7.1 Create Order on Table T02 (multi-item)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order T02 201', () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('orderIdT02', res.data.id);",
+                  "if (res.data.orderItems && res.data.orderItems.length >= 2) {",
+                  "  pm.collectionVariables.set('splitItemId', res.data.orderItems[1].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tableId\": 2,\n  \"branchId\": 1,\n  \"items\": [\n    { \"menuItemId\": 1, \"quantity\": 3, \"note\": null },\n    { \"menuItemId\": 2, \"quantity\": 2, \"note\": null }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/orders", "host": ["{{baseUrl}}"], "path": ["api","v1","orders"] }
+          }
+        },
+        {
+          "name": "7.2 Split Table T02 → T03",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Split 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetTableId\": 3,\n  \"items\": [\n    { \"orderItemId\": {{splitItemId}}, \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/2/split", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","2","split"] }
+          }
+        },
+        {
+          "name": "7.3 Merge Tables T03 → T02",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Merge 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceTableId\": 3,\n  \"targetTableId\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/merge", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","merge"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 8 – Customer Management",
+      "item": [
+        {
+          "name": "8.1 Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create customer 201', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Võ Thị Bích\",\n  \"phone\": \"0977888555\",\n  \"email\": \"bich.vo@email.com\",\n  \"address\": \"Q.Phú Nhuận, TP.HCM\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/customers", "host": ["{{baseUrl}}"], "path": ["api","v1","customers"] }
+          }
+        },
+        {
+          "name": "8.2 Update Customer #1",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0912345699\",\n  \"address\": \"Q.1, TP.HCM – đã cập nhật\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/customers/1", "host": ["{{baseUrl}}"], "path": ["api","v1","customers","1"] }
+          }
+        },
+        {
+          "name": "8.3 Search Customer by keyword",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?keyword=Minh&page=0&size=10",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","customers"],
+              "query": [{ "key": "keyword", "value": "Minh" }, { "key": "page", "value": "0" }, { "key": "size", "value": "10" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PHASE 9 – Negative / Security Tests",
+      "item": [
+        {
+          "name": "[NEG] 9.1 Manager changes employee role → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Manager change role → 403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerQ1Token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 1\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/employees/4", "host": ["{{baseUrl}}"], "path": ["api","v1","employees","4"] }
+          }
+        },
+        {
+          "name": "[NEG] 9.2 Set table status → OCCUPIED directly → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('OCCUPIED direct → 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{staffQ1Token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"OCCUPIED\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/v1/tables/4/status", "host": ["{{baseUrl}}"], "path": ["api","v1","tables","4","status"] }
+          }
+        },
+        {
+          "name": "[NEG] 9.3 Kitchen complete PENDING item → 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Complete non-PROCESSING → 409', () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{kitchenQ1Token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/kitchen/order-items/{{orderItemId2}}/complete",
+              "host": ["{{baseUrl}}"], "path": ["api","v1","kitchen","order-items","{{orderItemId2}}","complete"]
+            }
+          }
+        },
+        {
+          "name": "[NEG] 9.4 Logout Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Logout 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', '');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","logout"] }
+          }
+        },
+        {
+          "name": "[NEG] 9.5 Refresh after Logout → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Refresh after logout → 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","refresh"] }
+          }
+        }
+      ]
+    }
+  ]
+}

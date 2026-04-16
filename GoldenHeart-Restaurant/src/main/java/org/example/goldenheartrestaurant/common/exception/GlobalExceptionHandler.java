@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,10 +52,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
+        String rootMessage = exception.getMostSpecificCause() != null
+                ? exception.getMostSpecificCause().getMessage()
+                : exception.getMessage();
+
+        log.warn("Data integrity violation: {}", rootMessage);
+
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ErrorResponse.builder()
                         .success(false)
-                        .message("Data integrity violation")
+                        .message(resolveDataIntegrityMessage(rootMessage))
                         .build()
         );
     }
@@ -100,6 +107,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        String parameterName = exception.getName();
+        String rejectedValue = exception.getValue() == null ? "null" : String.valueOf(exception.getValue());
+
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.builder()
+                        .success(false)
+                        .message(buildTypeMismatchMessage(parameterName, rejectedValue))
+                        .build()
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
         log.error("Unexpected server error", exception);
@@ -109,5 +129,39 @@ public class GlobalExceptionHandler {
                         .message("Unexpected server error")
                         .build()
         );
+    }
+
+    private String resolveDataIntegrityMessage(String rootMessage) {
+        if (rootMessage == null || rootMessage.isBlank()) {
+            return "Data integrity violation";
+        }
+
+        if (rootMessage.contains("uk_inventory_branch_ingredient_active")
+                || rootMessage.contains("uk_inventory_branch_ingredient")) {
+            return "Chi nhanh nay da co inventory item cho nguyen lieu nay";
+        }
+
+        if (rootMessage.contains("uk_ingredients_name") || rootMessage.contains("ingredients.name")) {
+            return "Ten nguyen lieu da ton tai";
+        }
+
+        if (rootMessage.contains("uk_menu_items_branch_category_name")) {
+            return "Ten mon da ton tai trong chi nhanh va danh muc nay";
+        }
+
+        if (rootMessage.contains("uk_refresh_tokens_token_hash")) {
+            return "Refresh token hash bi trung";
+        }
+
+        return "Data integrity violation";
+    }
+
+    private String buildTypeMismatchMessage(String parameterName, String rejectedValue) {
+        if (rejectedValue != null && rejectedValue.matches("\\{[^{}]+}")) {
+            return "Invalid parameter '" + parameterName + "': received '" + rejectedValue
+                    + "'. This usually means a Postman path/query variable was not resolved.";
+        }
+
+        return "Invalid value for parameter '" + parameterName + "': " + rejectedValue;
     }
 }

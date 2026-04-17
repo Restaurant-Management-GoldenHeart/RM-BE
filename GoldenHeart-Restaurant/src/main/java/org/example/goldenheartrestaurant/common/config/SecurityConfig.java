@@ -66,6 +66,7 @@ public class SecurityConfig {
                         // Các endpoint auth phải mở public để user còn login / refresh / logout được.
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Endpoint nào không nằm trong nhóm public thì bắt buộc phải xác thực.
                         .anyRequest().authenticated()
                 )

@@ -38,8 +38,8 @@ VALUES
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 2. RESTAURANT
 -- ─────────────────────────────────────────────────────────────────────────────
-INSERT IGNORE INTO restaurants (id, name, created_at, updated_at)
-VALUES (1, 'GoldenHeart Restaurant', NOW(), NOW());
+INSERT IGNORE INTO restaurants (id, name, address, phone)
+VALUES (1, 'GoldenHeart Restaurant', '123 Golden Heart Center, TP.HCM', '02899998888');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. BRANCHES
@@ -97,8 +97,8 @@ VALUES
 --    Password: GoldenHeart@2026  →  BCrypt hash (cost=12)
 --    admin đã được bootstrap tạo – dùng INSERT IGNORE
 -- ─────────────────────────────────────────────────────────────────────────────
--- BCrypt hash của "GoldenHeart@2026":
-SET @pw = '$2a$12$K3L/Dh2mBJy4GpVfEw.9WOBGJzxI8rFhEiGP/wCKH9L3MidG9oqAS';
+-- BCrypt hash of "GoldenHeart@2026" (verified against Spring BCryptPasswordEncoder cost=12):
+SET @pw = '$2a$12$EXb/TNXubsjiFf6pYAFNi.z88B.QuwDGz69Nt/OUJGmp9hcBJaLqC';
 
 INSERT IGNORE INTO users (id, username, password_hash, role_id, status, created_at, updated_at)
 VALUES
@@ -318,7 +318,158 @@ VALUES
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Để trống vì operations module chưa có controller/service
 
+-- =============================================================================
+-- 16. OPERATIONAL FIXTURES FOR POSTMAN E2E
+-- =============================================================================
+
+-- 16.1 Menu edge-case statuses
+UPDATE menu_items
+SET status = 'OUT_OF_STOCK'
+WHERE id = 10;
+
+-- 16.2 Inventory balances tuned for deterministic kitchen scenarios
+UPDATE inventory
+SET quantity = CASE id
+        WHEN 1 THEN 49.90
+        WHEN 2 THEN 29.60
+        WHEN 3 THEN 79.60
+        WHEN 11 THEN 39.80
+        WHEN 12 THEN 59.85
+        WHEN 13 THEN 0.30
+        ELSE quantity
+    END,
+    min_stock_level = CASE id
+        WHEN 13 THEN 1.00
+        ELSE min_stock_level
+    END,
+    reorder_level = CASE id
+        WHEN 13 THEN 2.00
+        ELSE reorder_level
+    END
+WHERE id IN (1, 2, 3, 11, 12, 13);
+
+-- 16.3 Orders covering in-progress, completed, paid, cancelled, and partial-payment states
+INSERT IGNORE INTO orders (id, branch_id, table_id, customer_id, created_by, status, created_at, closed_at)
+VALUES
+  (1, 1, 2, 1, 4, 'PROCESSING', '2026-04-17 10:00:00', NULL),
+  (2, 1, 3, 2, 4, 'COMPLETED',  '2026-04-17 11:00:00', NULL),
+  (3, 1, 4, 3, 5, 'COMPLETED',  '2026-04-16 18:00:00', '2026-04-16 19:10:00'),
+  (4, 2, NULL, 4, 6, 'CANCELLED', '2026-04-15 12:30:00', '2026-04-15 12:45:00'),
+  (5, 2, 7, 5, 6, 'COMPLETED',  '2026-04-17 09:15:00', NULL);
+
+-- 16.4 Order items with realistic kitchen statuses, notes, and cancellation reasons
+INSERT IGNORE INTO order_items (id, order_id, menu_item_id, quantity, price, status, note)
+VALUES
+  (1, 1, 7, 1,  89000.00, 'PROCESSING',   'No onion'),
+  (2, 1, 9, 1, 350000.00, 'WAITING_STOCK','Stock issue: Insufficient stock for ingredient: Hai san hon hop (need 0.5, available 0.3)'),
+  (3, 2, 1, 1, 189000.00, 'SERVED',       NULL),
+  (4, 2, 5, 2,  79000.00, 'SERVED',       'Extra herbs'),
+  (5, 3, 8, 2,  75000.00, 'SERVED',       NULL),
+  (6, 3, 6, 1,  65000.00, 'SERVED',       NULL),
+  (7, 4, 13,1,  89000.00, 'CANCELLED',    'Kitchen cancel reason: Customer left before preparation'),
+  (8, 5, 11,1, 189000.00, 'SERVED',       NULL),
+  (9, 5, 15,2,  79000.00, 'SERVED',       NULL);
+
+-- 16.5 Bills and payments for revenue and checkout testing
+INSERT IGNORE INTO bills (id, order_id, subtotal, tax, discount, total, cost_of_goods_sold, gross_profit, status)
+VALUES
+  (1, 3, 215000.00, 17200.00,     0.00, 232200.00,  62000.00, 153000.00, 'PAID'),
+  (2, 5, 347000.00, 27760.00, 20000.00, 354760.00, 105000.00, 222000.00, 'PARTIAL');
+
+INSERT IGNORE INTO payments (id, bill_id, amount, method, paid_at)
+VALUES
+  (1, 1, 232200.00, 'CASH',        '2026-04-16 19:10:00'),
+  (2, 2, 200000.00, 'CREDIT_CARD', '2026-04-17 10:30:00'),
+  (3, 2,  50000.00, 'E_WALLET',    '2026-04-17 10:45:00');
+
+-- 16.6 Historical stock movements used by billing margin and kitchen processing flows
+INSERT IGNORE INTO stock_movements (
+  id, branch_id, ingredient_id, order_id, order_item_id, created_by,
+  movement_type, quantity_change, balance_after, unit_cost, total_cost, occurred_at, note
+)
+VALUES
+  (1, 1, 11, 1, 1, 7, 'SALE_OUT', -0.20, 39.80,  18000.00,  3600.00, '2026-04-17 10:05:00', 'Stock deducted when seeded order item 1 entered PROCESSING'),
+  (2, 1,  1, 1, 1, 7, 'SALE_OUT', -0.10, 49.90, 280000.00, 28000.00, '2026-04-17 10:05:00', 'Stock deducted when seeded order item 1 entered PROCESSING'),
+  (3, 1, 12, 1, 1, 7, 'SALE_OUT', -0.15, 59.85,  50000.00,  7500.00, '2026-04-17 10:05:00', 'Stock deducted when seeded order item 1 entered PROCESSING'),
+  (4, 1,  3, 3, 5, 7, 'SALE_OUT', -0.40, 79.60,  25000.00, 10000.00, '2026-04-16 18:10:00', 'Historical stock deduction for paid seed order'),
+  (5, 1,  2, 3, 5, 7, 'SALE_OUT', -0.40, 29.60,  80000.00, 32000.00, '2026-04-16 18:10:00', 'Historical stock deduction for paid seed order');
+
+-- 16.7 Audit trail entries for inventory regression testing
+INSERT IGNORE INTO inventory_action_logs (
+  id, inventory_id, branch_id, branch_name, ingredient_id, ingredient_name, unit_symbol,
+  acted_by, acted_by_username, acted_by_full_name, action_type,
+  before_quantity, after_quantity,
+  before_min_stock_level, after_min_stock_level,
+  before_reorder_level, after_reorder_level,
+  before_average_unit_cost, after_average_unit_cost,
+  before_ingredient_name, after_ingredient_name,
+  before_unit_symbol, after_unit_symbol,
+  summary, occurred_at
+)
+VALUES
+  (1, 1, 1, 'Chi nhanh Quan 1', 1, 'Thit bo', 'kg',
+   2, 'manager_q1', 'Nguyen Van Minh', 'CREATED',
+   NULL, 50.00,
+   NULL, 5.00,
+   NULL, 10.00,
+   NULL, 280000.00,
+   NULL, 'Thit bo',
+   NULL, 'kg',
+   'Initial seeded inventory record for branch 1 beef', '2026-04-10 08:00:00'),
+  (2, 13, 1, 'Chi nhanh Quan 1', 13, 'Hai san hon hop', 'kg',
+   2, 'manager_q1', 'Nguyen Van Minh', 'UPDATED',
+   25.00, 0.30,
+   2.00, 1.00,
+   4.00, 2.00,
+   150000.00, 150000.00,
+   'Hai san hon hop', 'Hai san hon hop',
+   'kg', 'kg',
+   'Adjusted seeded inventory to create deterministic WAITING_STOCK scenario', '2026-04-17 09:00:00'),
+  (3, 11, 1, 'Chi nhanh Quan 1', 11, 'Pho bo - banh pho', 'kg',
+   4, 'staff_q1_a', 'Le Van Hung', 'UPDATED',
+   40.00, 39.80,
+   5.00, 5.00,
+   10.00, 10.00,
+   18000.00, 18000.00,
+   'Pho bo - banh pho', 'Pho bo - banh pho',
+   'kg', 'kg',
+   'Seeded order item 1 consumed 0.2kg banh pho when it started processing', '2026-04-17 10:05:00');
+
+-- 16.8 Table states aligned with seeded operational scenarios
+UPDATE tables
+SET status = CASE id
+    WHEN 1 THEN 'AVAILABLE'
+    WHEN 2 THEN 'OCCUPIED'
+    WHEN 3 THEN 'OCCUPIED'
+    WHEN 4 THEN 'CLEANING'
+    WHEN 5 THEN 'RESERVED'
+    WHEN 6 THEN 'AVAILABLE'
+    WHEN 7 THEN 'OCCUPIED'
+    WHEN 8 THEN 'AVAILABLE'
+    WHEN 9 THEN 'AVAILABLE'
+    WHEN 10 THEN 'AVAILABLE'
+    ELSE status
+END
+WHERE id BETWEEN 1 AND 10;
+
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- =============================================================================
+-- CLEAN SUMMARY IDS FOR POSTMAN
+-- Roles:      ADMIN=1, MANAGER=2, STAFF=3, KITCHEN=4, CUSTOMER=5
+-- Branches:   Q1=1, Q7=2, BinhThanh=3
+-- Tables Q1:  T01=1, T02=2, T03=3, T04=4, T05=5(RESERVED)
+-- Tables Q7:  T01=6, T02=7, T03=8
+-- Users:      admin=1, manager_q1=2, manager_q7=3, staff_q1_a=4,
+--             staff_q1_b=5, staff_q7_a=6, kitchen_q1=7, kitchen_q7=8
+-- Categories: Main=1, Appetizer=2, Dessert=3, Drink=4, Rice=5, Seafood=6
+-- MenuItems:  Q1=1-10, Q7=11-15, BinhThanh=16-17
+-- Customers:  1-5
+-- Inventory:  Q1=1-17, Q7=18-25
+-- Orders:     processing=1, billable=2, paid=3, cancelled=4, partial=5
+-- OrderItems: processing=1, waiting_stock=2, served_1=3, served_2=4
+-- Bills:      paid=1, partial=2
+-- =============================================================================
 
 -- =============================================================================
 -- SUMMARY IDs để dùng trong Postman:

@@ -16,6 +16,8 @@ import java.util.Optional;
  */
 public interface OrderRepository extends JpaRepository<Order, Integer> {
 
+    boolean existsByTable_Id(Integer tableId);
+
     @Query("""
             select distinct o
             from Order o

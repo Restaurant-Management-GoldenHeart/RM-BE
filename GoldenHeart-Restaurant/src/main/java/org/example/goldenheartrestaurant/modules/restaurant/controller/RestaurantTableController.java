@@ -6,15 +6,19 @@ import org.example.goldenheartrestaurant.common.response.ApiResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderResponse;
 import org.example.goldenheartrestaurant.modules.order.service.OrderManagementService;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.request.CreateRestaurantTableRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.MergeTablesRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.SplitTableRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UpdateTableStatusRequest;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UpdateRestaurantTableRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.response.RestaurantTableResponse;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.response.TableOrderTransferResponse;
 import org.example.goldenheartrestaurant.modules.restaurant.service.RestaurantTableService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +38,20 @@ public class RestaurantTableController {
     private final RestaurantTableService restaurantTableService;
     private final OrderManagementService orderManagementService;
 
+    @PostMapping
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<ApiResponse<RestaurantTableResponse>> createTable(
+            @Valid @RequestBody CreateRestaurantTableRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<RestaurantTableResponse>builder()
+                        .message("Table created successfully")
+                        .data(restaurantTableService.createTable(request, currentUser))
+                        .build()
+        );
+    }
+
     @GetMapping
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<List<RestaurantTableResponse>>> getTables(
@@ -46,6 +64,49 @@ public class RestaurantTableController {
                 ApiResponse.<List<RestaurantTableResponse>>builder()
                         .message("Tables retrieved successfully")
                         .data(restaurantTableService.getTables(branchId, status, keyword, currentUser))
+                        .build()
+        );
+    }
+
+    @GetMapping("/{tableId}")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
+    public ResponseEntity<ApiResponse<RestaurantTableResponse>> getTableById(
+            @PathVariable Integer tableId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<RestaurantTableResponse>builder()
+                        .message("Table retrieved successfully")
+                        .data(restaurantTableService.getTableById(tableId, currentUser))
+                        .build()
+        );
+    }
+
+    @PutMapping("/{tableId}")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<ApiResponse<RestaurantTableResponse>> updateTable(
+            @PathVariable Integer tableId,
+            @Valid @RequestBody UpdateRestaurantTableRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<RestaurantTableResponse>builder()
+                        .message("Table updated successfully")
+                        .data(restaurantTableService.updateTable(tableId, request, currentUser))
+                        .build()
+        );
+    }
+
+    @DeleteMapping("/{tableId}")
+    @Secured({"ROLE_ADMIN"})
+    public ResponseEntity<ApiResponse<Void>> deleteTable(
+            @PathVariable Integer tableId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        restaurantTableService.deleteTable(tableId, currentUser);
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .message("Table deleted successfully")
                         .build()
         );
     }

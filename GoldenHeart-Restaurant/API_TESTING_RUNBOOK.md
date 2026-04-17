@@ -1,5 +1,5 @@
+<!-- LEGACY RUNBOOK BELOW IS KEPT ONLY FOR REFERENCE AND SHOULD NOT BE USED.
 # GoldenHeart Restaurant – API Testing Runbook
-
 > **Base URL**: `http://localhost:1010`
 > **Auth**: Bearer token (lấy từ login, gán vào Header `Authorization: Bearer <token>`)
 > **Refresh Token**: Tự động đặt vào cookie `refreshToken` sau khi login
@@ -945,3 +945,194 @@ mysql -u root -p1409 goldenheart_restaurant < sql/05_seed_full_test_data.sql
 ```
 
 > **Lưu ý**: `AuthBootstrapRunner` sẽ seed roles và admin khi app khởi động nên file SQL dùng `INSERT IGNORE` để tránh trùng.
+-->
+# GoldenHeart Restaurant API Testing Runbook
+
+This document is the current runbook for local API testing with the active BE codebase, SQL seed, and Postman files.
+
+## Source Files
+
+- SQL reset: [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql)
+- SQL seed: [05_seed_full_test_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_full_test_data.sql)
+- Postman collection: [GoldenHeart-Restaurant-E2E.postman_collection.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant-E2E.postman_collection.json)
+- Postman environment: [GoldenHeart-Restaurant-E2E.postman_environment.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant-E2E.postman_environment.json)
+
+## Local Defaults
+
+- App URL: `http://localhost:1010`
+- API base URL: `http://localhost:1010/api/v1`
+- Database: `goldenheart_restaurant`
+- Bootstrap admin:
+  - username: `admin`
+  - password: `Admin123`
+
+## Fresh Start Sequence
+
+1. Run [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql).
+2. Start Spring Boot once so Hibernate creates the schema and bootstrap auth data.
+3. Run [05_seed_full_test_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_full_test_data.sql).
+4. Import both Postman files.
+5. Select environment `GoldenHeart Restaurant E2E Local`.
+
+## Required First Requests
+
+Run these before testing other folders:
+
+1. `Auth / Login Admin`
+2. `Auth / Login Manager`
+3. `Auth / Login Staff`
+4. `Auth / Login Kitchen`
+
+Expected environment variables after login:
+
+- `admin_token`
+- `manager_token`
+- `staff_token`
+- `kitchen_token`
+
+## Recommended Folder Order
+
+1. `Auth`
+2. `Roles`
+3. `Employees`
+4. `Customers`
+5. `Inventory`
+6. `Menu Items`
+7. `Tables`
+8. `Orders`
+9. `Kitchen`
+10. `Billing`
+11. `End-to-End Flow`
+
+## Main Happy Path
+
+Use folder `End-to-End Flow` for the full restaurant lifecycle:
+
+1. Staff creates an order on table `1`
+2. Kitchen processes item 1
+3. Kitchen completes item 1
+4. Kitchen processes item 2
+5. Kitchen completes item 2
+6. Staff serves item 1
+7. Staff serves item 2
+8. Staff creates bill
+9. Staff pays bill
+
+Expected result:
+
+- table moves from `AVAILABLE` to `OCCUPIED`
+- order items move through valid kitchen statuses
+- billing is allowed only after dishes are ready
+- paid bill closes the order
+- table moves to `CLEANING`
+
+## Seeded IDs Already Available In Postman
+
+- Branches:
+  - `branch_q1_id=1`
+  - `branch_q7_id=2`
+  - `branch_bt_id=3`
+- Tables:
+  - `seed_available_table_id=1`
+  - `seed_processing_table_id=2`
+  - `seed_billable_table_id=3`
+  - `seed_cleaning_table_id=4`
+  - `seed_reserved_table_id=5`
+  - `seed_partial_bill_table_id=7`
+- Orders:
+  - `seed_order_processing_id=1`
+  - `seed_order_billable_id=2`
+  - `seed_order_paid_id=3`
+  - `seed_order_cancelled_id=4`
+  - `seed_order_partial_bill_id=5`
+- Order items:
+  - `seed_order_item_processing_id=1`
+  - `seed_order_item_waiting_stock_id=2`
+  - `seed_order_item_served_1_id=3`
+  - `seed_order_item_served_2_id=4`
+- Bills:
+  - `seed_bill_paid_id=1`
+  - `seed_bill_partial_id=2`
+
+## Useful Seeded Edge Cases
+
+- `menu_item id=10` is `OUT_OF_STOCK`
+- `order_item id=2` is `WAITING_STOCK`
+- `order id=4` is `CANCELLED`
+- `bill id=2` is `PARTIAL`
+- `table id=4` is `CLEANING`
+- `table id=5` is `RESERVED`
+
+## Folder Intent
+
+- `Tables`: metadata CRUD, status update, active-order lookup, split, merge
+- `Orders`: create/read order without interfering with the seeded table flow
+- `Kitchen`: queue and kitchen state actions
+- `Billing`: create bill and add payment
+- `End-to-End Flow`: clean path for table -> order -> kitchen -> serve -> pay
+
+## Reset When Needed
+
+Reset and reseed if you already executed state-changing flows such as:
+
+- split table
+- merge tables
+- kitchen processing or completion
+- create bill
+- add payment
+- end-to-end table workflow
+
+## Quick Troubleshooting
+
+### 401
+
+- relogin and refresh tokens
+- confirm the selected environment is correct
+- confirm `base_url=http://localhost:1010/api/v1`
+
+### 403
+
+- check the role used by the request
+- `KITCHEN` for kitchen status operations
+- `STAFF` for serve and billing
+- `ADMIN` or `MANAGER` for metadata CRUD where required
+
+### 409
+
+Most common reasons:
+
+- billing before items are ready
+- invalid kitchen status transition
+- inventory shortage
+- invalid split or merge condition
+- table not in a valid state
+
+## Minimal Smoke Test
+
+If you only want a quick sanity check, run:
+
+1. `Auth / Login Admin`
+2. `Auth / Login Staff`
+3. `Auth / Login Kitchen`
+4. `Tables / Get Tables`
+5. `Orders / Get Seed Order By ID`
+6. `Kitchen / Get Pending Kitchen Items`
+7. `Billing / Add Payment To Seed Partial Bill`
+
+## SQL Example
+
+```bash
+mysql -u root -p1409 < sql/01_reset_local_database.sql
+```
+
+Start the app, then:
+
+```bash
+mysql -u root -p1409 goldenheart_restaurant < sql/05_seed_full_test_data.sql
+```
+
+## Notes
+
+- The Postman environment has been synced to the current app port `1010`.
+- The Postman environment has also been synced to the current bootstrap admin password `Admin123`.
+- Prefer the environment variables `seed_*`, `created_*`, and `e2e_*` over hardcoded IDs in manual requests.

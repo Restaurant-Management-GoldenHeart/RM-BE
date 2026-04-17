@@ -1,0 +1,1299 @@
+{
+  "info": {
+    "_postman_id": "b6f77e4d-4f51-4f27-b979-e2fa8e0eb9d9",
+    "name": "GoldenHeart Restaurant E2E",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"customer{{$timestamp}}\",\"email\":\"customer{{$timestamp}}@example.com\",\"password\":\"Customer123\",\"fullName\":\"Postman Customer {{$timestamp}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.environment.set('admin_token', json.data.accessToken);",
+                  "  pm.environment.set('auth_token', json.data.accessToken);",
+                  "  pm.environment.set('current_username', json.data.username || pm.environment.get('admin_username'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{admin_username}}\",\"password\":\"{{admin_password}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.environment.set('manager_token', json.data.accessToken);",
+                  "  pm.environment.set('auth_token', json.data.accessToken);",
+                  "  pm.environment.set('current_username', json.data.username || pm.environment.get('manager_username'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{manager_username}}\",\"password\":\"{{manager_password}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.environment.set('staff_token', json.data.accessToken);",
+                  "  pm.environment.set('auth_token', json.data.accessToken);",
+                  "  pm.environment.set('current_username', json.data.username || pm.environment.get('staff_username'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{staff_username}}\",\"password\":\"{{staff_password}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Kitchen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.environment.set('kitchen_token', json.data.accessToken);",
+                  "  pm.environment.set('auth_token', json.data.accessToken);",
+                  "  pm.environment.set('current_username', json.data.username || pm.environment.get('kitchen_username'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{kitchen_username}}\",\"password\":\"{{kitchen_password}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.environment.set('auth_token', json.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{manager_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": ["{{base_url}}"],
+              "path": ["roles"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{manager_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Employees",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/employees?page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["employees"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Employee By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/employees/{{seed_employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employees", "{{seed_employee_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/employees/me",
+              "host": ["{{base_url}}"],
+              "path": ["employees", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fullName\":\"Manager Quan 1 Updated\",\"email\":\"manager.q1@goldenheart.com\",\"phone\":\"0901000011\",\"address\":\"123 Nguyen Hue, Quan 1\",\"dateOfBirth\":\"1988-03-15\",\"gender\":\"male\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/me",
+              "host": ["{{base_url}}"],
+              "path": ["employees", "me"]
+            }
+          }
+        },
+        {
+          "name": "Create Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set('created_employee_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"api.employee{{$timestamp}}\",\"password\":\"Employee123\",\"roleId\":{{role_staff_id}},\"fullName\":\"API Employee {{$timestamp}}\",\"employeeCode\":\"EMP-{{$timestamp}}\",\"email\":\"api.employee{{$timestamp}}@goldenheart.local\",\"phone\":\"0909{{$randomInt}}\",\"branchId\":{{branch_q1_id}},\"dateOfBirth\":\"1999-01-01\",\"gender\":\"female\",\"hireDate\":\"2026-04-17\",\"salary\":8500000,\"address\":\"API Created Employee\",\"internalNotes\":\"Created by Postman E2E\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/employees",
+              "host": ["{{base_url}}"],
+              "path": ["employees"]
+            }
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"fullName\":\"Nguyen Van Minh Updated\",\"phone\":\"0901999999\",\"salary\":19000000,\"address\":\"Quan 1, Ho Chi Minh City\",\"internalNotes\":\"Updated from Postman seed request\",\"roleId\":{{role_manager_id}},\"status\":\"ACTIVE\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/employees/{{seed_employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employees", "{{seed_employee_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Employee",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/employees/{{created_employee_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["employees", "{{created_employee_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{manager_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Customers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customers?page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["customers"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Customer By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customers/{{seed_customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["customers", "{{seed_customer_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set('created_customer_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"API Customer {{$timestamp}}\",\"email\":\"api.customer{{$timestamp}}@goldenheart.local\",\"phone\":\"0918{{$randomInt}}\",\"customerCode\":\"CUS-{{$timestamp}}\",\"address\":\"API Address\",\"dateOfBirth\":\"1997-05-10\",\"gender\":\"female\",\"note\":\"Created by Postman\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/customers",
+              "host": ["{{base_url}}"],
+              "path": ["customers"]
+            }
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Nguyen Minh Khoa Updated\",\"email\":\"khoa.updated@goldenheart.local\",\"phone\":\"0912000011\",\"address\":\"Quan 1 Updated\",\"note\":\"Seed customer updated from Postman\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/customers/{{seed_customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["customers", "{{seed_customer_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Customer",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/customers/{{created_customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["customers", "{{created_customer_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{manager_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Measurement Units",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/inventory/units",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "units"]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/inventory?branchId={{branch_q1_id}}&lowStockOnly=false&page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["inventory"],
+              "query": [
+                { "key": "branchId", "value": "{{branch_q1_id}}" },
+                { "key": "lowStockOnly", "value": "false" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Alerts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/inventory/alerts?branchId={{branch_q1_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "alerts"],
+              "query": [
+                { "key": "branchId", "value": "{{branch_q1_id}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/inventory/{{seed_inventory_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "{{seed_inventory_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Inventory History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/inventory/{{seed_inventory_id}}/history?page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "{{seed_inventory_id}}", "history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Inventory Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.inventoryId) {",
+                  "  pm.environment.set('created_inventory_id', json.data.inventoryId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"ingredientName\":\"API Ingredient {{$timestamp}}\",\"unitId\":1,\"quantity\":12,\"minStockLevel\":2,\"reorderLevel\":4,\"averageUnitCost\":95000,\"note\":\"Created from Postman E2E\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/inventory",
+              "host": ["{{base_url}}"],
+              "path": ["inventory"]
+            }
+          }
+        },
+        {
+          "name": "Update Inventory Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"quantity\":52,\"minStockLevel\":6,\"reorderLevel\":12,\"averageUnitCost\":285000,\"note\":\"Updated from Postman seed request\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/inventory/{{seed_inventory_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "{{seed_inventory_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Inventory Item",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/inventory/{{created_inventory_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["inventory", "{{created_inventory_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu Items",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{admin_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Menu Items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/menu-items?branchId={{branch_q1_id}}&categoryId={{seed_category_id}}&page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items"],
+              "query": [
+                { "key": "branchId", "value": "{{branch_q1_id}}" },
+                { "key": "categoryId", "value": "{{seed_category_id}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Menu Item By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/menu-items/{{seed_menu_item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", "{{seed_menu_item_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Menu Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set('created_menu_item_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"categoryId\":{{seed_category_id}},\"name\":\"API Signature Dish {{$timestamp}}\",\"description\":\"Created from Postman E2E\",\"price\":129000,\"status\":\"AVAILABLE\",\"recipes\":[{\"ingredientId\":1,\"quantity\":0.15},{\"ingredientId\":7,\"quantity\":0.05}]}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/menu-items",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items"]
+            }
+          }
+        },
+        {
+          "name": "Update Menu Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"categoryId\":{{seed_category_id}},\"name\":\"Bo Luc Lac Premium\",\"description\":\"Seed item updated from Postman\",\"price\":199000,\"status\":\"AVAILABLE\",\"recipes\":[{\"ingredientId\":1,\"quantity\":0.22},{\"ingredientId\":7,\"quantity\":0.05},{\"ingredientId\":9,\"quantity\":0.02}]}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/menu-items/{{seed_menu_item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", "{{seed_menu_item_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Menu Item",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/menu-items/{{created_menu_item_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["menu-items", "{{created_menu_item_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tables",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{manager_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Tables",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tables?branchId={{branch_q1_id}}&status=AVAILABLE&q=T",
+              "host": ["{{base_url}}"],
+              "path": ["tables"],
+              "query": [
+                { "key": "branchId", "value": "{{branch_q1_id}}" },
+                { "key": "status", "value": "AVAILABLE" },
+                { "key": "q", "value": "T" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Table By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tables/{{seed_available_table_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{seed_available_table_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Table",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.id) {",
+                  "  pm.environment.set('created_table_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"areaId\":{{area_q1_indoor_id}},\"tableNumber\":\"PT{{$randomInt}}\",\"capacity\":4,\"posX\":15,\"posY\":15,\"width\":2,\"height\":2,\"displayOrder\":99}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tables",
+              "host": ["{{base_url}}"],
+              "path": ["tables"]
+            }
+          }
+        },
+        {
+          "name": "Update Created Table",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"areaId\":{{area_q1_outdoor_id}},\"tableNumber\":\"PU{{$randomInt}}\",\"capacity\":6,\"posX\":20,\"posY\":20,\"width\":3,\"height\":2,\"displayOrder\":100}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tables/{{created_table_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{created_table_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Created Table",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/tables/{{created_table_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{created_table_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Cleaning Table To Available",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"AVAILABLE\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tables/{{seed_cleaning_table_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{seed_cleaning_table_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Order By Table",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/tables/{{seed_processing_table_id}}/active-order",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{seed_processing_table_id}}", "active-order"]
+            }
+          }
+        },
+        {
+          "name": "Split Seed Processing Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"targetTableId\":{{seed_cleaning_table_id}},\"items\":[{\"orderItemId\":{{seed_order_item_processing_id}},\"quantity\":1}]}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tables/{{seed_processing_table_id}}/split",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "{{seed_processing_table_id}}", "split"]
+            }
+          }
+        },
+        {
+          "name": "Merge Seed Tables",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sourceTableId\":{{seed_cleaning_table_id}},\"targetTableId\":{{seed_billable_table_id}}}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/tables/merge",
+              "host": ["{{base_url}}"],
+              "path": ["tables", "merge"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{staff_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  pm.environment.set('created_order_id', json.data.orderId);",
+                  "  if (json.data.items && json.data.items[0]) { pm.environment.set('created_order_item_1_id', json.data.items[0].id); }",
+                  "  if (json.data.items && json.data.items[1]) { pm.environment.set('created_order_item_2_id', json.data.items[1].id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"branchId\":{{branch_q1_id}},\"customerId\":{{seed_customer_id}},\"items\":[{\"menuItemId\":1,\"quantity\":1,\"note\":\"No spicy\"},{\"menuItemId\":5,\"quantity\":1,\"note\":\"Less oil\"}]}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Seed Order By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders/{{seed_order_processing_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{seed_order_processing_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Created Order By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders/{{created_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{created_order_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kitchen",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{kitchen_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get Pending Kitchen Items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/kitchen/orders/pending?branchId={{branch_q1_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "orders", "pending"],
+              "query": [
+                { "key": "branchId", "value": "{{branch_q1_id}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Seed Processing Item",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/kitchen/order-items/{{seed_order_item_processing_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "order-items", "{{seed_order_item_processing_id}}", "complete"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{staff_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Create Bill For Seed Served Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  pm.environment.set('created_bill_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\":{{seed_order_billable_id}},\"discount\":10000,\"taxRate\":8,\"paidAmount\":0,\"paymentMethod\":\"CASH\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bills",
+              "host": ["{{base_url}}"],
+              "path": ["bills"]
+            }
+          }
+        },
+        {
+          "name": "Add Payment To Created Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\":364760,\"method\":\"CASH\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bills/{{created_bill_id}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["bills", "{{created_bill_id}}", "payments"]
+            }
+          }
+        },
+        {
+          "name": "Add Payment To Seed Partial Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\":25000,\"method\":\"E_WALLET\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bills/{{seed_bill_partial_id}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["bills", "{{seed_bill_partial_id}}", "payments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "End-to-End Flow",
+      "item": [
+        {
+          "name": "Staff - Create E2E Order",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{staff_token}}", "type": "string" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  pm.environment.set('e2e_order_id', json.data.orderId);",
+                  "  if (json.data.items && json.data.items[0]) { pm.environment.set('e2e_order_item_1_id', json.data.items[0].id); }",
+                  "  if (json.data.items && json.data.items[1]) { pm.environment.set('e2e_order_item_2_id', json.data.items[1].id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tableId\":{{seed_available_table_id}},\"customerId\":2,\"items\":[{\"menuItemId\":1,\"quantity\":1,\"note\":\"No chili\"},{\"menuItemId\":5,\"quantity\":1,\"note\":\"Less onion\"}]}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Kitchen - Process E2E Item 1",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{kitchen_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"PROCESSING\",\"reason\":\"\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/kitchen/order-items/{{e2e_order_item_1_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "order-items", "{{e2e_order_item_1_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Kitchen - Complete E2E Item 1",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{kitchen_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/kitchen/order-items/{{e2e_order_item_1_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "order-items", "{{e2e_order_item_1_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Kitchen - Process E2E Item 2",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{kitchen_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"PROCESSING\",\"reason\":\"\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/kitchen/order-items/{{e2e_order_item_2_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "order-items", "{{e2e_order_item_2_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Kitchen - Complete E2E Item 2",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{kitchen_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/kitchen/order-items/{{e2e_order_item_2_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["kitchen", "order-items", "{{e2e_order_item_2_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Staff - Serve E2E Item 1",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{staff_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/orders/order-items/{{e2e_order_item_1_id}}/serve",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "order-items", "{{e2e_order_item_1_id}}", "serve"]
+            }
+          }
+        },
+        {
+          "name": "Staff - Serve E2E Item 2",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{staff_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/orders/order-items/{{e2e_order_item_2_id}}/serve",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "order-items", "{{e2e_order_item_2_id}}", "serve"]
+            }
+          }
+        },
+        {
+          "name": "Staff - Create E2E Bill",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{staff_token}}", "type": "string" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  pm.environment.set('e2e_bill_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"orderId\":{{e2e_order_id}},\"discount\":0,\"taxRate\":8,\"paidAmount\":0,\"paymentMethod\":\"CASH\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bills",
+              "host": ["{{base_url}}"],
+              "path": ["bills"]
+            }
+          }
+        },
+        {
+          "name": "Staff - Pay E2E Bill",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              { "key": "token", "value": "{{staff_token}}", "type": "string" }
+            ]
+          },
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"amount\":289440,\"method\":\"CASH\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/bills/{{e2e_bill_id}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["bills", "{{e2e_bill_id}}", "payments"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}

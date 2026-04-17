@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // 4. dựng Authentication cho Spring Security
                     Authentication authentication = jwtService.buildAuthentication(accessToken);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                } catch (JwtException | IllegalArgumentException exception) {
+                } catch (JwtException | IllegalArgumentException | org.springframework.security.core.AuthenticationException exception) {
                     // Nếu token lỗi thì trả luôn 401, không cho request đi tiếp xuống controller.
                     SecurityContextHolder.clearContext();
                     writeUnauthorizedResponse(response, exception.getMessage());
@@ -64,6 +64,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         // Nhóm endpoint auth là nơi phát token / refresh token,
         // nên không đi qua bước ép xác thực của filter này.
         return request.getServletPath().startsWith("/api/v1/auth/");

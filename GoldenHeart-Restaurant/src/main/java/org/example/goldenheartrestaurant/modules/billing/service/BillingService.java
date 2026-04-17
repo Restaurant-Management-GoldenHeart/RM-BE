@@ -169,9 +169,10 @@ public class BillingService {
             throw new ConflictException("Order has no billable items");
         }
 
-        boolean hasNotServedItems = billableItems.stream().anyMatch(item -> item.getStatus() != OrderItemStatus.SERVED);
+        boolean hasNotServedItems = billableItems.stream().anyMatch(item -> 
+                item.getStatus() != OrderItemStatus.SERVED && item.getStatus() != OrderItemStatus.COMPLETED);
         if (hasNotServedItems) {
-            throw new ConflictException("Order can only be checked out after all dishes are served");
+            throw new ConflictException("Order can only be checked out after all dishes are served or completed");
         }
     }
 

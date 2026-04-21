@@ -1,1138 +1,344 @@
-<!-- LEGACY RUNBOOK BELOW IS KEPT ONLY FOR REFERENCE AND SHOULD NOT BE USED.
-# GoldenHeart Restaurant – API Testing Runbook
-> **Base URL**: `http://localhost:1010`
-> **Auth**: Bearer token (lấy từ login, gán vào Header `Authorization: Bearer <token>`)
-> **Refresh Token**: Tự động đặt vào cookie `refreshToken` sau khi login
-> **Seed Data**: Chạy file `sql/05_seed_full_test_data.sql` trước khi test
-
----
-
-## Quy ước màu trạng thái kỳ vọng
-
-| Kỳ vọng | HTTP Status |
-|---|---|
-| ✅ 200 OK | Thành công |
-| ✅ 201 Created | Tạo mới thành công |
-| ❌ 400 Bad Request | Input không hợp lệ |
-| ❌ 401 Unauthorized | Chưa đăng nhập / token hết hạn |
-| ❌ 403 Forbidden | Đã đăng nhập nhưng không đủ quyền |
-| ❌ 404 Not Found | Resource không tồn tại |
-| ❌ 409 Conflict | Vi phạm rule nghiệp vụ |
-
----
-
-## Thứ tự test – Run Book
-
-```
-PHASE 1: AUTH & IDENTITY
-  Step 1.1  → Login Admin
-  Step 1.2  → Get my profile
-  Step 1.3  → Create Staff (Q1)  ← mới
-  Step 1.4  → Refresh token
-  Step 1.5  → Logout
-
-PHASE 2: MASTER DATA (dữ liệu nền)
-  Step 2.1  → List Roles
-  Step 2.2  → List Employees
-  Step 2.3  → Get measurement units
-  Step 2.4  → List inventory
-
-PHASE 3: MENU & INVENTORY SETUP
-  Step 3.1  → List menu items (Q1)
-  Step 3.2  → Create menu item
-  Step 3.3  → Create inventory item
-  Step 3.4  → Update inventory item (điều chỉnh tồn)
-  Step 3.5  → Get inventory alerts
-
-PHASE 4: TABLE MANAGEMENT
-  Step 4.1  → List tables (Q1)
-  Step 4.2  → Get active order by table (trước khi có order)
-  Step 4.3  → Update table status → RESERVED
-  Step 4.4  → Reset table → AVAILABLE
-
-PHASE 5: ORDER FLOW (luồng chính)
-  Step 5.1  → Create Order (mở bàn T01 – Q1)
-  Step 5.2  → Get Order by ID
-  Step 5.3  → Add more items (gọi thêm món)
-  Step 5.4  → Get active order by table
-
-PHASE 6: KITCHEN FLOW
-  Step 6.1  → Kitchen: get pending items
-  Step 6.2  → Kitchen: start processing (PENDING → PROCESSING)
-  Step 6.3  → Kitchen: complete item (PROCESSING → COMPLETED, trừ kho)
-
-PHASE 7: SERVE & BILL
-  Step 7.1  → Staff: serve order item (COMPLETED → SERVED)
-  Step 7.2  → Create bill (tính tiền)
-  Step 7.3  → Add payment (thanh toán)
-
-PHASE 8: ADVANCED ORDER OPS
-  Step 8.1  → Split table
-  Step 8.2  → Merge tables
-
-PHASE 9: CUSTOMER MANAGEMENT
-  Step 9.1  → Create customer
-  Step 9.2  → List customers
-  Step 9.3  → Update customer
-
-PHASE 10: ERROR CASES (negative tests)
-  Step 10.1 → Login sai password
-  Step 10.2 → Access protected route khi không có token
-  Step 10.3 → Staff tạo bàn của branch khác
-  Step 10.4 → Kitchen complete item khi thiếu tồn
-  Step 10.5 → Tạo bill khi món chưa SERVED
-```
-
----
-
-## PHASE 1 – AUTH & IDENTITY
-
-### Step 1.1 – Login Admin
-
-**POST** `/api/v1/auth/login`
-
-```json
-{
-  "username": "admin",
-  "password": "Admin123"
-}
-```
-
-**Kỳ vọng: 200 OK**
-```json
-{
-  "message": "Login successfully",
-  "data": {
-    "accessToken": "eyJ...",
-    "tokenType": "Bearer",
-    "username": "admin",
-    "role": "ADMIN"
-  }
-}
-```
-> 🔑 **Lưu `accessToken`** vào Postman variable `{{adminToken}}`
-> 🍪 Cookie `refreshToken` được đặt tự động
-
----
-
-### Step 1.2 – Get My Profile
-
-**GET** `/api/v1/employees/me`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK**
-```json
-{
-  "data": {
-    "id": 1,
-    "username": "admin",
-    "role": "ADMIN",
-    "fullName": "System Admin"
-  }
-}
-```
-
----
-
-### Step 1.3 – Login as Staff Q1 (để lấy token cho phase sau)
-
-**POST** `/api/v1/auth/login`
-```json
-{
-  "username": "staff_q1_a",
-  "password": "GoldenHeart@2026"
-}
-```
-> 🔑 Lưu token vào `{{staffQ1Token}}`
-
-**POST** `/api/v1/auth/login`
-```json
-{
-  "username": "kitchen_q1",
-  "password": "GoldenHeart@2026"
-}
-```
-> 🔑 Lưu token vào `{{kitchenQ1Token}}`
-
----
-
-### Step 1.4 – Create Employee (Admin tạo Staff mới)
-
-**POST** `/api/v1/employees`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-```json
-{
-  "username": "staff_q1_new",
-  "password": "GoldenHeart@2026",
-  "roleId": 3,
-  "fullName": "Nhân Viên Mới",
-  "employeeCode": "EMP-099",
-  "email": "staff.new@goldenheart.com",
-  "phone": "0909000099",
-  "branchId": 1,
-  "gender": "female",
-  "hireDate": "2026-04-15",
-  "salary": 8000000
-}
-```
-
-**Kỳ vọng: 201 Created**
-
----
-
-### Step 1.5 – Refresh Token
-
-**POST** `/api/v1/auth/refresh`
-*(Cookie `refreshToken` được gửi tự động)*
-
-**Kỳ vọng: 200 OK** → accessToken mới
-
----
-
-### Step 1.6 – Logout
-
-**POST** `/api/v1/auth/logout`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK**
-```json
-{ "message": "Logout successfully" }
-```
-
----
-
-### ⚠️ Step 1.7 – Refresh sau Logout (Negative)
-
-**POST** `/api/v1/auth/refresh`
-
-**Kỳ vọng: 401 Unauthorized** (refresh token đã bị revoke)
-
----
-
-## PHASE 2 – MASTER DATA
-
-### Step 2.1 – List Roles
-
-**GET** `/api/v1/roles`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – trả về 5 roles: ADMIN, MANAGER, STAFF, KITCHEN, CUSTOMER
-
----
-
-### Step 2.2 – List Employees (phân trang)
-
-**GET** `/api/v1/employees?page=0&size=10`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – danh sách 8+ nhân viên
-
-**GET** `/api/v1/employees?keyword=manager`
-
-**Kỳ vọng: 200 OK** – chỉ trả về manager_q1, manager_q7
-
----
-
-### Step 2.3 – Get Measurement Units
-
-**GET** `/api/v1/inventory/units`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK**
-```json
-{
-  "data": [
-    { "id": 1, "code": "KG", "name": "Kilogram", "symbol": "kg" },
-    ...
-  ]
-}
-```
-> 🔑 Lưu `unitId` (kg=1, L=3, pcs=5) vào variables
-
----
-
-### Step 2.4 – List Inventory (Branch 1)
-
-**GET** `/api/v1/inventory?branchId=1&page=0&size=20`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – 17 items
-
----
-
-## PHASE 3 – MENU & INVENTORY SETUP
-
-### Step 3.1 – List Menu Items (Branch 1)
-
-**GET** `/api/v1/menu-items?branchId=1&page=0&size=20`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – 10 items branch Q1
-
-**GET** `/api/v1/menu-items?branchId=1&categoryId=1`
-
-**Kỳ vọng: 200 OK** – Chỉ Món Chính
-
-**GET** `/api/v1/menu-items?keyword=bò`
-
-**Kỳ vọng: 200 OK** – Bò Lúc Lắc, Phở Bò...
-
----
-
-### Step 3.2 – Get Menu Item by ID
-
-**GET** `/api/v1/menu-items/1`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – Bò Lúc Lắc chi tiết
-
----
-
-### Step 3.3 – Create Inventory Item (nguyên liệu mới)
-
-**POST** `/api/v1/inventory`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-```json
-{
-  "branchId": 1,
-  "ingredientName": "Cà Chua",
-  "unitId": 1,
-  "quantity": 20.00,
-  "minStockLevel": 2.00,
-  "reorderLevel": 5.00,
-  "averageUnitCost": 15000,
-  "note": "Nhập kho lần đầu"
-}
-```
-
-**Kỳ vọng: 201 Created**
-
-> ⚠️ **Tạo lần 2 với cùng branchId + ingredientName → Kỳ vọng: 409 Conflict**
-
----
-
-### Step 3.4 – Update Inventory (điều chỉnh tồn)
-
-**PUT** `/api/v1/inventory/1`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-```json
-{
-  "quantity": 45.00,
-  "minStockLevel": 5.00,
-  "reorderLevel": 10.00,
-  "note": "Kiểm kê định kỳ"
-}
-```
-
-**Kỳ vọng: 200 OK** – quantity cập nhật, stock movement được ghi
-
----
-
-### Step 3.5 – Get Inventory Alerts
-
-**GET** `/api/v1/inventory/alerts?branchId=1`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – danh sách items dưới minStockLevel (nếu có)
-
----
-
-### Step 3.6 – Get Inventory History
-
-**GET** `/api/v1/inventory/1/history?page=0&size=10`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**Kỳ vọng: 200 OK** – lịch sử thay đổi kho item #1
-
----
-
-## PHASE 4 – TABLE MANAGEMENT
-
-### Step 4.1 – List Tables (Branch 1)
-
-**GET** `/api/v1/tables?branchId=1`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK** – 5 bàn branch Q1
-
-**GET** `/api/v1/tables?branchId=1&status=AVAILABLE`
-
-**Kỳ vọng: 200 OK** – chỉ bàn AVAILABLE (T01–T04)
-
----
-
-### Step 4.2 – Get Active Order by Table (trước khi có order)
-
-**GET** `/api/v1/tables/1/active-order`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK, data = null** (chưa có order)
-
----
-
-### Step 4.3 – Update Table Status → RESERVED
-
-**PUT** `/api/v1/tables/2/status`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{ "status": "RESERVED" }
-```
-
-**Kỳ vọng: 200 OK** – bàn T02 thành RESERVED
-
----
-
-### Step 4.4 – Reset Table RESERVED → AVAILABLE
-
-**PUT** `/api/v1/tables/2/status`
-```json
-{ "status": "AVAILABLE" }
-```
-
-**Kỳ vọng: 200 OK**
-
-> ⚠️ **Thử đổi sang OCCUPIED trực tiếp → Kỳ vọng: 409 Conflict**
-> (OCCUPIED chỉ được đặt qua order workflow)
-
----
-
-## PHASE 5 – ORDER FLOW
-
-### Step 5.1 – Create Order (Mở bàn T01 – Q1, gọi 2 món)
-
-**POST** `/api/v1/orders`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "tableId": 1,
-  "branchId": 1,
-  "customerId": 1,
-  "items": [
-    { "menuItemId": 1, "quantity": 2, "note": "ít cay" },
-    { "menuItemId": 7, "quantity": 1, "note": null }
-  ]
-}
-```
-
-**Kỳ vọng: 201 Created**
-```json
-{
-  "data": {
-    "id": 1,
-    "status": "PENDING",
-    "tableId": 1,
-    "tableNumber": "T01",
-    "orderItems": [...]
-  }
-}
-```
-> 🔑 Lưu `orderId` → `{{orderId1}}`, `orderItemId` của từng item → `{{orderItemId1}}`, `{{orderItemId7}}`
-
----
-
-### Step 5.2 – Confirm Table is OCCUPIED
-
-**GET** `/api/v1/tables?branchId=1&status=OCCUPIED`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK** – T01 có status OCCUPIED
-
----
-
-### Step 5.3 – Get Order by ID
-
-**GET** `/api/v1/orders/{{orderId1}}`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK** – đầy đủ order + items
-
----
-
-### Step 5.4 – Add More Items (gọi thêm món vào order đang mở)
-
-**POST** `/api/v1/orders`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "tableId": 1,
-  "branchId": 1,
-  "items": [
-    { "menuItemId": 3, "quantity": 1, "note": "cho nhiều tôm" }
-  ]
-}
-```
-
-**Kỳ vọng: 201 Created** – order cũ được append thêm item mới (cùng tableId)
-
----
-
-### Step 5.5 – Get Active Order by Table
-
-**GET** `/api/v1/tables/1/active-order`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK** – trả về order đang active của T01
-
----
-
-## PHASE 6 – KITCHEN FLOW
-
-> Dùng token `{{kitchenQ1Token}}`
-
-### Step 6.1 – Kitchen: Get Pending Items
-
-**GET** `/api/v1/kitchen/orders/pending?branchId=1`
-**Header**: `Authorization: Bearer {{kitchenQ1Token}}`
-
-**Kỳ vọng: 200 OK** – danh sách items đang PENDING / WAITING_STOCK / PROCESSING
-
----
-
-### Step 6.2 – Kitchen: Start Processing (PENDING → PROCESSING)
-
-**PUT** `/api/v1/kitchen/order-items/{{orderItemId1}}/status`
-**Header**: `Authorization: Bearer {{kitchenQ1Token}}`
-
-```json
-{
-  "status": "PROCESSING",
-  "reason": null
-}
-```
-
-**Kỳ vọng: 200 OK** – deduct kho ingredient theo recipe
-```json
-{
-  "data": {
-    "previousStatus": "PENDING",
-    "status": "PROCESSING",
-    "deductions": [
-      { "ingredientName": "Thịt bò", "quantityDeducted": 0.40 },
-      { "ingredientName": "Hành tây", "quantityDeducted": 0.10 }
-    ]
-  }
-}
-```
-
----
-
-### Step 6.3 – Kitchen: Complete Item (PROCESSING → COMPLETED)
-
-**POST** `/api/v1/kitchen/order-items/{{orderItemId1}}/complete`
-**Header**: `Authorization: Bearer {{kitchenQ1Token}}`
-
-**Kỳ vọng: 200 OK** – item xuất kho lần 2 (theo KitchenProductionService) hoặc chỉ đổi status
-
-> ⚠️ **Lưu ý quan trọng**: Hiện tại dự án có **2 service xử lý COMPLETE**:
-> - `KitchenWorkflowService.changeOrderItemStatus()` (dùng qua `/status` endpoint) – trừ kho ở bước PROCESSING
-> - `KitchenProductionService.completeOrderItem()` (dùng qua `/complete` endpoint) – trừ kho ở bước COMPLETE
->
-> ⚠️ **BUG**: `/complete` endpoint sẽ trừ kho **lần 2** nếu đã gọi `/status → PROCESSING` trước đó!
-> Xem phần **DANH SÁCH LỖI** bên dưới.
-
----
-
-### Step 6.4 – Kitchen: Cancel Item
-
-**PUT** `/api/v1/kitchen/order-items/{{orderItemId7}}/status`
-**Header**: `Authorization: Bearer {{kitchenQ1Token}}`
-
-```json
-{
-  "status": "CANCELLED",
-  "reason": "Hết nguyên liệu Phở"
-}
-```
-
-**Kỳ vọng: 200 OK** – item cancelled, order recalculated
-
----
-
-## PHASE 7 – SERVE & BILL
-
-### Step 7.1 – Staff: Serve Completed Item
-
-**PUT** `/api/v1/orders/order-items/{{orderItemId1}}/serve`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 200 OK** – COMPLETED → SERVED
-
-> ⚠️ **Tất cả items phải là SERVED** trước khi tạo bill được.
-
----
-
-### Step 7.2 – Create Bill
-
-**POST** `/api/v1/bills`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "orderId": 1,
-  "taxRate": 10,
-  "discount": 20000,
-  "paymentMethod": "CASH",
-  "paidAmount": 0
-}
-```
-
-**Kỳ vọng: 201 Created**
-```json
-{
-  "data": {
-    "id": 1,
-    "status": "UNPAID",
-    "subtotal": 567000,
-    "tax": 56700,
-    "discount": 20000,
-    "total": 603700,
-    "paidAmount": 0,
-    "remainingAmount": 603700
-  }
-}
-```
-> 🔑 Lưu `billId` → `{{billId1}}`
-
----
-
-### Step 7.3 – Add Payment (thanh toán 1 phần)
-
-**POST** `/api/v1/bills/{{billId1}}/payments`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "amount": 300000,
-  "method": "CASH"
-}
-```
-
-**Kỳ vọng: 200 OK** – status = PARTIAL
-
----
-
-### Step 7.4 – Add Payment (thanh toán đủ)
-
-**POST** `/api/v1/bills/{{billId1}}/payments`
-
-```json
-{
-  "amount": 303700,
-  "method": "CARD"
-}
-```
-
-**Kỳ vọng: 200 OK** – status = PAID, order → COMPLETED, table → CLEANING
-
----
-
-### Step 7.5 – Reset Table from CLEANING to AVAILABLE
-
-**PUT** `/api/v1/tables/1/status`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-```json
-{ "status": "AVAILABLE" }
-```
-
-**Kỳ vọng: 200 OK**
-
----
-
-## PHASE 8 – ADVANCED ORDER OPS
-
-> Cần tạo 2 order trên 2 bàn khác nhau trước khi split/merge
-
-### Step 8.1 – Chuẩn bị: Tạo order T02 với nhiều món
-
-**POST** `/api/v1/orders`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "tableId": 2,
-  "branchId": 1,
-  "items": [
-    { "menuItemId": 1, "quantity": 3 },
-    { "menuItemId": 2, "quantity": 2 },
-    { "menuItemId": 3, "quantity": 1 }
-  ]
-}
-```
-> 🔑 Lưu `{{orderId2}}`, `{{orderItemId_T02_1}}`, `{{orderItemId_T02_2}}`
-
----
-
-### Step 8.2 – Split Table (T02 → T03)
-
-**POST** `/api/v1/tables/2/split`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "targetTableId": 3,
-  "items": [
-    { "orderItemId": "{{orderItemId_T02_2}}", "quantity": 1 }
-  ]
-}
-```
-
-**Kỳ vọng: 200 OK**
-```json
-{
-  "data": {
-    "action": "SPLIT",
-    "sourceTableId": 2,
-    "targetTableId": 3,
-    "sourceOrderStatus": "PENDING",
-    "targetOrderStatus": "PENDING"
-  }
-}
-```
-
-> ⚠️ **T03 phải là AVAILABLE trước khi split**
-
----
-
-### Step 8.3 – Merge Tables (T02 → T03)
-
-*(Sau khi split, merge lại để test)*
-
-**POST** `/api/v1/tables/merge`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-```json
-{
-  "sourceTableId": 2,
-  "targetTableId": 3
-}
-```
-
-**Kỳ vọng: 200 OK** – items của T02 được chuyển sang T03, T02 AVAILABLE
-
----
-
-## PHASE 9 – CUSTOMER MANAGEMENT
-
-### Step 9.1 – Create Customer
-
-**POST** `/api/v1/customers`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-```json
-{
-  "name": "Võ Thị Bích",
-  "phone": "0977888555",
-  "email": "bich.vo@email.com",
-  "address": "Q.Phú Nhuận"
-}
-```
-
-**Kỳ vọng: 201 Created**
-
----
-
-### Step 9.2 – List Customers
-
-**GET** `/api/v1/customers?page=0&size=10`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-**GET** `/api/v1/customers?keyword=Minh`
-
-**Kỳ vọng: 200 OK**
-
----
-
-### Step 9.3 – Update Customer
-
-**PUT** `/api/v1/customers/1`
-**Header**: `Authorization: Bearer {{adminToken}}`
-
-```json
-{
-  "phone": "0912345699",
-  "address": "Q.1, TP.HCM – đã cập nhật"
-}
-```
-
-**Kỳ vọng: 200 OK**
-
----
-
-## PHASE 10 – NEGATIVE TESTS (Kiểm tra bảo vệ)
-
-### Step 10.1 – Login sai password
-
-**POST** `/api/v1/auth/login`
-```json
-{ "username": "admin", "password": "WrongPass" }
-```
-
-**Kỳ vọng: 401 Unauthorized**
-```json
-{ "message": "Username or password is incorrect" }
-```
-
----
-
-### Step 10.2 – Truy cập không có token
-
-**GET** `/api/v1/employees`  *(không có Authorization header)*
-
-**Kỳ vọng: 401 Unauthorized**
-
----
-
-### Step 10.3 – Staff Q1 cố xem bàn của Q7
-
-**GET** `/api/v1/tables?branchId=2`
-**Header**: `Authorization: Bearer {{staffQ1Token}}`
-
-**Kỳ vọng: 403 Forbidden**
-
----
-
-### Step 10.4 – Tạo Bill khi còn item chưa SERVED
-
-*(Tạo order mới, không serve item)*
-**POST** `/api/v1/bills`
-```json
-{ "orderId": <orderId_chua_serve> }
-```
-
-**Kỳ vọng: 409 Conflict**
-```json
-{ "message": "Order can only be checked out after all dishes are served" }
-```
-
----
-
-### Step 10.5 – Thanh toán vượt số tiền còn lại
-
-**POST** `/api/v1/bills/{{billId1}}/payments`
-```json
-{ "amount": 9999999, "method": "CASH" }
-```
-
-**Kỳ vọng: 409 Conflict**
-```json
-{ "message": "Payment amount cannot exceed the remaining bill amount" }
-```
-
----
-
-### Step 10.6 – Manager cố đổi role của nhân viên
-
-**PUT** `/api/v1/employees/4`
-**Header**: `Authorization: Bearer <managerToken>`
-```json
-{ "roleId": 1 }
-```
-
-**Kỳ vọng: 403 Forbidden**
-```json
-{ "message": "Manager cannot change employee role" }
-```
-
----
-
-### Step 10.7 – Kitchen cố complete item mà thiếu kho
-
-*(Trước đó điều chỉnh tồn về 0)*
-**PUT** `/api/v1/inventory/<inventoryId>`
-```json
-{ "quantity": 0.00 }
-```
-Sau đó gọi:
-**PUT** `/api/v1/kitchen/order-items/<itemId>/status`
-```json
-{ "status": "PROCESSING" }
-```
-
-**Kỳ vọng**: Item chuyển → `WAITING_STOCK` (không throw lỗi 409, tự xử lý gracefully)
-
----
-
-## 🐛 DANH SÁCH API CÓ VẤN ĐỀ LOGIC
-
-### Bug 1 – Double Stock Deduction (nghiêm trọng ⚠️)
-
-**Mô tả**: Khi kitchen dùng flow:
-1. `PUT /kitchen/order-items/{id}/status` với `"status": "PROCESSING"` → trừ kho lần 1
-2. `POST /kitchen/order-items/{id}/complete` → trừ kho **lần 2**
-
-**Root cause**: `KitchenWorkflowService` trừ kho khi PROCESSING. `KitchenProductionService` trừ kho khi COMPLETE. Cả 2 service song song nhau, dùng bởi 2 endpoint khác nhau.
-
-**Fix đề xuất**:
-- **Chọn 1 trong 2 luồng**:
-  - *Luồng A*: Trừ kho khi `PROCESSING` (như `KitchenWorkflowService` đang làm) → bỏ `KitchenProductionService` hoặc để `/complete` chỉ đổi status, không trừ kho
-  - *Luồng B*: Trừ kho khi `COMPLETED` (như `KitchenProductionService` đang làm) → bỏ logic trừ kho trong `startProcessing()` của `KitchenWorkflowService`
-
-**Khuyến nghị**: Chọn **Luồng A** (trừ kho khi PROCESSING) vì:
-- Kitchen bắt đầu chế biến mới thực sự "tiêu thụ" nguyên liệu
-- Có thể rollback nếu CANCEL trước khi COMPLETE
-
----
-
-### Bug 2 – `/complete` endpoint không validate transition (trung bình ⚠️)
-
-**Mô tả**: `POST /kitchen/order-items/{id}/complete` gọi `KitchenWorkflowService.completeOrderItem()` → gọi `changeOrderItemStatus()` với `COMPLETED`. Nhưng `changeOrderItemStatus()` validate transition từ PENDING → COMPLETED sẽ throw `ConflictException: "Unsupported kitchen status transition"` (vì chỉ cho phép PROCESSING → COMPLETED).
-
-**Fix**: Item phải ở trạng thái `PROCESSING` hoặc `WAITING_STOCK` trước khi gọi `/complete`.
-
----
-
-### Bug 3 – Recipe trùng ingredient cho một menu item (nhỏ)
-
-**Mô tả**: File SQL seed có entry:
-```sql
-(13, 24, 0.20),  -- ingredient_id=24 không tồn tại
-(13, 11, 0.20),  -- bánh phở
-```
-ingredient_id = 24 không tồn tại trong bảng ingredients → FK violation.
-
-**Fix**: File `05_seed_full_test_data.sql` đã sửa, chỉ dùng ingredient_id hợp lệ.
-
----
-
-### Bug 4 – BillingService yêu cầu tất cả items SERVED (có thể quá cứng)
-
-**Mô tả**: `ensureOrderReadyForCheckout()` throw lỗi nếu bất kỳ item nào chưa SERVED, kể cả item `WAITING_STOCK` hoặc `PROCESSING`.
-
-**Trong thực tế**: Nhà hàng có thể hủy món đang chờ bếp và vẫn muốn tính tiền phần đã bưng.
-
-**Fix đề xuất**: Chỉ block nếu còn item ở `PROCESSING` (đã bắt đầu làm), cho phép checkout khi mọi billable item đều là SERVED hoặc CANCELLED.
-
----
-
-### Bug 5 – RoleController thiếu `@GetMapping` (nhỏ)
-
-**Kiểm tra**: Xem `RoleController.java` có expose endpoint `GET /api/v1/roles` không – nếu không thì cần thêm.
-
----
-
-## Postman Variables Template
-
-```js
-// Khai báo trong Postman Collection Variables:
-baseUrl    = "http://localhost:1010"
-adminToken = ""  // fill sau login
-staffQ1Token  = ""
-kitchenQ1Token = ""
-orderId1   = ""
-billId1    = ""
-orderItemId1 = ""
-```
-
----
-
-## Thứ tự chạy SQL trước khi test
-
-```bash
-# 1. Reset DB
-mysql -u root -p1409 < sql/01_reset_local_database.sql
-
-# 2. Chạy seed data
-mysql -u root -p1409 goldenheart_restaurant < sql/05_seed_full_test_data.sql
-
-# 3. Khởi động app (roles + admin được bootstrap tự động)
-./gradlew bootRun
-```
-
-> **Lưu ý**: `AuthBootstrapRunner` sẽ seed roles và admin khi app khởi động nên file SQL dùng `INSERT IGNORE` để tránh trùng.
--->
 # GoldenHeart Restaurant API Testing Runbook
 
-This document is the current runbook for local API testing with the active BE codebase, SQL seed, and Postman files.
+## 1. Muc tieu
 
-## Source Files
+Runbook nay dung de test toan bo API hien tai cua `GoldenHeart-Restaurant` bang bo seed:
 
-- SQL reset: [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql)
-- SQL seed: [05_seed_full_test_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_full_test_data.sql)
-- Postman collection: [GoldenHeart-Restaurant-E2E.postman_collection.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant-E2E.postman_collection.json)
-- Postman environment: [GoldenHeart-Restaurant-E2E.postman_environment.json](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/postman/GoldenHeart-Restaurant-E2E.postman_environment.json)
+- `sql/05_seed_full_test_data.sql`
+- `postman/GoldenHeart-Restaurant-E2E.postman_collection.json`
+- `postman/GoldenHeart-Restaurant-E2E.postman_environment.json`
 
-## Local Defaults
+Bo collection da duoc cap nhat theo controller hien tai, bao gom:
 
-- App URL: `http://localhost:1010`
-- API base URL: `http://localhost:1010/api/v1`
-- Database: `goldenheart_restaurant`
-- Bootstrap admin:
-  - username: `admin`
-  - password: `Admin123`
+- `Auth`
+- `Roles`
+- `Branches`
+- `Employees`
+- `Customers`
+- `Inventory`
+- `Menu Items`
+- `Tables`
+- `Orders`
+- `Kitchen`
+- `Billing`
+- `End-to-End Flow`
 
-## Fresh Start Sequence
+## 2. Dieu kien truoc khi test
 
-1. Run [01_reset_local_database.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/01_reset_local_database.sql).
-2. Start Spring Boot once so Hibernate creates the schema and bootstrap auth data.
-3. Run [05_seed_full_test_data.sql](D:/CDIO/RM-GoldenHeart/RM-BE/GoldenHeart-Restaurant/sql/05_seed_full_test_data.sql).
-4. Import both Postman files.
-5. Select environment `GoldenHeart Restaurant E2E Local`.
+1. Start backend thanh cong tai `http://localhost:1010`
+2. Hibernate da tao schema xong
+3. Chay file seed:
+   - `sql/05_seed_full_test_data.sql`
+4. Import 2 file Postman:
+   - `postman/GoldenHeart-Restaurant-E2E.postman_collection.json`
+   - `postman/GoldenHeart-Restaurant-E2E.postman_environment.json`
+5. Chon environment:
+   - `GoldenHeart Restaurant E2E Local`
 
-## Required First Requests
+## 3. Seed va tai khoan mac dinh
 
-Run these before testing other folders:
+### 3.1 Base URL
 
-1. `Auth / Login Admin`
-2. `Auth / Login Manager`
-3. `Auth / Login Staff`
-4. `Auth / Login Kitchen`
+- `{{base_url}} = http://localhost:1010/api/v1`
 
-Expected environment variables after login:
+### 3.2 Tai khoan dang nhap seed san
 
-- `admin_token`
-- `manager_token`
-- `staff_token`
-- `kitchen_token`
+| Role | Username | Password | Ghi chu |
+|---|---|---|---|
+| ADMIN | `admin` | `Admin123` | Bootstrap tu app |
+| MANAGER | `manager_q1` | `GoldenHeart@2026` | Branch 1 |
+| STAFF | `staff_q1_a` | `GoldenHeart@2026` | Branch 1 |
+| KITCHEN | `kitchen_q1` | `GoldenHeart@2026` | Branch 1 |
+| Password test | `staff_q1_b` | `GoldenHeart@2026` | Dung cho change/reset password |
 
-## Recommended Folder Order
+### 3.3 Contact dung cho password recovery
 
-1. `Auth`
-2. `Roles`
-3. `Employees`
-4. `Customers`
-5. `Inventory`
-6. `Menu Items`
-7. `Tables`
-8. `Orders`
-9. `Kitchen`
-10. `Billing`
-11. `End-to-End Flow`
+- Email: `staff.q1b@goldenheart.com`
+- Phone: `0901000004`
 
-## Main Happy Path
+Collection dang dung cac bien:
 
-Use folder `End-to-End Flow` for the full restaurant lifecycle:
+- `{{password_test_username}}`
+- `{{password_test_old_password}}`
+- `{{password_test_new_password}}`
+- `{{password_test_email}}`
+- `{{password_test_phone}}`
+- `{{password_recovery_otp}}`
+- `{{password_reset_token}}`
 
-1. Staff creates an order on table `1`
-2. Kitchen processes item 1
-3. Kitchen completes item 1
-4. Kitchen processes item 2
-5. Kitchen completes item 2
-6. Staff serves item 1
-7. Staff serves item 2
-8. Staff creates bill
-9. Staff pays bill
+### 3.4 ID seed quan trong
 
-Expected result:
+| Nhom | Gia tri |
+|---|---|
+| Restaurant | `restaurant_main_id = 1` |
+| Branches | `branch_q1_id = 1`, `branch_q7_id = 2`, `branch_bt_id = 3` |
+| Areas | `1..5` |
+| Seed customer | `seed_customer_id = 1` |
+| Seed employee | `seed_employee_id = 2` |
+| Seed inventory | `seed_inventory_id = 1` |
+| Low stock inventory | `seed_inventory_low_stock_id = 13` |
+| Seed menu item | `seed_menu_item_id = 1` |
+| Out-of-stock menu item | `seed_out_of_stock_menu_item_id = 10` |
+| Tables | available=`1`, processing=`2`, billable=`3`, cleaning=`4`, reserved=`5`, partial=`7` |
+| Orders | processing=`1`, billable=`2`, paid=`3`, cancelled=`4`, partial=`5` |
+| Order items | processing=`1`, waiting_stock=`2`, served_1=`3`, served_2=`4` |
+| Bills | paid=`1`, partial=`2` |
 
-- table moves from `AVAILABLE` to `OCCUPIED`
-- order items move through valid kitchen statuses
-- billing is allowed only after dishes are ready
-- paid bill closes the order
-- table moves to `CLEANING`
+## 4. Luu y quan trong truoc khi chay
 
-## Seeded IDs Already Available In Postman
+### 4.1 Cookie refresh token
 
-- Branches:
-  - `branch_q1_id=1`
-  - `branch_q7_id=2`
-  - `branch_bt_id=3`
-- Tables:
-  - `seed_available_table_id=1`
-  - `seed_processing_table_id=2`
-  - `seed_billable_table_id=3`
-  - `seed_cleaning_table_id=4`
-  - `seed_reserved_table_id=5`
-  - `seed_partial_bill_table_id=7`
-- Orders:
-  - `seed_order_processing_id=1`
-  - `seed_order_billable_id=2`
-  - `seed_order_paid_id=3`
-  - `seed_order_cancelled_id=4`
-  - `seed_order_partial_bill_id=5`
-- Order items:
-  - `seed_order_item_processing_id=1`
-  - `seed_order_item_waiting_stock_id=2`
-  - `seed_order_item_served_1_id=3`
-  - `seed_order_item_served_2_id=4`
-- Bills:
-  - `seed_bill_paid_id=1`
-  - `seed_bill_partial_id=2`
+- `POST /auth/login` va `POST /auth/refresh` su dung refresh token qua cookie.
+- Khi test trong Postman, cookie duoc luu tu dong neu ban dung cung environment/workspace.
 
-## Useful Seeded Edge Cases
+### 4.2 Password APIs la request mutating
 
-- `menu_item id=10` is `OUT_OF_STOCK`
-- `order_item id=2` is `WAITING_STOCK`
-- `order id=4` is `CANCELLED`
-- `bill id=2` is `PARTIAL`
-- `table id=4` is `CLEANING`
-- `table id=5` is `RESERVED`
+- `Change Password`
+- `Request Password Recovery OTP`
+- `Verify Password Recovery OTP`
+- `Reset Password`
 
-## Folder Intent
+Nhung request nay thay doi password cua `staff_q1_b`.
 
-- `Tables`: metadata CRUD, status update, active-order lookup, split, merge
-- `Orders`: create/read order without interfering with the seeded table flow
-- `Kitchen`: queue and kitchen state actions
-- `Billing`: create bill and add payment
-- `End-to-End Flow`: clean path for table -> order -> kitchen -> serve -> pay
+Collection da co script doi qua lai 2 bien:
 
-## Reset When Needed
+- `password_test_old_password`
+- `password_test_new_password`
 
-Reset and reseed if you already executed state-changing flows such as:
+de giam cong suc test lap lai. Neu muon quay ve trang thai ban dau nhanh nhat, hay reseed DB.
 
-- split table
-- merge tables
-- kitchen processing or completion
-- create bill
-- add payment
-- end-to-end table workflow
+### 4.3 OTP hien tai
 
-## Quick Troubleshooting
+- API quyen mat khau da dung OTP qua email/SMS
+- Neu chua cau hinh SMTP/SMS that, app hien dang cho phep log OTP de test local
+- Copy ma OTP do vao environment variable:
+  - `{{password_recovery_otp}}`
 
-### 401
+### 4.4 Request co phu thuoc thu tu
 
-- relogin and refresh tokens
-- confirm the selected environment is correct
-- confirm `base_url=http://localhost:1010/api/v1`
+Mot so request can chay dung thu tu:
 
-### 403
+- `Orders -> Create Order`
+- `Kitchen -> Update Created Order Item to PROCESSING`
+- `Kitchen -> Complete Created Order Item`
+- `Orders -> Serve Created Order Item`
+- `Billing -> Create Bill from Created Order`
+- `Billing -> Add Payment to Created Bill`
 
-- check the role used by the request
-- `KITCHEN` for kitchen status operations
-- `STAFF` for serve and billing
-- `ADMIN` or `MANAGER` for metadata CRUD where required
+Folder `End-to-End Flow` da gom san luong nay theo thu tu khuyen nghi.
 
-### 409
+## 5. Thu tu test khuyen nghi
 
-Most common reasons:
+1. `Auth -> Login Admin`
+2. `Auth -> Login Manager`
+3. `Auth -> Login Staff`
+4. `Auth -> Login Kitchen`
+5. Test cac folder read-only:
+   - `Roles`
+   - `Branches`
+   - `Inventory`
+   - `Menu Items`
+   - `Tables`
+6. Test CRUD:
+   - `Branches`
+   - `Employees`
+   - `Customers`
+   - `Inventory`
+   - `Menu Items`
+   - `Tables`
+7. Test operational flow:
+   - `Orders`
+   - `Kitchen`
+   - `Billing`
+8. Test `Tables -> Split Seed Table` va `Tables -> Merge Seed Tables`
+9. Test password APIs cuoi cung
+10. Neu can demo nhanh mot luong hoan chinh, dung folder `End-to-End Flow` tren DB vua reseed
 
-- billing before items are ready
-- invalid kitchen status transition
-- inventory shortage
-- invalid split or merge condition
-- table not in a valid state
+## 6. API chi tiet theo module
 
-## Minimal Smoke Test
+## Auth
 
-If you only want a quick sanity check, run:
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Register Customer | `POST /auth/register` | No auth | Tao user CUSTOMER moi | Khong lien quan customer CRM |
+| Login Admin | `POST /auth/login` | No auth | `admin / Admin123` | Save `admin_token` |
+| Login Manager | `POST /auth/login` | No auth | `manager_q1 / GoldenHeart@2026` | Save `manager_token` |
+| Login Staff | `POST /auth/login` | No auth | `staff_q1_a / GoldenHeart@2026` | Save `staff_token` |
+| Login Kitchen | `POST /auth/login` | No auth | `kitchen_q1 / GoldenHeart@2026` | Save `kitchen_token` |
+| Login Password Test Staff | `POST /auth/login` | No auth | `staff_q1_b` | Save `password_test_token` |
+| Refresh Token | `POST /auth/refresh` | Cookie | Refresh cookie hien tai | Save lai `auth_token` |
+| Logout | `POST /auth/logout` | Cookie | Session hien tai | Clear refresh cookie |
+| Change Password (Password Test Staff) | `POST /auth/change-password` | Bearer `password_test_token` | Dung `password_test_old_password` va `password_test_new_password` | Chi role MANAGER/STAFF/KITCHEN |
+| Request Password Recovery OTP by Email | `POST /auth/password-recovery/request-otp` | No auth | `password_test_email` | OTP flow qua email |
+| Request Password Recovery OTP by Phone | `POST /auth/password-recovery/request-otp` | No auth | `password_test_phone` | OTP flow qua SMS |
+| Verify Password Recovery OTP | `POST /auth/password-recovery/verify-otp` | No auth | `password_recovery_otp` | Save `password_reset_token` |
+| Reset Password | `POST /auth/password-recovery/reset-password` | No auth | `password_reset_token` | Doi mat khau user test |
 
-1. `Auth / Login Admin`
-2. `Auth / Login Staff`
-3. `Auth / Login Kitchen`
-4. `Tables / Get Tables`
-5. `Orders / Get Seed Order By ID`
-6. `Kitchen / Get Pending Kitchen Items`
-7. `Billing / Add Payment To Seed Partial Bill`
+## Roles
 
-## SQL Example
+| Request name | API | Auth | Ghi chu |
+|---|---|---|---|
+| Get Roles | `GET /roles` | Bearer `manager_token` | Lay danh sach role he thong |
 
-```bash
-mysql -u root -p1409 < sql/01_reset_local_database.sql
-```
+## Branches
 
-Start the app, then:
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Branches | `GET /branches?restaurantId=1` | Bearer `staff_token` | `restaurant_main_id` | Role non-admin chi xem |
+| Get Branch By ID | `GET /branches/{branchId}` | Bearer `staff_token` | `branch_q1_id` | Xem chi tiet chi nhanh |
+| Create Branch | `POST /branches` | Bearer `admin_token` | Tao va save `created_branch_id` | Admin only |
+| Update Created Branch | `PUT /branches/{created_branch_id}` | Bearer `admin_token` | `created_branch_id` | Admin only |
+| Delete Created Branch | `DELETE /branches/{created_branch_id}` | Bearer `admin_token` | `created_branch_id` | Chi xoa branch vua tao |
 
-```bash
-mysql -u root -p1409 goldenheart_restaurant < sql/05_seed_full_test_data.sql
-```
+## Employees
 
-## Notes
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Employees | `GET /employees?page=0&size=10` | Bearer `manager_token` | - | Manager/Admin xem list |
+| Get Employee By ID | `GET /employees/{employeeId}` | Bearer `manager_token` | `seed_employee_id` | Lay chi tiet |
+| Create Employee | `POST /employees` | Bearer `manager_token` | Save `created_employee_id` | Tao user + profile |
+| Update Created Employee | `PUT /employees/{created_employee_id}` | Bearer `manager_token` | `created_employee_id` | Update employee vua tao |
+| Delete Created Employee | `DELETE /employees/{created_employee_id}` | Bearer `admin_token` | `created_employee_id` | Delete admin only |
+| Get My Profile | `GET /employees/me` | Bearer `staff_token` | - | Dung de xem `branchId`, `branchName` |
+| Update My Profile | `PUT /employees/me` | Bearer `staff_token` | - | Chi sua profile cua chinh minh |
 
-- The Postman environment has been synced to the current app port `1010`.
-- The Postman environment has also been synced to the current bootstrap admin password `Admin123`.
-- Prefer the environment variables `seed_*`, `created_*`, and `e2e_*` over hardcoded IDs in manual requests.
+## Customers
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Customers | `GET /customers?page=0&size=10` | Bearer `manager_token` | - | CRUD CRM customer |
+| Get Customer By ID | `GET /customers/{customerId}` | Bearer `manager_token` | `seed_customer_id` | Lay chi tiet |
+| Create Customer | `POST /customers` | Bearer `manager_token` | Save `created_customer_id` | Tao customer CRM |
+| Update Created Customer | `PUT /customers/{created_customer_id}` | Bearer `manager_token` | `created_customer_id` | Update customer vua tao |
+| Delete Created Customer | `DELETE /customers/{created_customer_id}` | Bearer `admin_token` | `created_customer_id` | Admin only |
+
+## Inventory
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Measurement Units | `GET /inventory/units` | Bearer `staff_token` | - | Danh sach don vi do luong |
+| Get Inventory Items | `GET /inventory?branchId=1&page=0&size=10` | Bearer `staff_token` | `branch_q1_id` | List inventory |
+| Get Inventory Summary | `GET /inventory/summary?branchId=1` | Bearer `kitchen_token` | `branch_q1_id` | Snapshot inventory value |
+| Get Inventory Movement Report | `GET /inventory/reports/movements?...` | Bearer `manager_token` | Branch 1 / date range seed | Bao cao stock movement |
+| Get Inventory Alerts | `GET /inventory/alerts?branchId=1` | Bearer `staff_token` | `branch_q1_id` | Low-stock / out-of-stock |
+| Get Inventory By ID | `GET /inventory/{inventoryId}` | Bearer `staff_token` | `seed_inventory_id` | Detail 1 inventory item |
+| Get Inventory History | `GET /inventory/{inventoryId}/history` | Bearer `manager_token` | `seed_inventory_id` | Audit log / history |
+| Create Inventory Item | `POST /inventory` | Bearer `manager_token` | Save `created_inventory_id` | Manager/Admin tao moi |
+| Update Created Inventory Item | `PUT /inventory/{created_inventory_id}` | Bearer `manager_token` | `created_inventory_id` | Update inventory vua tao |
+| Delete Created Inventory Item | `DELETE /inventory/{created_inventory_id}` | Bearer `manager_token` | `created_inventory_id` | Xoa inventory vua tao |
+
+## Menu Items
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Menu Items | `GET /menu-items?branchId=1&page=0&size=10` | Bearer `staff_token` | `branch_q1_id` | Staff/Kitchen co the xem |
+| Get Menu Item By ID | `GET /menu-items/{menuItemId}` | Bearer `staff_token` | `seed_menu_item_id` | Detail menu item |
+| Create Menu Item | `POST /menu-items` | Bearer `admin_token` | Save `created_menu_item_id` | Admin only |
+| Update Created Menu Item | `PUT /menu-items/{created_menu_item_id}` | Bearer `admin_token` | `created_menu_item_id` | Admin only |
+| Delete Created Menu Item | `DELETE /menu-items/{created_menu_item_id}` | Bearer `admin_token` | `created_menu_item_id` | Admin only |
+
+## Tables
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Tables | `GET /tables?branchId=1` | Bearer `staff_token` | `branch_q1_id` | Ho tro search/filter tren API |
+| Get Table By ID | `GET /tables/{tableId}` | Bearer `staff_token` | `seed_available_table_id` | Xem chi tiet ban |
+| Create Table | `POST /tables` | Bearer `manager_token` | Save `created_table_id` | Admin/Manager |
+| Update Created Table | `PUT /tables/{created_table_id}` | Bearer `manager_token` | `created_table_id` | Admin/Manager |
+| Update Created Table Status to RESERVED | `PUT /tables/{created_table_id}/status` | Bearer `staff_token` | `created_table_id` | Staff duoc doi status |
+| Get Active Order By Seed Processing Table | `GET /tables/{tableId}/active-order` | Bearer `staff_token` | `seed_processing_table_id` | Ban 2 dang co order seed |
+| Split Seed Table | `POST /tables/{tableId}/split` | Bearer `staff_token` | Table 2 -> table 5 | Flow tach ban theo item |
+| Merge Seed Tables | `POST /tables/merge` | Bearer `staff_token` | Table 5 -> table 2 | Flow gop ban |
+| Delete Created Table | `DELETE /tables/{created_table_id}` | Bearer `admin_token` | `created_table_id` | Chi xoa ban vua tao |
+
+## Orders
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Create Order | `POST /orders` | Bearer `staff_token` | Table 1, customer 1 | Save `created_order_id`, `created_order_item_1_id` |
+| Get Created Order By ID | `GET /orders/{created_order_id}` | Bearer `staff_token` | `created_order_id` | Sau khi tao order |
+| Serve Created Order Item | `PUT /orders/order-items/{created_order_item_1_id}/serve` | Bearer `staff_token` | `created_order_item_1_id` | Chay sau kitchen complete |
+
+## Kitchen
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Pending Kitchen Items | `GET /kitchen/orders/pending?branchId=1` | Bearer `kitchen_token` | `branch_q1_id` | List item cho bep |
+| Update Created Order Item to PROCESSING | `PUT /kitchen/order-items/{id}/status` | Bearer `kitchen_token` | `created_order_item_1_id` | Triggers stock deduction khi du ingredient |
+| Complete Created Order Item | `POST /kitchen/order-items/{id}/complete` | Bearer `kitchen_token` | `created_order_item_1_id` | Chuyen PROCESSING -> COMPLETED |
+
+## Billing
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Create Bill from Created Order | `POST /bills` | Bearer `staff_token` | `created_order_id` | Chay sau khi item da SERVED |
+| Add Payment to Created Bill | `POST /bills/{billId}/payments` | Bearer `staff_token` | `created_bill_id`, `created_bill_remaining_amount` | Thanh toan phan con lai |
+
+## End-to-End Flow
+
+Folder nay dung de demo nhanh luong:
+
+1. Staff login
+2. Tao order
+3. Kitchen login
+4. Chuyen item sang PROCESSING
+5. Complete item
+6. Staff serve item
+7. Tao bill
+8. Thanh toan
+
+Request trong folder nay dung cac bien:
+
+- `e2e_order_id`
+- `e2e_order_item_1_id`
+- `e2e_bill_id`
+- `e2e_bill_remaining_amount`
+
+Nen chay folder nay tren DB vua reseed de tranh xung dot voi state da bi mutate tu cac folder khac.
+
+## 7. Mau luong test thanh toan dung nghiep vu
+
+De API thanh toan pass dung logic hien tai:
+
+1. `Auth -> Login Staff`
+2. `Auth -> Login Kitchen`
+3. `Orders -> Create Order`
+4. `Kitchen -> Update Created Order Item to PROCESSING`
+5. `Kitchen -> Complete Created Order Item`
+6. `Orders -> Serve Created Order Item`
+7. `Billing -> Create Bill from Created Order`
+8. `Billing -> Add Payment to Created Bill`
+
+Neu bo qua buoc `Serve`, request tao bill se fail do order item chua hop le de thanh toan.
+
+## 8. Mau luong test password
+
+### Change password
+
+1. `Auth -> Login Password Test Staff`
+2. `Auth -> Change Password (Password Test Staff)`
+3. `Auth -> Login Password Test Staff`
+
+Collection da tu dong swap:
+
+- `password_test_old_password`
+- `password_test_new_password`
+
+### Forgot password by OTP
+
+1. `Auth -> Request Password Recovery OTP by Email`
+2. Copy OTP tu email/log vao `{{password_recovery_otp}}`
+3. `Auth -> Verify Password Recovery OTP`
+4. `Auth -> Reset Password`
+5. `Auth -> Login Password Test Staff`
+
+## 9. Khi nao can reseed DB
+
+Nen reseed lai neu:
+
+- Ban da chay `End-to-End Flow` nhieu lan
+- Ban da split/merge table seed
+- Ban da doi/reset password va muon quay lai trang thai goc
+- Ban muon demo lai dung state seed ban dau
+
+Neu chi test cac API GET hoac CRUD tren resource moi tao roi xoa ngay, khong bat buoc reseed.

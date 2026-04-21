@@ -19,6 +19,8 @@ import java.util.Optional;
  */
 public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
 
+    boolean existsByBranchId(Integer branchId);
+
     /**
      * Search chính cho màn hình danh sách menu.
      *

@@ -97,6 +97,11 @@ VALUES
 --    Password: GoldenHeart@2026  →  BCrypt hash (cost=12)
 --    admin đã được bootstrap tạo – dùng INSERT IGNORE
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Password flow test account:
+--   username = staff_q1_b
+--   password = GoldenHeart@2026
+--   email    = staff.q1b@goldenheart.com
+--   phone    = 0901000004
 -- BCrypt hash of "GoldenHeart@2026" (verified against Spring BCryptPasswordEncoder cost=12):
 SET @pw = '$2a$12$EXb/TNXubsjiFf6pYAFNi.z88B.QuwDGz69Nt/OUJGmp9hcBJaLqC';
 
@@ -469,6 +474,9 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Orders:     processing=1, billable=2, paid=3, cancelled=4, partial=5
 -- OrderItems: processing=1, waiting_stock=2, served_1=3, served_2=4
 -- Bills:      paid=1, partial=2
+-- Password:   staff_q1_b / GoldenHeart@2026
+--             recovery email = staff.q1b@goldenheart.com
+--             recovery phone = 0901000004
 -- =============================================================================
 
 -- =============================================================================

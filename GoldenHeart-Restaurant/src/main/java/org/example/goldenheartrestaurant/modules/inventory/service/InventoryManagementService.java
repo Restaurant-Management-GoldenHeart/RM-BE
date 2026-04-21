@@ -2,17 +2,22 @@ package org.example.goldenheartrestaurant.modules.inventory.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
+import org.example.goldenheartrestaurant.common.exception.ForbiddenException;
 import org.example.goldenheartrestaurant.common.exception.NotFoundException;
 import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.identity.repository.UserRepository;
 import org.example.goldenheartrestaurant.modules.inventory.dto.request.CreateInventoryItemRequest;
+import org.example.goldenheartrestaurant.modules.inventory.dto.request.InventoryReportGroupBy;
 import org.example.goldenheartrestaurant.modules.inventory.dto.request.UpdateInventoryItemRequest;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryActionLogResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryAlertLevel;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryAlertResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryItemResponse;
+import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryMovementPeriodResponse;
+import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryMovementReportResponse;
+import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventorySummaryResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.MeasurementUnitResponse;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Ingredient;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
@@ -26,6 +31,8 @@ import org.example.goldenheartrestaurant.modules.inventory.repository.InventoryA
 import org.example.goldenheartrestaurant.modules.inventory.repository.InventoryRepository;
 import org.example.goldenheartrestaurant.modules.inventory.repository.MeasurementUnitRepository;
 import org.example.goldenheartrestaurant.modules.inventory.repository.StockMovementRepository;
+import org.example.goldenheartrestaurant.modules.inventory.repository.projection.InventoryMovementPeriodProjection;
+import org.example.goldenheartrestaurant.modules.inventory.repository.projection.InventorySummaryProjection;
 import org.example.goldenheartrestaurant.modules.menu.repository.RecipeRepository;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.Branch;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.BranchRepository;
@@ -36,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +64,11 @@ import java.util.Objects;
  * - chặn xóa nếu tồn còn > 0 hoặc ingredient vẫn được recipe sử dụng
  */
 public class InventoryManagementService {
+
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_MANAGER = "MANAGER";
+    private static final String ROLE_STAFF = "STAFF";
+    private static final String ROLE_KITCHEN = "KITCHEN";
 
     private final InventoryRepository inventoryRepository;
     private final IngredientRepository ingredientRepository;
@@ -114,6 +127,101 @@ public class InventoryManagementService {
         return inventoryRepository.findLowStockAlerts(branchId).stream()
                 .map(this::toInventoryAlertResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public InventorySummaryResponse getInventorySummary(Integer branchId, CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_KITCHEN);
+
+        Integer scopedBranchId = resolveReadableBranchId(branchId, currentUser);
+        InventorySummaryProjection projection = inventoryRepository.summarizeCurrentStateByBranch(scopedBranchId);
+
+        return new InventorySummaryResponse(
+                scopedBranchId,
+                resolveBranchName(scopedBranchId),
+                projection.getTotalItems(),
+                defaultIfNull(projection.getTotalQuantity()),
+                defaultIfNull(projection.getTotalInventoryValue()),
+                defaultIfNull(projection.getLowStockCount()),
+                defaultIfNull(projection.getOutOfStockCount()),
+                LocalDateTime.now()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryMovementReportResponse getInventoryMovementReport(Integer branchId,
+                                                                     LocalDate fromDate,
+                                                                     LocalDate toDate,
+                                                                     InventoryReportGroupBy groupBy,
+                                                                     CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_KITCHEN);
+
+        Integer scopedBranchId = resolveReadableBranchId(branchId, currentUser);
+        InventoryReportGroupBy effectiveGroupBy = groupBy != null ? groupBy : InventoryReportGroupBy.DAY;
+        LocalDate effectiveFromDate = fromDate;
+        LocalDate effectiveToDate = toDate;
+
+        if (effectiveFromDate == null && effectiveToDate == null) {
+            effectiveToDate = LocalDate.now();
+            effectiveFromDate = effectiveToDate.withDayOfMonth(1);
+        } else if (effectiveFromDate == null) {
+            effectiveFromDate = effectiveToDate;
+        } else if (effectiveToDate == null) {
+            effectiveToDate = effectiveFromDate;
+        }
+
+        if (effectiveFromDate.isAfter(effectiveToDate)) {
+            throw new ConflictException("fromDate must be before or equal to toDate");
+        }
+
+        LocalDateTime fromDateTime = effectiveFromDate.atStartOfDay();
+        LocalDateTime toDateTime = effectiveToDate.plusDays(1).atStartOfDay();
+
+        List<InventoryMovementPeriodProjection> projections = effectiveGroupBy == InventoryReportGroupBy.MONTH
+                ? stockMovementRepository.summarizeMovementByMonth(scopedBranchId, fromDateTime, toDateTime)
+                : stockMovementRepository.summarizeMovementByDay(scopedBranchId, fromDateTime, toDateTime);
+
+        List<InventoryMovementPeriodResponse> periods = projections.stream()
+                .map(this::toInventoryMovementPeriodResponse)
+                .toList();
+
+        BigDecimal totalReceiptValue = sumPeriods(periods, InventoryMovementPeriodResponse::receiptValue);
+        BigDecimal totalSaleValue = sumPeriods(periods, InventoryMovementPeriodResponse::saleValue);
+        BigDecimal totalWasteValue = sumPeriods(periods, InventoryMovementPeriodResponse::wasteValue);
+        BigDecimal totalAdjustmentInValue = sumPeriods(periods, InventoryMovementPeriodResponse::adjustmentInValue);
+        BigDecimal totalAdjustmentOutValue = sumPeriods(periods, InventoryMovementPeriodResponse::adjustmentOutValue);
+        BigDecimal totalStocktakeInValue = sumPeriods(periods, InventoryMovementPeriodResponse::stocktakeInValue);
+        BigDecimal totalStocktakeOutValue = sumPeriods(periods, InventoryMovementPeriodResponse::stocktakeOutValue);
+        BigDecimal totalReturnOutValue = sumPeriods(periods, InventoryMovementPeriodResponse::returnOutValue);
+        BigDecimal totalInValue = sumValues(totalReceiptValue, totalAdjustmentInValue, totalStocktakeInValue);
+        BigDecimal totalOutValue = sumValues(
+                totalSaleValue,
+                totalWasteValue,
+                totalAdjustmentOutValue,
+                totalStocktakeOutValue,
+                totalReturnOutValue
+        );
+
+        return new InventoryMovementReportResponse(
+                scopedBranchId,
+                resolveBranchName(scopedBranchId),
+                effectiveGroupBy.name(),
+                effectiveFromDate,
+                effectiveToDate,
+                totalReceiptValue,
+                totalSaleValue,
+                totalWasteValue,
+                totalAdjustmentInValue,
+                totalAdjustmentOutValue,
+                totalStocktakeInValue,
+                totalStocktakeOutValue,
+                totalReturnOutValue,
+                totalInValue,
+                totalOutValue,
+                totalInValue.subtract(totalOutValue),
+                periods,
+                LocalDateTime.now()
+        );
     }
 
     @Transactional
@@ -367,8 +475,35 @@ public class InventoryManagementService {
                 .orElseThrow(() -> new NotFoundException("Current user not found"));
     }
 
+    private Integer resolveReadableBranchId(Integer branchId, CustomUserDetails currentUser) {
+        if (hasRole(currentUser, ROLE_ADMIN) || hasRole(currentUser, ROLE_MANAGER)) {
+            return branchId;
+        }
+
+        User currentUserEntity = resolveActor(currentUser.getUserId());
+        if (currentUserEntity.getProfile() == null || currentUserEntity.getProfile().getBranch() == null) {
+            throw new ForbiddenException("Your account is not assigned to any branch");
+        }
+
+        Integer ownBranchId = currentUserEntity.getProfile().getBranch().getId();
+        if (branchId != null && !branchId.equals(ownBranchId)) {
+            throw new ForbiddenException("You do not have permission to view another branch inventory");
+        }
+        return ownBranchId;
+    }
+
     private Branch resolveBranch(Integer branchId) {
         return branchRepository.findById(branchId)
+                .orElseThrow(() -> new NotFoundException("Branch not found"));
+    }
+
+    private String resolveBranchName(Integer branchId) {
+        if (branchId == null) {
+            return null;
+        }
+
+        return branchRepository.findById(branchId)
+                .map(Branch::getName)
                 .orElseThrow(() -> new NotFoundException("Branch not found"));
     }
 
@@ -591,11 +726,77 @@ public class InventoryManagementService {
         );
     }
 
+    private InventoryMovementPeriodResponse toInventoryMovementPeriodResponse(InventoryMovementPeriodProjection projection) {
+        BigDecimal receiptValue = defaultIfNull(projection.getReceiptValue());
+        BigDecimal saleValue = defaultIfNull(projection.getSaleValue());
+        BigDecimal wasteValue = defaultIfNull(projection.getWasteValue());
+        BigDecimal adjustmentInValue = defaultIfNull(projection.getAdjustmentInValue());
+        BigDecimal adjustmentOutValue = defaultIfNull(projection.getAdjustmentOutValue());
+        BigDecimal stocktakeInValue = defaultIfNull(projection.getStocktakeInValue());
+        BigDecimal stocktakeOutValue = defaultIfNull(projection.getStocktakeOutValue());
+        BigDecimal returnOutValue = defaultIfNull(projection.getReturnOutValue());
+        BigDecimal totalInValue = sumValues(receiptValue, adjustmentInValue, stocktakeInValue);
+        BigDecimal totalOutValue = sumValues(
+                saleValue,
+                wasteValue,
+                adjustmentOutValue,
+                stocktakeOutValue,
+                returnOutValue
+        );
+
+        return new InventoryMovementPeriodResponse(
+                projection.getPeriodKey(),
+                receiptValue,
+                saleValue,
+                wasteValue,
+                adjustmentInValue,
+                adjustmentOutValue,
+                stocktakeInValue,
+                stocktakeOutValue,
+                returnOutValue,
+                totalInValue,
+                totalOutValue,
+                totalInValue.subtract(totalOutValue)
+        );
+    }
+
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 
+    private BigDecimal sumPeriods(List<InventoryMovementPeriodResponse> periods,
+                                  java.util.function.Function<InventoryMovementPeriodResponse, BigDecimal> extractor) {
+        return periods.stream()
+                .map(extractor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumValues(BigDecimal... values) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (BigDecimal value : values) {
+            total = total.add(defaultIfNull(value));
+        }
+        return total;
+    }
+
+    private Long defaultIfNull(Long value) {
+        return value == null ? 0L : value;
+    }
+
     private BigDecimal defaultIfNull(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private boolean hasRole(CustomUserDetails currentUser, String role) {
+        return role.equalsIgnoreCase(currentUser.getRoleName());
+    }
+
+    private void requireAnyRole(CustomUserDetails currentUser, String... roles) {
+        for (String role : roles) {
+            if (hasRole(currentUser, role)) {
+                return;
+            }
+        }
+        throw new ForbiddenException("You do not have permission to perform this action");
     }
 }

@@ -1,6 +1,7 @@
 package org.example.goldenheartrestaurant.modules.identity.repository;
 
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
+import org.example.goldenheartrestaurant.modules.identity.entity.UserStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,8 +13,10 @@ import java.util.Optional;
 /**
  * Repository truy vấn User cho cả auth và employee module.
  *
- * Phần khó của repository này nằm ở các JPQL có join fetch,
- * vì ta cần vừa lấy đủ dữ liệu cho service vừa tránh N+1 query.
+ * Các query auth luôn join fetch đủ role/profile để:
+ * - tránh N+1
+ * - đọc đúng branch/email/phone ngay trong cùng transaction
+ * - siết chỉ cho account ACTIVE đi vào các luồng nhạy cảm
  */
 public interface UserRepository extends JpaRepository<User, Integer> {
 
@@ -30,11 +33,66 @@ public interface UserRepository extends JpaRepository<User, Integer> {
             join fetch u.profile up
             left join fetch up.branch b
             where lower(u.username) = lower(:username)
+              and u.status = :activeStatus
               and u.deletedAt is null
               and up.deletedAt is null
               and r.deletedAt is null
             """)
-    Optional<User> findActiveAuthUserByUsername(@Param("username") String username);
+    Optional<User> findActiveAuthUserByUsername(
+            @Param("username") String username,
+            @Param("activeStatus") UserStatus activeStatus
+    );
+
+    @Query("""
+            select u
+            from User u
+            join fetch u.role r
+            join fetch u.profile up
+            left join fetch up.branch b
+            where lower(up.activeEmail) = lower(:email)
+              and u.status = :activeStatus
+              and u.deletedAt is null
+              and up.deletedAt is null
+              and r.deletedAt is null
+            """)
+    Optional<User> findActiveAuthUserByEmail(
+            @Param("email") String email,
+            @Param("activeStatus") UserStatus activeStatus
+    );
+
+    @Query("""
+            select u
+            from User u
+            join fetch u.role r
+            join fetch u.profile up
+            left join fetch up.branch b
+            where up.activePhone = :phone
+              and u.status = :activeStatus
+              and u.deletedAt is null
+              and up.deletedAt is null
+              and r.deletedAt is null
+            """)
+    Optional<User> findActiveAuthUserByPhone(
+            @Param("phone") String phone,
+            @Param("activeStatus") UserStatus activeStatus
+    );
+
+    @Query("""
+            select u
+            from User u
+            join fetch u.role r
+            join fetch u.profile up
+            left join fetch up.branch b
+            where u.id = :userId
+              and u.status = :activeStatus
+              and u.deletedAt is null
+              and up.deletedAt is null
+              and r.deletedAt is null
+            """)
+    Optional<User> findActiveAuthUserById(
+            @Param("userId") Integer userId,
+            @Param("activeStatus") UserStatus activeStatus
+    );
 
     @Query(
             value = """

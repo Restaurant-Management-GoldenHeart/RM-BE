@@ -2,6 +2,7 @@ package org.example.goldenheartrestaurant.modules.inventory.repository;
 
 import jakarta.persistence.LockModeType;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
+import org.example.goldenheartrestaurant.modules.inventory.repository.projection.InventorySummaryProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,26 @@ import java.util.Optional;
  * - lock tồn kho khi kitchen complete món
  */
 public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
+
+    boolean existsByBranchId(Integer branchId);
+
+    @Query("""
+            select
+                count(i) as totalItems,
+                coalesce(sum(coalesce(i.quantity, 0)), 0) as totalQuantity,
+                coalesce(sum(coalesce(i.quantity, 0) * coalesce(i.averageUnitCost, 0)), 0) as totalInventoryValue,
+                coalesce(sum(case
+                    when i.minStockLevel is not null and coalesce(i.quantity, 0) <= i.minStockLevel then 1
+                    else 0
+                end), 0) as lowStockCount,
+                coalesce(sum(case
+                    when coalesce(i.quantity, 0) = 0 then 1
+                    else 0
+                end), 0) as outOfStockCount
+            from Inventory i
+            where (:branchId is null or i.branch.id = :branchId)
+            """)
+    InventorySummaryProjection summarizeCurrentStateByBranch(@Param("branchId") Integer branchId);
 
     @Query(
             value = """

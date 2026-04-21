@@ -18,6 +18,8 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
 
     boolean existsByTable_Id(Integer tableId);
 
+    boolean existsByBranch_Id(Integer branchId);
+
     @Query("""
             select distinct o
             from Order o

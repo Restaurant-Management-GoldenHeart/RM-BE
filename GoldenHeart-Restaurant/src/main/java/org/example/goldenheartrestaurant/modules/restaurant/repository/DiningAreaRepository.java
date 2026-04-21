@@ -7,5 +7,7 @@ import java.util.Optional;
 
 public interface DiningAreaRepository extends JpaRepository<DiningArea, Integer> {
 
+    boolean existsByBranch_Id(Integer branchId);
+
     Optional<DiningArea> findByIdAndBranch_Id(Integer id, Integer branchId);
 }

@@ -16,6 +16,8 @@ import java.util.Optional;
  */
 public interface UserProfileRepository extends JpaRepository<UserProfile, Integer> {
 
+    boolean existsByBranch_Id(Integer branchId);
+
     boolean existsByActiveEmailIgnoreCase(String activeEmail);
 
     boolean existsByActivePhone(String activePhone);

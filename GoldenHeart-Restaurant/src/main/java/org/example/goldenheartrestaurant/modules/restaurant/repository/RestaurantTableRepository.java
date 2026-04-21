@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface RestaurantTableRepository extends JpaRepository<RestaurantTable, Integer> {
 
+    boolean existsByBranch_Id(Integer branchId);
+
     boolean existsByBranch_IdAndTableNumberIgnoreCase(Integer branchId, String tableNumber);
 
     boolean existsByBranch_IdAndTableNumberIgnoreCaseAndIdNot(Integer branchId, String tableNumber, Integer id);

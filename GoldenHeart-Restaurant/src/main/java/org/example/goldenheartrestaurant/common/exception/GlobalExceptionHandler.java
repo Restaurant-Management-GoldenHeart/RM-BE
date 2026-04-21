@@ -50,6 +50,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException exception) {
+        return ResponseEntity.badRequest().body(
+                ErrorResponse.builder()
+                        .success(false)
+                        .message(exception.getMessage())
+                        .build()
+        );
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException exception) {
         String rootMessage = exception.getMostSpecificCause() != null

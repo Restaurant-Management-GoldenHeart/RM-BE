@@ -6,16 +6,26 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.goldenheartrestaurant.common.config.JwtProperties;
 import org.example.goldenheartrestaurant.common.response.ApiResponse;
+import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.common.security.JwtService;
+import org.example.goldenheartrestaurant.modules.auth.dto.request.ChangePasswordRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.LoginRequest;
+import org.example.goldenheartrestaurant.modules.auth.dto.request.PasswordRecoveryRequestOtpRequest;
+import org.example.goldenheartrestaurant.modules.auth.dto.request.PasswordRecoveryResetPasswordRequest;
+import org.example.goldenheartrestaurant.modules.auth.dto.request.PasswordRecoveryVerifyOtpRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.RegisterRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.AuthResponse;
+import org.example.goldenheartrestaurant.modules.auth.dto.response.PasswordRecoveryRequestOtpResponse;
+import org.example.goldenheartrestaurant.modules.auth.dto.response.PasswordRecoveryVerifyOtpResponse;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.RegisterResponse;
 import org.example.goldenheartrestaurant.modules.auth.service.AuthService;
 import org.example.goldenheartrestaurant.modules.auth.service.IssuedTokens;
+import org.example.goldenheartrestaurant.modules.auth.service.PasswordRecoveryService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,15 +35,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 /**
- * Controller public cho các thao tác xác thực cơ bản:
- * - register
- * - login
- * - refresh
- * - logout
+ * Controller public cho các thao tác xác thực và khôi phục mật khẩu.
  */
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordRecoveryService passwordRecoveryService;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
 
@@ -57,8 +64,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(HttpServletRequest request) {
-        // Refresh token được đọc từ cookie thay vì body để giảm nguy cơ frontend
-        // thao tác trực tiếp với token nhạy cảm này.
+        // Refresh token được đọc từ cookie thay vì body để giảm nguy cơ lộ token nhạy cảm.
         String refreshToken = readCookie(request, jwtProperties.getRefreshCookieName());
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new IllegalArgumentException("Refresh token cookie is missing");
@@ -72,7 +78,6 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request) {
         String refreshToken = readCookie(request, jwtProperties.getRefreshCookieName());
         if (refreshToken != null && !refreshToken.isBlank()) {
-            // Nếu có refresh token trong cookie thì revoke luôn phía server.
             authService.logout(refreshToken);
         }
 
@@ -83,9 +88,74 @@ public class AuthController {
                         .build());
     }
 
+    @PostMapping("/change-password")
+    @Secured({"ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        authService.changePassword(currentUser, request);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtService.clearRefreshTokenCookie().toString())
+                .body(
+                        ApiResponse.<Void>builder()
+                                .message("Password changed successfully. Please log in again")
+                                .build()
+                );
+    }
+
+    @PostMapping("/password-recovery/request-otp")
+    public ResponseEntity<ApiResponse<PasswordRecoveryRequestOtpResponse>> requestPasswordRecoveryOtp(
+            @Valid @RequestBody PasswordRecoveryRequestOtpRequest request,
+            HttpServletRequest httpServletRequest
+    ) {
+        PasswordRecoveryRequestOtpResponse response = passwordRecoveryService.requestOtp(
+                request,
+                extractClientIp(httpServletRequest),
+                httpServletRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.<PasswordRecoveryRequestOtpResponse>builder()
+                        .message("If the account exists, OTP has been sent")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @PostMapping("/password-recovery/verify-otp")
+    public ResponseEntity<ApiResponse<PasswordRecoveryVerifyOtpResponse>> verifyPasswordRecoveryOtp(
+            @Valid @RequestBody PasswordRecoveryVerifyOtpRequest request,
+            HttpServletRequest httpServletRequest
+    ) {
+        PasswordRecoveryVerifyOtpResponse response = passwordRecoveryService.verifyOtp(
+                request,
+                extractClientIp(httpServletRequest),
+                httpServletRequest.getHeader(HttpHeaders.USER_AGENT)
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.<PasswordRecoveryVerifyOtpResponse>builder()
+                        .message("OTP verified successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @PostMapping("/password-recovery/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody PasswordRecoveryResetPasswordRequest request) {
+        passwordRecoveryService.resetPassword(request);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .message("Password reset successfully")
+                        .build()
+        );
+    }
+
     private ResponseEntity<ApiResponse<AuthResponse>> buildTokenResponse(String message, IssuedTokens issuedTokens) {
-        // Chỉ access token trả về trong JSON response body.
-        // Refresh token sẽ được đẩy vào cookie HttpOnly ở header Set-Cookie.
+        // Chỉ access token trả về trong JSON; refresh token đi qua cookie HttpOnly.
         AuthResponse response = AuthResponse.builder()
                 .accessToken(issuedTokens.accessToken())
                 .tokenType("Bearer")
@@ -110,11 +180,18 @@ public class AuthController {
 
         for (Cookie cookie : cookies) {
             if (cookieName.equals(cookie.getName())) {
-                // Trả đúng giá trị cookie theo tên đã cấu hình.
                 return cookie.getValue();
             }
         }
 
         return null;
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

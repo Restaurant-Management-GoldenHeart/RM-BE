@@ -3,6 +3,7 @@ package org.example.goldenheartrestaurant.modules.auth.bootstrap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
+import org.example.goldenheartrestaurant.modules.identity.entity.UserStatus;
 import org.example.goldenheartrestaurant.modules.identity.repository.UserRepository;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Ingredient;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
@@ -74,7 +75,7 @@ public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
             return;
         }
 
-        User admin = userRepository.findActiveAuthUserByUsername("admin")
+        User admin = userRepository.findActiveAuthUserByUsername("admin", UserStatus.ACTIVE)
                 .orElse(null);
 
         if (admin == null) {

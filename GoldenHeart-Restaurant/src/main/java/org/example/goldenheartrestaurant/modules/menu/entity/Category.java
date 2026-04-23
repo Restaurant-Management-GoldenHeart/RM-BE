@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -33,7 +32,14 @@ public class Category {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Lob
+    /**
+     * Mo ta danh muc chi can text ngan de hien thi/tra cuu.
+     *
+     * Khong dung @Lob o day vi Hibernate 7 validate JPQL `lower(description)`
+     * se xem field nay la CLOB va tu choi cac ham xu ly chuoi nhu lower/like.
+     * Gioi han 2000 ky tu la du cho use-case hien tai va giu query search don gian.
+     */
+    @Column(length = 2000)
     private String description;
 
     @Builder.Default

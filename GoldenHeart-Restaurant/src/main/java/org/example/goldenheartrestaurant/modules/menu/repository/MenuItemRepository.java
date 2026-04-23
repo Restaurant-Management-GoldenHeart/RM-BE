@@ -21,6 +21,8 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
 
     boolean existsByBranchId(Integer branchId);
 
+    boolean existsByCategoryId(Integer categoryId);
+
     /**
      * Search chính cho màn hình danh sách menu.
      *

@@ -63,8 +63,17 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Các endpoint auth phải mở public để user còn login / refresh / logout được.
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Chỉ mở public cho các endpoint auth thật sự không cần current user.
+                        .requestMatchers(
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/password-recovery/**"
+                        ).permitAll()
+                        // Đổi mật khẩu là thao tác của user đã đăng nhập,
+                        // nên ngoài @Secured ở controller, tầng HTTP cũng phải bắt buộc authenticated.
+                        .requestMatchers("/api/v1/auth/change-password").authenticated()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Endpoint nào không nằm trong nhóm public thì bắt buộc phải xác thực.

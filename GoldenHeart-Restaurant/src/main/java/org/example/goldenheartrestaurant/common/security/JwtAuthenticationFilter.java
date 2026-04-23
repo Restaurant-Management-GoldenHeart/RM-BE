@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -26,6 +27,23 @@ import java.io.IOException;
  * - @PreAuthorize có dữ liệu để kiểm tra role
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    /**
+     * Danh sách endpoint auth được phép public thật sự.
+     *
+     * Lưu ý:
+     * - change-password KHÔNG nằm ở đây vì endpoint đó bắt buộc phải xác thực bằng access token.
+     * - password recovery vẫn public vì user chưa đăng nhập vẫn phải dùng được.
+     */
+    private static final Set<String> PUBLIC_AUTH_ENDPOINTS = Set.of(
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/logout",
+            "/api/v1/auth/password-recovery/request-otp",
+            "/api/v1/auth/password-recovery/verify-otp",
+            "/api/v1/auth/password-recovery/reset-password"
+    );
 
     private final JwtService jwtService;
 
@@ -67,9 +85,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        // Nhóm endpoint auth là nơi phát token / refresh token,
-        // nên không đi qua bước ép xác thực của filter này.
-        return request.getServletPath().startsWith("/api/v1/auth/");
+        // Chỉ bỏ qua các endpoint auth public thực sự.
+        // Các endpoint auth cần user hiện tại như change-password vẫn phải đi qua JWT filter
+        // để @AuthenticationPrincipal và @Secured có dữ liệu làm việc.
+        return PUBLIC_AUTH_ENDPOINTS.contains(request.getServletPath());
     }
 
     private void writeUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

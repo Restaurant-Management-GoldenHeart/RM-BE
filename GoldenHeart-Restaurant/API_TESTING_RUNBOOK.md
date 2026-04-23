@@ -12,6 +12,7 @@ Bo collection da duoc cap nhat theo controller hien tai, bao gom:
 
 - `Auth`
 - `Roles`
+- `Categories`
 - `Branches`
 - `Employees`
 - `Customers`
@@ -135,11 +136,13 @@ Folder `End-to-End Flow` da gom san luong nay theo thu tu khuyen nghi.
 4. `Auth -> Login Kitchen`
 5. Test cac folder read-only:
    - `Roles`
+   - `Categories`
    - `Branches`
    - `Inventory`
    - `Menu Items`
    - `Tables`
 6. Test CRUD:
+   - `Categories`
    - `Branches`
    - `Employees`
    - `Customers`
@@ -179,6 +182,16 @@ Folder `End-to-End Flow` da gom san luong nay theo thu tu khuyen nghi.
 | Request name | API | Auth | Ghi chu |
 |---|---|---|---|
 | Get Roles | `GET /roles` | Bearer `manager_token` | Lay danh sach role he thong |
+
+## Categories
+
+| Request name | API | Auth | Seed / bien dung | Ghi chu |
+|---|---|---|---|---|
+| Get Categories | `GET /categories?page=0&size=10` | Bearer `staff_token` | - | Danh sach danh muc mon an |
+| Get Category By ID | `GET /categories/{categoryId}` | Bearer `staff_token` | `seed_category_id` | Xem chi tiet danh muc seed |
+| Create Category | `POST /categories` | Bearer `admin_token` | Save `created_category_id` | Admin only |
+| Update Created Category | `PUT /categories/{created_category_id}` | Bearer `admin_token` | `created_category_id` | Admin only |
+| Delete Created Category | `DELETE /categories/{created_category_id}` | Bearer `admin_token` | `created_category_id` | API se chan xoa neu category dang duoc menu item su dung |
 
 ## Branches
 

@@ -16,6 +16,8 @@ public record CreateBillRequest(
         @DecimalMin(value = "0.00")
         BigDecimal taxRate,
 
+        Boolean applyLoyaltyDiscount,
+
         @DecimalMin(value = "0.00")
         BigDecimal paidAmount,
 

@@ -1,13 +1,18 @@
 package org.example.goldenheartrestaurant.modules.customer.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.goldenheartrestaurant.common.exception.BadRequestException;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
 import org.example.goldenheartrestaurant.common.exception.NotFoundException;
 import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.modules.customer.dto.request.CreateCustomerRequest;
+import org.example.goldenheartrestaurant.modules.customer.dto.request.QuickCreateCustomerRequest;
 import org.example.goldenheartrestaurant.modules.customer.dto.request.UpdateCustomerRequest;
+import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerLookupResponse;
+import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerLoyaltyTransactionResponse;
 import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerResponse;
 import org.example.goldenheartrestaurant.modules.customer.entity.Customer;
+import org.example.goldenheartrestaurant.modules.customer.entity.CustomerTier;
 import org.example.goldenheartrestaurant.modules.customer.repository.CustomerRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,19 +20,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 /**
- * Service xử lý nghiệp vụ khách hàng.
+ * Service xu ly nghiep vu customer.
  *
- * Các rule chính nằm ở đây:
- * - tìm kiếm phân trang
- * - uniqueness cho email / phone / customerCode
- * - soft delete thông qua repository / entity
+ * Ngoai CRUD CRM co san, service nay bo sung them:
+ * - lookup nhanh cho POS
+ * - tao nhanh customer moi ngay luc thanh toan
+ * - tra ve thong tin tier hien tai
+ * - tra lich su loyalty transaction
  */
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final CustomerLoyaltyService customerLoyaltyService;
 
     @Transactional(readOnly = true)
     public PageResponse<CustomerResponse> getCustomers(String keyword, int page, int size) {
@@ -41,6 +50,16 @@ public class CustomerService {
                 .totalPages(customers.getTotalPages())
                 .last(customers.isLast())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerLookupResponse> lookupCustomers(String keyword, int size) {
+        if (!StringUtils.hasText(keyword)) {
+            throw new BadRequestException("Keyword is required for customer lookup");
+        }
+
+        Page<Customer> customers = customerRepository.search(keyword.trim(), PageRequest.of(0, size));
+        return customers.getContent().stream().map(this::toLookupResponse).toList();
     }
 
     @Transactional(readOnly = true)
@@ -66,9 +85,28 @@ public class CustomerService {
                 .note(request.note())
                 .build();
 
-        // Khách mới luôn bắt đầu từ 0 loyalty point.
-        // Sau này order/billing flow có thể tăng điểm.
         return toCustomerResponse(customerRepository.save(customer));
+    }
+
+    @Transactional
+    public CustomerLookupResponse quickCreateCustomer(QuickCreateCustomerRequest request) {
+        if (!StringUtils.hasText(request.phone()) && !StringUtils.hasText(request.email())) {
+            throw new BadRequestException("Phone or email is required for quick customer creation");
+        }
+
+        validateCustomerUniquenessForCreate(request.email(), request.phone(), null);
+
+        Customer customer = Customer.builder()
+                .name(request.name().trim())
+                .phone(request.phone())
+                .activePhone(request.phone())
+                .email(request.email())
+                .activeEmail(request.email())
+                .loyaltyPoints(0)
+                .note(request.note())
+                .build();
+
+        return toLookupResponse(customerRepository.save(customer));
     }
 
     @Transactional
@@ -113,6 +151,12 @@ public class CustomerService {
         customerRepository.delete(getCustomerOrThrow(customerId));
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<CustomerLoyaltyTransactionResponse> getCustomerTransactions(Integer customerId, int page, int size) {
+        getCustomerOrThrow(customerId);
+        return customerLoyaltyService.getCustomerTransactions(customerId, page, size);
+    }
+
     private Customer getCustomerOrThrow(Integer customerId) {
         return customerRepository.findById(customerId)
                 .orElseThrow(() -> new NotFoundException("Customer not found"));
@@ -153,6 +197,7 @@ public class CustomerService {
     }
 
     private CustomerResponse toCustomerResponse(Customer customer) {
+        CustomerTier tier = customerLoyaltyService.resolveTier(customer.getLoyaltyPoints());
         return new CustomerResponse(
                 customer.getId(),
                 customer.getCustomerCode(),
@@ -166,7 +211,28 @@ public class CustomerService {
                 customer.getNote(),
                 customer.getLastVisitAt(),
                 customer.getCreatedAt(),
-                customer.getUpdatedAt()
+                customer.getUpdatedAt(),
+                tier != null ? tier.getId() : null,
+                tier != null ? tier.getCode() : null,
+                tier != null ? tier.getName() : null,
+                tier != null ? tier.getDiscountRate() : null
+        );
+    }
+
+    private CustomerLookupResponse toLookupResponse(Customer customer) {
+        CustomerTier tier = customerLoyaltyService.resolveTier(customer.getLoyaltyPoints());
+        return new CustomerLookupResponse(
+                customer.getId(),
+                customer.getCustomerCode(),
+                customer.getName(),
+                customer.getPhone(),
+                customer.getEmail(),
+                customer.getLoyaltyPoints(),
+                tier != null ? tier.getId() : null,
+                tier != null ? tier.getCode() : null,
+                tier != null ? tier.getName() : null,
+                tier != null ? tier.getDiscountRate() : null,
+                customer.getLastVisitAt()
         );
     }
 }

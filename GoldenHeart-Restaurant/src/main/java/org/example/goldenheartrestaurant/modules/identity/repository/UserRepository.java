@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.Collection;
 
 /**
  * Repository truy vấn User cho cả auth và employee module.
@@ -142,4 +143,20 @@ public interface UserRepository extends JpaRepository<User, Integer> {
               and r.deletedAt is null
             """)
     Optional<User> findEmployeeDetailById(@Param("userId") Integer userId);
+
+    @Query("""
+            select count(u)
+            from User u
+            join u.role r
+            join u.profile up
+            where u.deletedAt is null
+              and up.deletedAt is null
+              and r.deletedAt is null
+              and u.status = :activeStatus
+              and upper(r.name) in :roleNames
+              and (:branchId is null or up.branch.id = :branchId)
+            """)
+    long countActiveEmployeesByBranchAndRoles(@Param("branchId") Integer branchId,
+                                              @Param("roleNames") Collection<String> roleNames,
+                                              @Param("activeStatus") UserStatus activeStatus);
 }

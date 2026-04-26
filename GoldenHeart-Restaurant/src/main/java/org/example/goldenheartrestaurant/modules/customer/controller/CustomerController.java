@@ -5,7 +5,10 @@ import lombok.RequiredArgsConstructor;
 import org.example.goldenheartrestaurant.common.response.ApiResponse;
 import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.modules.customer.dto.request.CreateCustomerRequest;
+import org.example.goldenheartrestaurant.modules.customer.dto.request.QuickCreateCustomerRequest;
 import org.example.goldenheartrestaurant.modules.customer.dto.request.UpdateCustomerRequest;
+import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerLookupResponse;
+import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerLoyaltyTransactionResponse;
 import org.example.goldenheartrestaurant.modules.customer.dto.response.CustomerResponse;
 import org.example.goldenheartrestaurant.modules.customer.service.CustomerService;
 import org.springframework.http.HttpStatus;
@@ -21,19 +24,34 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/customers")
 @RequiredArgsConstructor
 /**
- * Controller CRUD khách hàng.
+ * Controller customer.
  *
- * Quyền hiện tại:
- * - ADMIN, MANAGER: create/read/update
- * - ADMIN: delete
+ * Crud CRM van giu cho ADMIN/MANAGER.
+ * POS flow mo them lookup + quick-create cho STAFF.
  */
 public class CustomerController {
 
     private final CustomerService customerService;
+
+    @GetMapping("/lookup")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<List<CustomerLookupResponse>>> lookupCustomers(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<List<CustomerLookupResponse>>builder()
+                        .message("Customers looked up successfully")
+                        .data(customerService.lookupCustomers(keyword, size))
+                        .build()
+        );
+    }
 
     @GetMapping
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
@@ -74,6 +92,19 @@ public class CustomerController {
         );
     }
 
+    @PostMapping("/quick-create")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<CustomerLookupResponse>> quickCreateCustomer(
+            @Valid @RequestBody QuickCreateCustomerRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<CustomerLookupResponse>builder()
+                        .message("Customer created quickly successfully")
+                        .data(customerService.quickCreateCustomer(request))
+                        .build()
+        );
+    }
+
     @PutMapping("/{customerId}")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<CustomerResponse>> updateCustomer(
@@ -84,6 +115,21 @@ public class CustomerController {
                 ApiResponse.<CustomerResponse>builder()
                         .message("Customer updated successfully")
                         .data(customerService.updateCustomer(customerId, request))
+                        .build()
+        );
+    }
+
+    @GetMapping("/{customerId}/loyalty-transactions")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<PageResponse<CustomerLoyaltyTransactionResponse>>> getCustomerLoyaltyTransactions(
+            @PathVariable Integer customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<PageResponse<CustomerLoyaltyTransactionResponse>>builder()
+                        .message("Customer loyalty transactions retrieved successfully")
+                        .data(customerService.getCustomerTransactions(customerId, page, size))
                         .build()
         );
     }

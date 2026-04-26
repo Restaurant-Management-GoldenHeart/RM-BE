@@ -46,4 +46,13 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
             order by o.createdAt desc
             """)
     List<Order> findActiveOrdersByTableId(@Param("tableId") Integer tableId);
+
+    @Query("""
+            select count(o)
+            from Order o
+            where (:branchId is null or o.branch.id = :branchId)
+              and o.closedAt is null
+              and o.status <> org.example.goldenheartrestaurant.modules.order.entity.OrderStatus.CANCELLED
+            """)
+    long countActiveOrdersForReport(@Param("branchId") Integer branchId);
 }

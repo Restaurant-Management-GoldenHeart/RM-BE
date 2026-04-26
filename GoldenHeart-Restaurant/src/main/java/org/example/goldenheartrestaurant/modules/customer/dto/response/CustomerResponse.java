@@ -1,5 +1,6 @@
 package org.example.goldenheartrestaurant.modules.customer.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,10 @@ public record CustomerResponse(
         String note,
         LocalDateTime lastVisitAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Integer tierId,
+        String tierCode,
+        String tierName,
+        BigDecimal tierDiscountRate
 ) {
 }

@@ -8,6 +8,7 @@ import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.billing.dto.request.CreateBillRequest;
 import org.example.goldenheartrestaurant.modules.billing.dto.request.CreatePaymentRequest;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.BillResponse;
+import org.example.goldenheartrestaurant.modules.billing.dto.response.CheckoutPreviewResponse;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.PaymentResponse;
 import org.example.goldenheartrestaurant.modules.billing.entity.Bill;
 import org.example.goldenheartrestaurant.modules.billing.entity.BillStatus;
@@ -16,6 +17,9 @@ import org.example.goldenheartrestaurant.modules.billing.entity.PaymentMethod;
 import org.example.goldenheartrestaurant.modules.billing.repository.BillRepository;
 import org.example.goldenheartrestaurant.modules.billing.repository.PaymentRepository;
 import org.example.goldenheartrestaurant.modules.customer.entity.Customer;
+import org.example.goldenheartrestaurant.modules.customer.entity.CustomerLoyaltyTransaction;
+import org.example.goldenheartrestaurant.modules.customer.entity.CustomerTier;
+import org.example.goldenheartrestaurant.modules.customer.service.CustomerLoyaltyService;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.identity.repository.UserRepository;
 import org.example.goldenheartrestaurant.modules.inventory.repository.StockMovementRepository;
@@ -51,6 +55,29 @@ public class BillingService {
     private final RestaurantTableRepository restaurantTableRepository;
     private final StockMovementRepository stockMovementRepository;
     private final UserRepository userRepository;
+    private final CustomerLoyaltyService customerLoyaltyService;
+
+    @Transactional(readOnly = true)
+    public CheckoutPreviewResponse previewCheckout(Integer orderId,
+                                                   BigDecimal discount,
+                                                   BigDecimal taxRate,
+                                                   boolean applyLoyaltyDiscount,
+                                                   CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        Order order = orderManagementService.findOrderEntityById(orderId);
+        enforceBillingScope(order, currentUser);
+        ensureOrderReadyForCheckout(order);
+
+        PricingSnapshot pricing = buildPricingSnapshot(
+                order,
+                nonNegative(discount),
+                nonNegative(taxRate),
+                applyLoyaltyDiscount
+        );
+
+        return toPreviewResponse(order, pricing, applyLoyaltyDiscount);
+    }
 
     @Transactional
     public BillResponse createBill(CreateBillRequest request, CustomUserDetails currentUser) {
@@ -64,31 +91,38 @@ public class BillingService {
         if (existingBill != null && existingBill.getStatus() == BillStatus.PAID) {
             return toResponse(existingBill);
         }
+        if (existingBill != null && !existingBill.getPayments().isEmpty()) {
+            throw new ConflictException("Bill with recorded payments cannot be recalculated");
+        }
+
+        PricingSnapshot pricing = buildPricingSnapshot(
+                order,
+                nonNegative(request.discount()),
+                nonNegative(request.taxRate()),
+                Boolean.TRUE.equals(request.applyLoyaltyDiscount())
+        );
+
+        if (pricing.total().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ConflictException("Bill total cannot be negative");
+        }
 
         Bill bill = existingBill != null ? existingBill : Bill.builder()
                 .order(order)
                 .status(BillStatus.UNPAID)
                 .build();
 
-        BigDecimal subtotal = calculateSubtotal(order);
-        BigDecimal taxRate = nonNegative(request.taxRate());
-        BigDecimal discount = nonNegative(request.discount());
-        BigDecimal tax = subtotal.multiply(taxRate)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        BigDecimal total = subtotal.add(tax).subtract(discount);
+        BigDecimal costOfGoodsSold = nonNegative(stockMovementRepository.sumTotalCostByOrderId(order.getId()));
+        BigDecimal grossProfit = pricing.subtotal()
+                .subtract(pricing.totalDiscount())
+                .subtract(costOfGoodsSold);
 
-        if (total.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ConflictException("Bill total cannot be negative");
-        }
-
-        BigDecimal costOfGoodsSold = stockMovementRepository.sumTotalCostByOrderId(order.getId());
-        BigDecimal grossProfit = subtotal.subtract(discount).subtract(nonNegative(costOfGoodsSold));
-
-        bill.setSubtotal(subtotal);
-        bill.setTax(tax);
-        bill.setDiscount(discount);
-        bill.setTotal(total);
-        bill.setCostOfGoodsSold(nonNegative(costOfGoodsSold));
+        bill.setSubtotal(pricing.subtotal());
+        bill.setTax(pricing.tax());
+        bill.setDiscount(pricing.totalDiscount());
+        bill.setLoyaltyDiscount(pricing.loyaltyDiscount());
+        bill.setAppliedCustomerTier(pricing.appliedTier());
+        bill.setTotal(pricing.total());
+        bill.setCostOfGoodsSold(costOfGoodsSold);
         bill.setGrossProfit(grossProfit);
 
         Bill savedBill = billRepository.save(bill);
@@ -116,6 +150,49 @@ public class BillingService {
         registerPayment(bill, request.amount(), resolvePaymentMethod(request.method()));
         finalizeOrderIfPaid(bill, bill.getOrder());
         return toResponse(reloadBill(bill.getId()));
+    }
+
+    private PricingSnapshot buildPricingSnapshot(Order order,
+                                                 BigDecimal manualDiscount,
+                                                 BigDecimal taxRate,
+                                                 boolean applyLoyaltyDiscount) {
+        BigDecimal subtotal = calculateSubtotal(order);
+        BigDecimal discountableBase = subtotal.subtract(manualDiscount);
+        if (discountableBase.compareTo(BigDecimal.ZERO) < 0) {
+            discountableBase = BigDecimal.ZERO;
+        }
+
+        Customer customer = order.getCustomer();
+        CustomerTier currentTier = customer != null ? customerLoyaltyService.resolveTier(customer.getLoyaltyPoints()) : null;
+        BigDecimal loyaltyDiscount = applyLoyaltyDiscount
+                ? customerLoyaltyService.calculateLoyaltyDiscount(customer, discountableBase)
+                : BigDecimal.ZERO;
+
+        BigDecimal totalDiscount = manualDiscount.add(loyaltyDiscount);
+        BigDecimal tax = subtotal.multiply(taxRate)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal total = subtotal.add(tax).subtract(totalDiscount);
+
+        int currentPoints = customer != null && customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
+        int earnedPoints = customer != null ? customerLoyaltyService.calculateEarnedPoints(total) : 0;
+        int projectedPoints = customer != null ? currentPoints + earnedPoints : 0;
+        CustomerTier projectedTier = customer != null ? customerLoyaltyService.resolveTier(projectedPoints) : null;
+
+        return new PricingSnapshot(
+                subtotal,
+                taxRate,
+                tax,
+                manualDiscount,
+                loyaltyDiscount,
+                totalDiscount,
+                total,
+                currentTier,
+                applyLoyaltyDiscount ? currentTier : null,
+                projectedTier,
+                currentPoints,
+                earnedPoints,
+                projectedPoints
+        );
     }
 
     private void registerPayment(Bill bill, BigDecimal amount, PaymentMethod method) {
@@ -154,10 +231,7 @@ public class BillingService {
             restaurantTableRepository.save(table);
         }
 
-        Customer customer = order.getCustomer();
-        if (customer != null) {
-            customer.setLastVisitAt(LocalDateTime.now());
-        }
+        customerLoyaltyService.rewardPaidBill(bill);
     }
 
     private void ensureOrderReadyForCheckout(Order order) {
@@ -169,7 +243,7 @@ public class BillingService {
             throw new ConflictException("Order has no billable items");
         }
 
-        boolean hasNotServedItems = billableItems.stream().anyMatch(item -> 
+        boolean hasNotServedItems = billableItems.stream().anyMatch(item ->
                 item.getStatus() != OrderItemStatus.SERVED && item.getStatus() != OrderItemStatus.COMPLETED);
         if (hasNotServedItems) {
             throw new ConflictException("Order can only be checked out after all dishes are served or completed");
@@ -237,21 +311,75 @@ public class BillingService {
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    private CheckoutPreviewResponse toPreviewResponse(Order order, PricingSnapshot pricing, boolean applyLoyaltyDiscount) {
+        Customer customer = order.getCustomer();
+
+        return new CheckoutPreviewResponse(
+                order.getId(),
+                customer != null ? customer.getId() : null,
+                customer != null ? customer.getName() : null,
+                pricing.currentTier() != null ? pricing.currentTier().getId() : null,
+                pricing.currentTier() != null ? pricing.currentTier().getCode() : null,
+                pricing.currentTier() != null ? pricing.currentTier().getName() : null,
+                pricing.currentTier() != null ? pricing.currentTier().getDiscountRate() : BigDecimal.ZERO,
+                pricing.projectedTier() != null ? pricing.projectedTier().getId() : null,
+                pricing.projectedTier() != null ? pricing.projectedTier().getCode() : null,
+                pricing.projectedTier() != null ? pricing.projectedTier().getName() : null,
+                pricing.projectedTier() != null ? pricing.projectedTier().getDiscountRate() : BigDecimal.ZERO,
+                customer != null ? pricing.currentPoints() : null,
+                customer != null ? pricing.earnedPoints() : 0,
+                customer != null ? pricing.projectedPoints() : null,
+                pricing.subtotal(),
+                pricing.taxRate(),
+                pricing.tax(),
+                pricing.manualDiscount(),
+                pricing.loyaltyDiscount(),
+                pricing.totalDiscount(),
+                pricing.total(),
+                applyLoyaltyDiscount
+        );
+    }
+
     private BillResponse toResponse(Bill bill) {
+        Customer customer = bill.getOrder().getCustomer();
+        CustomerLoyaltyTransaction rewardTransaction = customerLoyaltyService.findEarnTransactionByBillId(bill.getId());
+        int currentPoints = customer != null && customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;
+        int projectedEarnedPoints = customer != null ? customerLoyaltyService.calculateEarnedPoints(bill.getTotal()) : 0;
+        int projectedPointsAfter = customer != null ? currentPoints + projectedEarnedPoints : 0;
+
+        BigDecimal loyaltyDiscount = nonNegative(bill.getLoyaltyDiscount());
+        BigDecimal totalDiscount = nonNegative(bill.getDiscount());
+        BigDecimal manualDiscount = totalDiscount.subtract(loyaltyDiscount);
+        if (manualDiscount.compareTo(BigDecimal.ZERO) < 0) {
+            manualDiscount = BigDecimal.ZERO;
+        }
+
         return new BillResponse(
                 bill.getId(),
                 bill.getOrder().getId(),
                 bill.getOrder().getTable() != null ? bill.getOrder().getTable().getId() : null,
                 bill.getOrder().getTable() != null ? bill.getOrder().getTable().getTableNumber() : null,
+                customer != null ? customer.getId() : null,
+                customer != null ? customer.getName() : null,
                 bill.getStatus().name(),
                 nonNegative(bill.getSubtotal()),
                 nonNegative(bill.getTax()),
-                nonNegative(bill.getDiscount()),
+                totalDiscount,
+                manualDiscount,
+                loyaltyDiscount,
                 nonNegative(bill.getTotal()),
                 paidAmount(bill),
                 remainingAmount(bill),
                 nonNegative(bill.getCostOfGoodsSold()),
                 nonNegative(bill.getGrossProfit()),
+                bill.getAppliedCustomerTier() != null ? bill.getAppliedCustomerTier().getId() : null,
+                bill.getAppliedCustomerTier() != null ? bill.getAppliedCustomerTier().getCode() : null,
+                bill.getAppliedCustomerTier() != null ? bill.getAppliedCustomerTier().getName() : null,
+                bill.getAppliedCustomerTier() != null ? bill.getAppliedCustomerTier().getDiscountRate() : BigDecimal.ZERO,
+                rewardTransaction != null,
+                rewardTransaction != null ? rewardTransaction.getPointsDelta() : projectedEarnedPoints,
+                rewardTransaction != null ? rewardTransaction.getPointsBefore() : (customer != null ? currentPoints : null),
+                rewardTransaction != null ? rewardTransaction.getPointsAfter() : (customer != null ? projectedPointsAfter : null),
                 bill.getPayments().stream()
                         .sorted(Comparator.comparing(Payment::getPaidAt))
                         .map(payment -> new PaymentResponse(
@@ -292,5 +420,22 @@ public class BillingService {
             }
         }
         throw new ForbiddenException("You do not have permission to perform this action");
+    }
+
+    private record PricingSnapshot(
+            BigDecimal subtotal,
+            BigDecimal taxRate,
+            BigDecimal tax,
+            BigDecimal manualDiscount,
+            BigDecimal loyaltyDiscount,
+            BigDecimal totalDiscount,
+            BigDecimal total,
+            CustomerTier currentTier,
+            CustomerTier appliedTier,
+            CustomerTier projectedTier,
+            Integer currentPoints,
+            Integer earnedPoints,
+            Integer projectedPoints
+    ) {
     }
 }

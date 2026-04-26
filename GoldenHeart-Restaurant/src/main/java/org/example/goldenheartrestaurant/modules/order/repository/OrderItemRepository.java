@@ -2,6 +2,7 @@ package org.example.goldenheartrestaurant.modules.order.repository;
 
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItemStatus;
+import org.example.goldenheartrestaurant.modules.report.repository.projection.OrderItemStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -58,6 +59,19 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Integer> {
             order by oi.status asc, o.createdAt asc, oi.id asc
             """)
     List<OrderItem> findKitchenItemsByStatuses(
+            @Param("statuses") Collection<OrderItemStatus> statuses,
+            @Param("branchId") Integer branchId
+    );
+
+    @Query("""
+            select oi.status as status, count(oi) as total
+            from OrderItem oi
+            join oi.order o
+            where oi.status in :statuses
+              and (:branchId is null or o.branch.id = :branchId)
+            group by oi.status
+            """)
+    List<OrderItemStatusCountProjection> countKitchenItemsByStatusesForReport(
             @Param("statuses") Collection<OrderItemStatus> statuses,
             @Param("branchId") Integer branchId
     );

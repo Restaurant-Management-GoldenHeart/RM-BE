@@ -1,6 +1,7 @@
 package org.example.goldenheartrestaurant.modules.order.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.goldenheartrestaurant.modules.billing.entity.Bill;
 import org.example.goldenheartrestaurant.modules.billing.repository.BillRepository;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
 import org.example.goldenheartrestaurant.common.exception.ForbiddenException;
@@ -144,6 +145,18 @@ public class OrderManagementService {
         Order order = loadOrder(orderId);
         enforceReadScope(order, currentUser);
         return toOrderResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse assignCustomerToOrder(Integer orderId, Integer customerId, CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        Order order = loadOrder(orderId);
+        enforceReadScope(order, currentUser);
+        ensureOrderCustomerCanBeUpdated(order);
+
+        order.setCustomer(resolveCustomer(customerId));
+        return toOrderResponse(orderRepository.save(order));
     }
 
     @Transactional(readOnly = true)
@@ -525,6 +538,19 @@ public class OrderManagementService {
     private void ensureOrderHasNoBilling(Order order) {
         if (billRepository.existsByOrder_Id(order.getId())) {
             throw new ConflictException("Orders that already have bill records cannot be split or merged");
+        }
+    }
+
+    private void ensureOrderCustomerCanBeUpdated(Order order) {
+        if (order.getClosedAt() != null || order.getStatus() == OrderStatus.CANCELLED) {
+            throw new ConflictException("Closed orders cannot update customer information");
+        }
+
+        boolean hasRecordedPayments = billRepository.findAllDetailsByOrderId(order.getId())
+                .stream()
+                .anyMatch(bill -> !bill.getPayments().isEmpty());
+        if (hasRecordedPayments) {
+            throw new ConflictException("Customer information cannot be changed after payments are recorded");
         }
     }
 

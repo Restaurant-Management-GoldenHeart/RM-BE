@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.example.goldenheartrestaurant.modules.customer.entity.CustomerTier;
 import org.example.goldenheartrestaurant.modules.order.entity.Order;
 
 import java.math.BigDecimal;
@@ -49,6 +50,9 @@ public class Bill {
     @Column(precision = 12, scale = 2)
     private BigDecimal discount;
 
+    @Column(name = "loyalty_discount", precision = 12, scale = 2)
+    private BigDecimal loyaltyDiscount;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal total;
 
@@ -57,6 +61,10 @@ public class Bill {
 
     @Column(name = "gross_profit", precision = 12, scale = 2)
     private BigDecimal grossProfit;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "applied_customer_tier_id")
+    private CustomerTier appliedCustomerTier;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

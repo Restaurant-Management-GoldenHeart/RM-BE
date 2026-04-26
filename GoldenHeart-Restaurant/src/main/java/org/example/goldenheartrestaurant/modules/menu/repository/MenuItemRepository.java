@@ -73,4 +73,11 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
      * nhưng bỏ qua chính bản ghi hiện tại.
      */
     boolean existsByBranchIdAndCategoryIdAndNameIgnoreCaseAndIdNot(Integer branchId, Integer categoryId, String name, Integer id);
+
+    @Query("""
+            select count(mi)
+            from MenuItem mi
+            where (:branchId is null or mi.branch.id = :branchId)
+            """)
+    long countForReport(@Param("branchId") Integer branchId);
 }

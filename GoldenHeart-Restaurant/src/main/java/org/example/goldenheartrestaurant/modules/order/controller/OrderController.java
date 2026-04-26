@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.goldenheartrestaurant.common.response.ApiResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
+import org.example.goldenheartrestaurant.modules.order.dto.request.AssignOrderCustomerRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.request.CreateOrderRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemStatusChangeResponse;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderResponse;
@@ -51,6 +52,21 @@ public class OrderController {
                 ApiResponse.<OrderResponse>builder()
                         .message("Order retrieved successfully")
                         .data(orderManagementService.getOrderById(orderId, currentUser))
+                        .build()
+        );
+    }
+
+    @PutMapping("/{orderId}/customer")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<OrderResponse>> assignCustomerToOrder(
+            @PathVariable Integer orderId,
+            @RequestBody AssignOrderCustomerRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<OrderResponse>builder()
+                        .message("Order customer updated successfully")
+                        .data(orderManagementService.assignCustomerToOrder(orderId, request.customerId(), currentUser))
                         .build()
         );
     }

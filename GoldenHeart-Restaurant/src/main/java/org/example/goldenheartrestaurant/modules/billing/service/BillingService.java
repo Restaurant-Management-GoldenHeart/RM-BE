@@ -41,6 +41,25 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Service xử lý toàn bộ nghiệp vụ thanh toán cuối cùng của order.
+ *
+ * Trách nhiệm chính:
+ * - preview hóa đơn trước khi chốt
+ * - tạo hoặc cập nhật bill
+ * - nhận thanh toán nhiều lần cho cùng một bill
+ * - đồng bộ trạng thái bill
+ * - đóng order khi bill đã thanh toán đủ
+ * - đưa bàn sang CLEANING
+ * - cộng điểm loyalty sau khi thanh toán xong
+ *
+ * Đây là lớp rất quan trọng vì nó là điểm giao nhau của:
+ * - order
+ * - table
+ * - payment
+ * - loyalty
+ * - báo cáo doanh thu/lợi nhuận
+ */
 @Service
 @RequiredArgsConstructor
 public class BillingService {
@@ -69,6 +88,7 @@ public class BillingService {
         enforceBillingScope(order, currentUser);
         ensureOrderReadyForCheckout(order);
 
+        // Preview chỉ tính toán số liệu tạm thời, chưa ghi bill và chưa cộng điểm.
         PricingSnapshot pricing = buildPricingSnapshot(
                 order,
                 nonNegative(discount),
@@ -89,12 +109,15 @@ public class BillingService {
 
         Bill existingBill = findLatestBillByOrderId(order.getId());
         if (existingBill != null && existingBill.getStatus() == BillStatus.PAID) {
+            // Nếu bill cuối cùng đã PAID thì trả luôn bill đó, tránh tạo bill trùng.
             return toResponse(existingBill);
         }
         if (existingBill != null && !existingBill.getPayments().isEmpty()) {
             throw new ConflictException("Bill with recorded payments cannot be recalculated");
         }
 
+        // Tại thời điểm tạo bill, toàn bộ discount/tax/loyalty phải được chốt thành số tiền cụ thể
+        // để những lần thanh toán sau không bị tính lại lệch nhau.
         PricingSnapshot pricing = buildPricingSnapshot(
                 order,
                 nonNegative(request.discount()),
@@ -111,6 +134,8 @@ public class BillingService {
                 .status(BillStatus.UNPAID)
                 .build();
 
+        // Giá vốn hàng bán được lấy từ stock movement đã trừ trong luồng bếp.
+        // Nhờ vậy báo cáo lợi nhuận bám sát dữ liệu vận hành thực tế hơn là dùng ước lượng.
         BigDecimal costOfGoodsSold = nonNegative(stockMovementRepository.sumTotalCostByOrderId(order.getId()));
         BigDecimal grossProfit = pricing.subtotal()
                 .subtract(pricing.totalDiscount())
@@ -147,6 +172,7 @@ public class BillingService {
             throw new ConflictException("Bill is already fully paid");
         }
 
+        // Bill có thể được thanh toán nhiều lần cho đến khi đủ tổng tiền.
         registerPayment(bill, request.amount(), resolvePaymentMethod(request.method()));
         finalizeOrderIfPaid(bill, bill.getOrder());
         return toResponse(reloadBill(bill.getId()));
@@ -156,6 +182,9 @@ public class BillingService {
                                                  BigDecimal manualDiscount,
                                                  BigDecimal taxRate,
                                                  boolean applyLoyaltyDiscount) {
+        // Snapshot này gom toàn bộ con số trung gian vào một nơi:
+        // subtotal -> discount -> tax -> total -> loyalty tier hiện tại / dự kiến.
+        // Việc gom như vậy giúp preview và createBill dùng đúng cùng một công thức.
         BigDecimal subtotal = calculateSubtotal(order);
         BigDecimal discountableBase = subtotal.subtract(manualDiscount);
         if (discountableBase.compareTo(BigDecimal.ZERO) < 0) {
@@ -168,6 +197,7 @@ public class BillingService {
                 ? customerLoyaltyService.calculateLoyaltyDiscount(customer, discountableBase)
                 : BigDecimal.ZERO;
 
+        // Tổng giảm giá cuối cùng = giảm thủ công + giảm theo loyalty.
         BigDecimal totalDiscount = manualDiscount.add(loyaltyDiscount);
         BigDecimal tax = subtotal.multiply(taxRate)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
@@ -222,13 +252,27 @@ public class BillingService {
             return;
         }
 
+        // Khi bill đã thanh toán đủ:
+        // 1. order được xem là hoàn tất
+        // 2. bàn hoặc cả nhóm bàn chuyển sang CLEANING
+        // 3. loyalty được cộng đúng một lần theo bill này
         order.setStatus(OrderStatus.COMPLETED);
         order.setClosedAt(LocalDateTime.now());
 
         RestaurantTable table = order.getTable();
         if (table != null) {
-            table.setStatus(RestaurantTableStatus.CLEANING);
-            restaurantTableRepository.save(table);
+            List<RestaurantTable> mergedGroup = restaurantTableRepository.findAllInMergedGroups(List.of(table.getId()));
+            if (mergedGroup.isEmpty()) {
+                table.setStatus(RestaurantTableStatus.CLEANING);
+                restaurantTableRepository.save(table);
+            } else {
+                // Nếu order đang nằm trên bàn gốc của nhóm gộp,
+                // cả nhóm phải cùng sang CLEANING để chờ dọn dẹp.
+                for (RestaurantTable groupTable : mergedGroup) {
+                    groupTable.setStatus(RestaurantTableStatus.CLEANING);
+                }
+                restaurantTableRepository.saveAll(mergedGroup);
+            }
         }
 
         customerLoyaltyService.rewardPaidBill(bill);
@@ -243,6 +287,7 @@ public class BillingService {
             throw new ConflictException("Order has no billable items");
         }
 
+        // Hệ thống chỉ cho checkout khi toàn bộ món đã đến trạng thái cuối ở phía vận hành.
         boolean hasNotServedItems = billableItems.stream().anyMatch(item ->
                 item.getStatus() != OrderItemStatus.SERVED && item.getStatus() != OrderItemStatus.COMPLETED);
         if (hasNotServedItems) {
@@ -269,6 +314,10 @@ public class BillingService {
     }
 
     private void updateBillStatus(Bill bill) {
+        // Quy ước:
+        // - chưa có payment     -> UNPAID
+        // - đã trả đủ hoặc dư   -> PAID
+        // - trả một phần        -> PARTIAL
         BigDecimal paidAmount = paidAmount(bill);
         BigDecimal total = nonNegative(bill.getTotal());
 
@@ -341,6 +390,8 @@ public class BillingService {
     }
 
     private BillResponse toResponse(Bill bill) {
+        // Khi trả response, nếu giao dịch cộng điểm đã tồn tại thì lấy số thật từ transaction.
+        // Nếu chưa tồn tại, response vẫn dự đoán số điểm "sẽ nhận" để frontend hiển thị trước.
         Customer customer = bill.getOrder().getCustomer();
         CustomerLoyaltyTransaction rewardTransaction = customerLoyaltyService.findEarnTransactionByBillId(bill.getId());
         int currentPoints = customer != null && customer.getLoyaltyPoints() != null ? customer.getLoyaltyPoints() : 0;

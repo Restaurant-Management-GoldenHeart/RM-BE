@@ -40,10 +40,28 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Service trung tâm xử lý vòng đời đơn hàng tại quầy.
+ *
+ * Các trách nhiệm chính:
+ * - mở order mới hoặc nối thêm món vào order đang hoạt động
+ * - tách bàn
+ * - gộp bàn
+ * - gán khách vào order
+ * - đánh dấu món đã phục vụ
+ * - đồng bộ trạng thái order và trạng thái bàn
+ *
+ * Điểm khó của lớp này là khái niệm "bàn thao tác" và "bàn vận hành thực sự" có thể khác nhau.
+ * Khi bàn đã thuộc một nhóm gộp, request có thể đi vào bàn thành viên nhưng hệ thống phải tự quy
+ * về bàn gốc để tránh tạo nhiều active order cho cùng một nhóm bàn.
+ */
 @Service
 @RequiredArgsConstructor
 public class OrderManagementService {
@@ -52,6 +70,9 @@ public class OrderManagementService {
     private static final String ROLE_MANAGER = "MANAGER";
     private static final String ROLE_STAFF = "STAFF";
     private static final String ROLE_KITCHEN = "KITCHEN";
+    private static final Comparator<RestaurantTable> TABLE_GROUP_COMPARATOR = Comparator
+            .comparing(RestaurantTable::getDisplayOrder, Comparator.nullsLast(Integer::compareTo))
+            .thenComparing(RestaurantTable::getTableNumber, String.CASE_INSENSITIVE_ORDER);
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -67,20 +88,28 @@ public class OrderManagementService {
         requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
 
         User actor = getCurrentUser(currentUser.getUserId());
-        RestaurantTable table = resolveTable(request.tableId());
-        Integer branchId = resolveBranchId(request.branchId(), table);
+        RestaurantTable requestedTable = resolveTable(request.tableId());
+        // Nếu request chỉ vào một bàn thành viên của nhóm gộp,
+        // hệ thống phải quy về bàn gốc để toàn bộ món vẫn đi vào cùng một active order.
+        RestaurantTable operationalTable = resolveOperationalTable(requestedTable);
+        Integer branchId = resolveBranchId(request.branchId(), operationalTable);
         enforceBranchScope(actor, currentUser, branchId);
 
         Branch branch = resolveBranch(branchId);
         Customer customer = resolveCustomer(request.customerId());
 
-        Order order = table != null ? findActiveOrderEntityByTableId(table.getId()).orElse(null) : null;
+        // Có bàn + đã có active order  -> gọi thêm món vào order cũ.
+        // Có bàn + chưa có active order -> mở order mới cho bàn đó.
+        // Không có bàn                   -> order mang tính quầy/lấy đi.
+        Order order = operationalTable != null
+                ? findActiveOrderEntityByTableId(operationalTable.getId()).orElse(null)
+                : null;
 
         if (order == null) {
-            validateTableCanOpenOrder(table);
+            validateTableCanOpenOrder(operationalTable);
             order = Order.builder()
                     .branch(branch)
-                    .table(table)
+                    .table(operationalTable)
                     .customer(customer)
                     .createdBy(actor)
                     .status(OrderStatus.PENDING)
@@ -101,9 +130,13 @@ public class OrderManagementService {
 
         Order savedOrder = orderRepository.save(order);
 
-        if (table != null) {
-            table.setStatus(RestaurantTableStatus.OCCUPIED);
-            restaurantTableRepository.save(table);
+        if (operationalTable != null) {
+            // Khi nhóm bàn có active order, toàn bộ nhóm phải cùng ở trạng thái OCCUPIED.
+            List<RestaurantTable> mergedGroup = loadMergedGroup(operationalTable);
+            for (RestaurantTable groupTable : mergedGroup) {
+                groupTable.setStatus(RestaurantTableStatus.OCCUPIED);
+            }
+            restaurantTableRepository.saveAll(mergedGroup);
         }
 
         return toOrderResponse(loadOrder(savedOrder.getId()));
@@ -178,7 +211,14 @@ public class OrderManagementService {
 
     @Transactional(readOnly = true)
     public java.util.Optional<Order> findActiveOrderEntityByTableId(Integer tableId) {
-        return orderRepository.findActiveOrdersByTableId(tableId)
+        if (tableId == null) {
+            return java.util.Optional.empty();
+        }
+
+        RestaurantTable table = resolveTable(tableId);
+        RestaurantTable operationalTable = resolveOperationalTable(table);
+
+        return orderRepository.findActiveOrdersByTableId(operationalTable.getId())
                 .stream()
                 .sorted(Comparator.comparing(Order::getCreatedAt).reversed())
                 .findFirst();
@@ -193,6 +233,10 @@ public class OrderManagementService {
         RestaurantTable sourceTable = resolveTable(sourceTableId);
         RestaurantTable targetTable = resolveTable(request.targetTableId());
         validateTableTransferScope(sourceTable, targetTable, currentUser);
+        // Chỉ cho tách giữa hai bàn độc lập.
+        // Nếu bàn đã nằm trong nhóm gộp thì việc xác định "nguồn" và "đích" sẽ rất mơ hồ.
+        ensureStandaloneTable(sourceTable, "Source table");
+        ensureStandaloneTable(targetTable, "Target table");
 
         Order sourceOrder = findActiveOrderEntityByTableId(sourceTableId)
                 .orElseThrow(() -> new ConflictException("Source table does not have an active order"));
@@ -222,6 +266,9 @@ public class OrderManagementService {
                 .closedAt(null)
                 .build();
 
+        // Thao tác tách có thể:
+        // - chuyển nguyên line item sang order mới
+        // - hoặc tách bớt quantity khỏi line cũ để tạo line mới ở order đích
         int movedQuantity = moveSelectedItemsToNewOrder(sourceOrder, targetOrder, request.items());
         if (movedQuantity <= 0) {
             throw new ConflictException("At least one dish must be selected for splitting");
@@ -249,9 +296,17 @@ public class OrderManagementService {
             throw new ConflictException("Source table and target table must be different");
         }
 
-        RestaurantTable sourceTable = resolveTable(request.sourceTableId());
-        RestaurantTable targetTable = resolveTable(request.targetTableId());
-        validateTableTransferScope(sourceTable, targetTable, currentUser);
+        RestaurantTable requestedSourceTable = resolveTable(request.sourceTableId());
+        RestaurantTable requestedTargetTable = resolveTable(request.targetTableId());
+        validateTableTransferScope(requestedSourceTable, requestedTargetTable, currentUser);
+
+        // API có thể nhận vào bàn gốc hoặc bàn thành viên.
+        // Trước khi gộp, luôn quy hai đầu về bàn gốc hiện tại của mỗi nhóm.
+        RestaurantTable sourceTable = resolveOperationalTable(requestedSourceTable);
+        RestaurantTable targetTable = resolveOperationalTable(requestedTargetTable);
+        if (sourceTable.getId().equals(targetTable.getId())) {
+            throw new ConflictException("Selected tables already belong to the same merged-table group");
+        }
 
         Order sourceOrder = findActiveOrderEntityByTableId(sourceTable.getId())
                 .orElseThrow(() -> new ConflictException("Source table does not have an active order"));
@@ -265,6 +320,8 @@ public class OrderManagementService {
             throw new ConflictException("Both tables must each have at least one dish before merging");
         }
 
+        // Gộp bàn thực chất là nhập toàn bộ line item từ source order sang target order.
+        // Source order sau đó bị đóng ở trạng thái CANCELLED để giữ lịch sử nghiệp vụ.
         List<OrderItem> itemsToMove = List.copyOf(sourceOrder.getOrderItems());
         for (OrderItem item : itemsToMove) {
             targetOrder.getOrderItems().add(item);
@@ -272,20 +329,33 @@ public class OrderManagementService {
             sourceOrder.getOrderItems().remove(item);
         }
 
+        // Nếu order đích chưa có khách thì ưu tiên kế thừa khách của order nguồn.
         if (targetOrder.getCustomer() == null) {
             targetOrder.setCustomer(sourceOrder.getCustomer());
         }
 
+        List<RestaurantTable> sourceGroup = loadMergedGroup(sourceTable);
+        List<RestaurantTable> targetGroup = loadMergedGroup(targetTable);
+        for (RestaurantTable sourceGroupTable : sourceGroup) {
+            if (!sourceGroupTable.getId().equals(targetTable.getId())) {
+                // Mọi bàn ở nhóm nguồn sẽ trở thành thành viên của nhóm đích.
+                sourceGroupTable.setMergedIntoTable(targetTable);
+            }
+            sourceGroupTable.setStatus(RestaurantTableStatus.OCCUPIED);
+        }
+        for (RestaurantTable targetGroupTable : targetGroup) {
+            targetGroupTable.setStatus(RestaurantTableStatus.OCCUPIED);
+        }
+
+        // Sau khi toàn bộ món đã nhập vào order đích, order nguồn không còn là active order nữa.
         sourceOrder.setStatus(OrderStatus.CANCELLED);
         sourceOrder.setClosedAt(LocalDateTime.now());
-        sourceTable.setStatus(RestaurantTableStatus.AVAILABLE);
         targetTable.setStatus(RestaurantTableStatus.OCCUPIED);
 
         recalculateOrderStatus(targetOrder);
         orderRepository.save(sourceOrder);
         Order savedTargetOrder = orderRepository.save(targetOrder);
-        restaurantTableRepository.save(sourceTable);
-        restaurantTableRepository.save(targetTable);
+        restaurantTableRepository.saveAll(mergeDistinctTables(sourceGroup, targetGroup));
 
         return buildTableTransferResponse("MERGE", sourceTable, sourceOrder, targetTable, loadOrder(savedTargetOrder.getId()));
     }
@@ -302,6 +372,8 @@ public class OrderManagementService {
                     .findFirst()
                     .orElse(null);
 
+            // Nếu món, ghi chú và trạng thái phù hợp thì ưu tiên cộng dồn quantity
+            // thay vì tạo thêm line item mới để bill và giao diện gọn hơn.
             if (existingItem != null
                     // Chỉ gộp thêm số lượng vào line còn "chưa vào bếp thật sự".
                     // Nếu line đã PROCESSING thì stock đã bị deduct theo quantity cũ,
@@ -328,6 +400,8 @@ public class OrderManagementService {
     private Integer resolveBranchId(Integer requestedBranchId, RestaurantTable table) {
         if (table != null) {
             Integer tableBranchId = table.getBranch().getId();
+            // Nếu request truyền đồng thời tableId và branchId,
+            // hệ thống dùng branch của bàn làm chuẩn và kiểm tra tính nhất quán.
             if (requestedBranchId != null && !requestedBranchId.equals(tableBranchId)) {
                 throw new ConflictException("Table does not belong to the requested branch");
             }
@@ -454,6 +528,9 @@ public class OrderManagementService {
     }
 
     private void recalculateOrderStatus(Order order) {
+        // Đây là hàm đồng bộ trạng thái order theo trạng thái thực của các món.
+        // Mọi luồng như create, split, merge, kitchen update, serve... đều nên đi qua đây
+        // để tránh mỗi nơi tự set status theo một kiểu khác nhau.
         List<OrderItem> items = order.getOrderItems();
         boolean allCancelled = items.stream().allMatch(item -> item.getStatus() == OrderItemStatus.CANCELLED);
         boolean allFinal = items.stream().allMatch(item ->
@@ -471,7 +548,8 @@ public class OrderManagementService {
             order.setStatus(OrderStatus.CANCELLED);
             order.setClosedAt(LocalDateTime.now());
             if (order.getTable() != null) {
-                order.getTable().setStatus(RestaurantTableStatus.AVAILABLE);
+                // Nếu order gắn với một nhóm bàn gộp, việc đóng order phải giải phóng cả nhóm.
+                releaseMergedGroup(order.getTable(), RestaurantTableStatus.AVAILABLE, true);
             }
             return;
         }
@@ -559,16 +637,25 @@ public class OrderManagementService {
                                                                  Order sourceOrder,
                                                                  RestaurantTable targetTable,
                                                                  Order targetOrder) {
+        // Response này cố ý trả cả:
+        // - tên bàn gốc
+        // - tên hiển thị của nhóm bàn sau thao tác
+        // để phía client/Postman quan sát được rõ kết quả split/merge.
+        List<RestaurantTable> sourceGroup = loadMergedGroup(resolveOperationalTable(sourceTable));
+        List<RestaurantTable> targetGroup = loadMergedGroup(resolveOperationalTable(targetTable));
+
         return new TableOrderTransferResponse(
                 action,
                 sourceTable.getId(),
                 sourceTable.getTableNumber(),
+                buildTableDisplayName(sourceGroup, extractMergeRootId(resolveOperationalTable(sourceTable))),
                 sourceTable.getStatus().name(),
                 sourceOrder.getId(),
                 sourceOrder.getStatus().name(),
                 calculateSubtotal(sourceOrder),
                 targetTable.getId(),
                 targetTable.getTableNumber(),
+                buildTableDisplayName(targetGroup, extractMergeRootId(resolveOperationalTable(targetTable))),
                 targetTable.getStatus().name(),
                 targetOrder.getId(),
                 targetOrder.getStatus().name(),
@@ -584,12 +671,18 @@ public class OrderManagementService {
     }
 
     private OrderResponse toOrderResponse(Order order) {
+        RestaurantTable rootTable = order.getTable() != null ? resolveOperationalTable(order.getTable()) : null;
+        List<RestaurantTable> mergedGroup = rootTable != null ? loadMergedGroup(rootTable) : List.of();
+
         return new OrderResponse(
                 order.getId(),
                 order.getBranch().getId(),
                 order.getBranch().getName(),
-                order.getTable() != null ? order.getTable().getId() : null,
-                order.getTable() != null ? order.getTable().getTableNumber() : null,
+                rootTable != null ? rootTable.getId() : null,
+                rootTable != null ? rootTable.getTableNumber() : null,
+                rootTable != null ? buildTableDisplayName(mergedGroup, rootTable.getId()) : null,
+                mergedGroup.stream().map(RestaurantTable::getId).toList(),
+                mergedGroup.stream().map(RestaurantTable::getTableNumber).toList(),
                 order.getCustomer() != null ? order.getCustomer().getId() : null,
                 order.getCustomer() != null ? order.getCustomer().getName() : null,
                 order.getStatus().name(),
@@ -609,6 +702,80 @@ public class OrderManagementService {
                         ))
                         .toList()
         );
+    }
+
+    private RestaurantTable resolveOperationalTable(RestaurantTable table) {
+        if (table == null || table.getMergedIntoTable() == null) {
+            return table;
+        }
+        // Nếu đây là bàn thành viên thì truy ngược về bàn gốc hiện tại của nhóm.
+        return resolveTable(table.getMergedIntoTable().getId());
+    }
+
+    private List<RestaurantTable> loadMergedGroup(RestaurantTable rootTable) {
+        if (rootTable == null) {
+            return List.of();
+        }
+
+        List<RestaurantTable> mergedGroup = restaurantTableRepository.findAllInMergedGroups(List.of(rootTable.getId()));
+        if (mergedGroup.isEmpty()) {
+            return List.of(rootTable);
+        }
+        mergedGroup.sort(TABLE_GROUP_COMPARATOR);
+        return mergedGroup;
+    }
+
+    private void ensureStandaloneTable(RestaurantTable table, String label) {
+        // Một bàn không còn "độc lập" nếu:
+        // - chính nó đang trỏ mergedIntoTable về bàn gốc khác
+        // - hoặc nó là bàn gốc đang có các bàn thành viên
+        if (table.getMergedIntoTable() != null || restaurantTableRepository.existsByMergedIntoTable_Id(table.getId())) {
+            throw new ConflictException(label + " is already part of a merged-table group");
+        }
+    }
+
+    private List<RestaurantTable> mergeDistinctTables(List<RestaurantTable> sourceGroup,
+                                                      List<RestaurantTable> targetGroup) {
+        Map<Integer, RestaurantTable> tableMap = new LinkedHashMap<>();
+        sourceGroup.forEach(table -> tableMap.put(table.getId(), table));
+        targetGroup.forEach(table -> tableMap.put(table.getId(), table));
+        return new ArrayList<>(tableMap.values());
+    }
+
+    private void releaseMergedGroup(RestaurantTable rootTable,
+                                    RestaurantTableStatus status,
+                                    boolean clearMergeLinks) {
+        RestaurantTable operationalRoot = resolveOperationalTable(rootTable);
+        List<RestaurantTable> mergedGroup = loadMergedGroup(operationalRoot);
+        for (RestaurantTable groupTable : mergedGroup) {
+            groupTable.setStatus(status);
+            if (clearMergeLinks && !groupTable.getId().equals(operationalRoot.getId())) {
+                // Khi trả nhóm bàn về trạng thái độc lập, các bàn thành viên phải bỏ liên kết gộp.
+                groupTable.setMergedIntoTable(null);
+            }
+        }
+        restaurantTableRepository.saveAll(mergedGroup);
+    }
+
+    private Integer extractMergeRootId(RestaurantTable table) {
+        return table.getMergedIntoTable() != null ? table.getMergedIntoTable().getId() : table.getId();
+    }
+
+    private String buildTableDisplayName(List<RestaurantTable> mergedGroup, Integer mergeRootId) {
+        // Luôn ưu tiên bàn gốc đứng đầu để tên hiển thị ổn định giữa các lần gọi API.
+        return mergedGroup.stream()
+                .sorted((left, right) -> {
+                    if (left.getId().equals(mergeRootId)) {
+                        return -1;
+                    }
+                    if (right.getId().equals(mergeRootId)) {
+                        return 1;
+                    }
+                    return TABLE_GROUP_COMPARATOR.compare(left, right);
+                })
+                .map(RestaurantTable::getTableNumber)
+                .reduce((left, right) -> left + "&" + right)
+                .orElse(null);
     }
 
     private String normalizeNote(String note) {

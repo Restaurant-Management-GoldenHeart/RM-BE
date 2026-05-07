@@ -20,11 +20,14 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
 
     boolean existsByBranch_IdAndTableNumberIgnoreCaseAndIdNot(Integer branchId, String tableNumber, Integer id);
 
+    boolean existsByMergedIntoTable_Id(Integer rootTableId);
+
     @Query("""
             select t
             from RestaurantTable t
             join fetch t.branch b
             left join fetch t.area a
+            left join fetch t.mergedIntoTable m
             where (:branchId is null or b.id = :branchId)
               and (:status is null or t.status = :status)
               and (:keyword is null
@@ -44,9 +47,33 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
             from RestaurantTable t
             join fetch t.branch
             left join fetch t.area
+            left join fetch t.mergedIntoTable
             where t.id = :tableId
             """)
     Optional<RestaurantTable> findDetailById(@Param("tableId") Integer tableId);
+
+    @Query("""
+            select t
+            from RestaurantTable t
+            join fetch t.branch b
+            left join fetch t.area a
+            left join fetch t.mergedIntoTable m
+            where t.id in :rootIds
+               or m.id in :rootIds
+            order by coalesce(t.displayOrder, 999999) asc, t.tableNumber asc
+            """)
+    List<RestaurantTable> findAllInMergedGroups(@Param("rootIds") List<Integer> rootIds);
+
+    @Query("""
+            select t
+            from RestaurantTable t
+            join fetch t.branch
+            left join fetch t.area
+            left join fetch t.mergedIntoTable
+            where t.mergedIntoTable.id = :rootTableId
+            order by coalesce(t.displayOrder, 999999) asc, t.tableNumber asc
+            """)
+    List<RestaurantTable> findMergedMembersByRootTableId(@Param("rootTableId") Integer rootTableId);
 
     @Query("""
             select t.status as status, count(t) as total

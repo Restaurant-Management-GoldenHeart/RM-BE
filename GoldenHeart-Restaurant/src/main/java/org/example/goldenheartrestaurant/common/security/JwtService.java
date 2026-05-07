@@ -19,22 +19,25 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 
-@Service
-@RequiredArgsConstructor
 /**
- * Service trung tâm xử lý JWT.
+ * Service chịu trách nhiệm xử lý toàn bộ JWT trong hệ thống.
  *
- * Trách nhiệm chính:
+ * Những gì lớp này làm:
  * - tạo access token
  * - tạo refresh token
  * - parse và verify token
  * - dựng Authentication cho Spring Security
- * - build / clear cookie cho refresh token
+ * - build hoặc xóa cookie chứa refresh token
  *
- * Dự án dùng thêm claim tokenType để tách rõ:
- * - access token chỉ dùng cho request protected
- * - refresh token chỉ dùng cho refresh session
+ * Hệ thống tách rõ 2 loại token bằng claim tokenType:
+ * - access: dùng để gọi API protected
+ * - refresh: chỉ dùng để làm mới phiên đăng nhập
+ *
+ * Việc tách riêng này giúp tránh lỗi dùng nhầm refresh token như access token
+ * hoặc ngược lại.
  */
+@Service
+@RequiredArgsConstructor
 public class JwtService {
 
     private static final String TOKEN_TYPE_CLAIM = "tokenType";
@@ -46,16 +49,17 @@ public class JwtService {
     private final CustomUserDetailsService userDetailsService;
 
     /**
-     * Access token sống ngắn để giảm rủi ro nếu token bị lộ.
-     * Frontend sẽ gửi token này trong Authorization header cho các API protected.
+     * Access token có tuổi thọ ngắn để giảm rủi ro nếu token bị lộ.
+     * Client sẽ gửi token này trong header Authorization cho các API cần xác thực.
      */
     public String generateAccessToken(CustomUserDetails userDetails) {
         return buildToken(userDetails, ACCESS_TOKEN_TYPE, jwtProperties.getAccessTokenExpiration());
     }
 
     /**
-     * Refresh token sống lâu hơn và chỉ nên đặt trong HttpOnly cookie.
-     * Làm vậy để JavaScript phía frontend không đọc trực tiếp được token nhạy cảm này.
+     * Refresh token sống lâu hơn access token.
+     * Trong dự án này, refresh token được đặt trong HttpOnly cookie để JavaScript
+     * phía trình duyệt không đọc được trực tiếp.
      */
     public String generateRefreshToken(CustomUserDetails userDetails) {
         return buildToken(userDetails, REFRESH_TOKEN_TYPE, jwtProperties.getRefreshTokenExpiration());
@@ -66,7 +70,7 @@ public class JwtService {
     }
 
     public ResponseCookie buildRefreshTokenCookie(String refreshToken) {
-        // Toàn bộ flag của cookie đọc từ config để dễ đổi theo môi trường triển khai.
+        // Toàn bộ flag của cookie lấy từ config để tiện đổi theo từng môi trường.
         return ResponseCookie.from(jwtProperties.getRefreshCookieName(), refreshToken)
                 .httpOnly(jwtProperties.isRefreshCookieHttpOnly())
                 .secure(jwtProperties.isRefreshCookieSecure())
@@ -77,8 +81,8 @@ public class JwtService {
     }
 
     public ResponseCookie clearRefreshTokenCookie() {
-        // Logout cần xóa cookie ở phía client.
-        // Việc revoke token trong DB sẽ được AuthService / RefreshTokenService xử lý riêng.
+        // Logout cần xóa cookie ở trình duyệt.
+        // Việc revoke token trong DB sẽ do tầng service auth xử lý riêng.
         return ResponseCookie.from(jwtProperties.getRefreshCookieName(), "")
                 .httpOnly(jwtProperties.isRefreshCookieHttpOnly())
                 .secure(jwtProperties.isRefreshCookieSecure())
@@ -89,24 +93,24 @@ public class JwtService {
     }
 
     /**
-     * Method này được JwtAuthenticationFilter gọi ở mọi request protected.
+     * Dựng Authentication từ access token.
      *
+     * Đây là phương thức cốt lõi được JwtAuthenticationFilter gọi ở mọi request protected.
      * Luồng xử lý:
-     * 1. parse access token
-     * 2. kiểm tra token type
-     * 3. load user mới nhất từ DB
+     * 1. parse token và kiểm tra chữ ký
+     * 2. xác nhận tokenType đúng là access
+     * 3. load lại user mới nhất từ DB
      * 4. dựng Authentication để nhét vào SecurityContext
+     *
+     * Điểm quan trọng:
+     * Dù token có chứa role và userId, hệ thống vẫn load user lại từ DB để bám trạng thái mới nhất.
+     * Nhờ vậy nếu user bị đổi quyền, khóa tài khoản hoặc bị xóa mềm thì request kế tiếp phản ánh ngay.
      */
     public Authentication buildAuthentication(String accessToken) {
         Claims claims = parseClaims(accessToken, ACCESS_TOKEN_TYPE);
 
-        // Chủ ý load lại user từ DB thay vì tin hoàn toàn vào claim trong token.
-        // Nhờ đó nếu:
-        // - role bị đổi
-        // - user bị khóa
-        // - user bị soft-delete
-        // thì request kế tiếp sẽ phản ánh ngay trạng thái mới.
-        CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(claims.getSubject());
+        CustomUserDetails userDetails =
+                (CustomUserDetails) userDetailsService.loadUserByUsername(claims.getSubject());
 
         return UsernamePasswordAuthenticationToken.authenticated(
                 userDetails,
@@ -133,10 +137,10 @@ public class JwtService {
                 .issuer(jwtProperties.getIssuer())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
-                // Dùng claim này để chặn việc lấy refresh token giả làm access token và ngược lại.
+                // tokenType dùng để chặn việc dùng sai loại token ở sai ngữ cảnh.
                 .claim(TOKEN_TYPE_CLAIM, tokenType)
-                // Các claim này hữu ích cho client / log / debug,
-                // nhưng quyền thật vẫn được load lại từ DB khi xác thực request.
+                // Các claim này hữu ích cho client, log và debug.
+                // Tuy nhiên quyền thực tế vẫn luôn được load lại từ DB khi xác thực request.
                 .claim(ROLE_CLAIM, userDetails.getRoleName())
                 .claim("userId", userDetails.getUserId())
                 .signWith(getSigningKey())
@@ -152,7 +156,6 @@ public class JwtService {
 
         String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
         if (!expectedType.equals(tokenType)) {
-            // Chặn việc dùng sai loại token ở sai ngữ cảnh.
             throw new JwtException("Invalid token type");
         }
 
@@ -162,8 +165,9 @@ public class JwtService {
     private SecretKey getSigningKey() {
         byte[] secretBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
 
+        // HMAC SHA key quá ngắn sẽ làm suy yếu đáng kể độ an toàn của JWT.
+        // Với secret dưới 32 byte, hệ thống chủ động fail sớm thay vì chạy âm thầm.
         if (secretBytes.length < 32) {
-            // Secret quá ngắn sẽ làm khóa HMAC yếu và tăng rủi ro bảo mật.
             throw new IllegalArgumentException("JWT secret must contain at least 32 characters");
         }
 

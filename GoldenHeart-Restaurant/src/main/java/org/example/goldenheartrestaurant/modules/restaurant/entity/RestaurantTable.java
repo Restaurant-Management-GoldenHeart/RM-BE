@@ -74,7 +74,15 @@ public class RestaurantTable {
     @Column(nullable = false, length = 20)
     private RestaurantTableStatus status;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merged_into_table_id")
+    private RestaurantTable mergedIntoTable;
+
     @Builder.Default
     @OneToMany(mappedBy = "table")
     private List<Order> orders = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "mergedIntoTable")
+    private List<RestaurantTable> mergedMemberTables = new ArrayList<>();
 }

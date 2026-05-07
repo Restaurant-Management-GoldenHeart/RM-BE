@@ -16,24 +16,30 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Set;
 
+/**
+ * Filter chạy đúng một lần cho mỗi request để biến Bearer token thành Authentication.
+ *
+ * Sau khi filter này chạy thành công:
+ * - SecurityContextHolder có current user
+ * - @AuthenticationPrincipal lấy được user hiện tại
+ * - @Secured, @PreAuthorize và các rule phân quyền khác có dữ liệu để kiểm tra role
+ *
+ * Có thể hiểu ngắn gọn:
+ * lớp này là "cầu nối" giữa JWT thô trong header và cơ chế phân quyền của Spring Security.
+ */
 @Component
 @RequiredArgsConstructor
-/**
- * Filter chạy 1 lần cho mỗi request để biến Bearer token thành Authentication.
- *
- * Sau khi filter này chạy xong:
- * - SecurityContextHolder sẽ có current user
- * - @AuthenticationPrincipal lấy được user hiện tại
- * - @PreAuthorize có dữ liệu để kiểm tra role
- */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
-     * Danh sách endpoint auth được phép public thật sự.
+     * Danh sách endpoint auth public thật sự.
+     *
+     * Những endpoint này được bỏ qua JWT filter vì:
+     * - người dùng chưa đăng nhập vẫn phải gọi được
+     * - chúng không cần current user từ SecurityContext
      *
      * Lưu ý:
-     * - change-password KHÔNG nằm ở đây vì endpoint đó bắt buộc phải xác thực bằng access token.
-     * - password recovery vẫn public vì user chưa đăng nhập vẫn phải dùng được.
+     * `change-password` không nằm ở đây vì bắt buộc phải có access token hợp lệ.
      */
     private static final Set<String> PUBLIC_AUTH_ENDPOINTS = Set.of(
             "/api/v1/auth/register",
@@ -53,23 +59,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // Access token được client gửi theo dạng:
+        // Chuẩn header mong đợi:
         // Authorization: Bearer <jwt>
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String accessToken = authorizationHeader.substring(7);
 
             // Chỉ dựng Authentication nếu request hiện tại chưa có user trong SecurityContext.
+            // Điều này tránh set đè Authentication nếu trước đó một filter khác đã xử lý.
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
-                    // JwtService sẽ:
-                    // 1. kiểm tra chữ ký token
-                    // 2. kiểm tra token type
-                    // 3. load lại user thật từ DB
-                    // 4. dựng Authentication cho Spring Security
                     Authentication authentication = jwtService.buildAuthentication(accessToken);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } catch (JwtException | IllegalArgumentException | org.springframework.security.core.AuthenticationException exception) {
-                    // Nếu token lỗi thì trả luôn 401, không cho request đi tiếp xuống controller.
+                    // Nếu token lỗi thì trả 401 ngay, không cho request đi sâu xuống controller.
                     SecurityContextHolder.clearContext();
                     writeUnauthorizedResponse(response, exception.getMessage());
                     return;
@@ -85,9 +87,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        // Chỉ bỏ qua các endpoint auth public thực sự.
-        // Các endpoint auth cần user hiện tại như change-password vẫn phải đi qua JWT filter
-        // để @AuthenticationPrincipal và @Secured có dữ liệu làm việc.
+
+        // Chỉ bỏ qua nhóm auth public.
+        // Các endpoint cần current user như change-password vẫn phải đi qua filter này.
         return PUBLIC_AUTH_ENDPOINTS.contains(request.getServletPath());
     }
 
@@ -95,7 +97,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        // Escape dấu " để response JSON luôn hợp lệ.
+
+        // Escape dấu " để JSON trả về luôn hợp lệ.
         String safeMessage = message == null ? "Unauthorized" : message.replace("\"", "\\\"");
         response.getWriter().write("{\"success\":false,\"message\":\"" + safeMessage + "\"}");
     }

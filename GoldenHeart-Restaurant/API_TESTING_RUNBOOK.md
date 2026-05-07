@@ -58,39 +58,39 @@ Lưu ý:
 
 - `{{base_url}} = http://localhost:1010/api/v1`
 
-### 4.2 Customer tiers
+### 4.2 Các hạng khách hàng seed
 
 Tier loyalty hiện được coi là dữ liệu cấu hình nghiệp vụ và lấy trực tiếp từ database.
 
-| Tier | ID | Điểm tối thiểu | Giảm giá |
+| Hạng | ID | Điểm tối thiểu | Giảm giá |
 |---|---:|---:|---:|
-| Bronze | `1` | `100` | `1%` |
-| Silver | `2` | `200` | `2%` |
-| Gold | `3` | `500` | `3%` |
-| Platinum | `4` | `800` | `4%` |
-| Diamond | `5` | `1000` | `5%` |
+| Hạng Đồng | `1` | `100` | `1%` |
+| Hạng Bạc | `2` | `200` | `2%` |
+| Hạng Vàng | `3` | `500` | `3%` |
+| Hạng Bạch kim | `4` | `800` | `4%` |
+| Hạng Kim cương | `5` | `1000` | `5%` |
 
 ### 4.3 Khách hàng seed để test loyalty
 
 | Khách hàng | ID | Điểm hiện có | Hạng hiện tại |
 |---|---:|---:|---|
 | Khách cơ bản | `1` | `80` | Chưa lên hạng |
-| Khách Bronze | `2` | `150` | Bronze |
-| Khách Silver | `3` | `210` | Silver |
-| Khách Gold | `4` | `542` | Gold |
-| Khách Diamond | `5` | `1005` | Diamond |
+| Khách hạng Đồng | `2` | `150` | Hạng Đồng |
+| Khách hạng Bạc | `3` | `210` | Hạng Bạc |
+| Khách hạng Vàng | `4` | `542` | Hạng Vàng |
+| Khách hạng Kim cương | `5` | `1005` | Hạng Kim cương |
 
 ### 4.4 Khu vực bàn seed
 
 | Khu vực | ID | Chi nhánh |
 |---|---:|---|
-| Khu trong nhà Quận 1 | `1` | Branch 1 |
-| Khu ngoài trời Quận 1 | `2` | Branch 1 |
-| Tầng 1 Quận 7 | `3` | Branch 2 |
-| Tầng 2 Quận 7 | `4` | Branch 2 |
-| Khu chính Bình Thạnh | `5` | Branch 3 |
+| Khu trong nhà Quận 1 | `1` | Chi nhánh Quận 1 |
+| Khu ngoài trời Quận 1 | `2` | Chi nhánh Quận 1 |
+| Tầng 1 Quận 7 | `3` | Chi nhánh Quận 7 |
+| Tầng 2 Quận 7 | `4` | Chi nhánh Quận 7 |
+| Khu chính Bình Thạnh | `5` | Chi nhánh Bình Thạnh |
 
-### 4.5 Đơn hàng và hóa đơn seed liên quan loyalty
+### 4.5 Đơn hàng, hóa đơn và bàn seed liên quan loyalty, tách bàn, gộp bàn
 
 | Đối tượng | ID | Ghi chú |
 |---|---:|---|
@@ -99,8 +99,24 @@ Tier loyalty hiện được coi là dữ liệu cấu hình nghiệp vụ và l
 | Order đã thanh toán | `3` | Đã sinh bill `1` và đã cộng điểm |
 | Order đã hủy | `4` | Dùng để test trạng thái `CANCELLED` |
 | Order bill một phần | `5` | Bill `2` đang ở trạng thái `PARTIAL` |
+| Order gộp bàn nguồn | `6` | Gắn với bàn `T06`, chưa có bill, dùng để test gộp bàn độc lập |
+| Order gộp bàn đích | `7` | Gắn với bàn `T07`, chưa có bill, dùng để test gộp bàn độc lập |
+| Món gộp bàn nguồn chính | `10` | Thuộc order `6`, món `Phở bò tái` |
+| Món gộp bàn đích chính | `11` | Thuộc order `7`, món `Bò lúc lắc` |
+| Món gộp bàn nguồn phụ | `12` | Thuộc order `6`, món `Chả giò hải sản` |
+| Món gộp bàn đích phụ | `13` | Thuộc order `7`, món `Cơm gà xé` |
 | Bill đã thanh toán | `1` | Bill seed đã hoàn tất |
 | Bill thanh toán một phần | `2` | Bill seed đang `PARTIAL` |
+| Bàn gộp nguồn | `11` | Bàn `T06` thuộc chi nhánh Quận 1, đang `OCCUPIED` |
+| Bàn gộp đích | `12` | Bàn `T07` thuộc chi nhánh Quận 1, đang `OCCUPIED` |
+
+Ghi chú quan trọng cho API merge bàn mới:
+
+- Luồng `Merge Seed Tables` trong collection E2E hiện tại vẫn đi theo cách cũ là `Split Seed Table` trước, rồi mới `Merge Seed Tables`.
+- Ngoài ra, seed hiện đã có sẵn cặp bàn `T06` và `T07` cùng 2 order hoạt động độc lập để bạn test trực tiếp `POST /tables/merge` mà không cần chạy bước split trước.
+- Sau khi gộp, bàn đích trở thành bàn gốc của nhóm. Các bàn thành viên sẽ có `mergedIntoTable = root table` và tiếp tục ở trạng thái `OCCUPIED` cho đến khi bàn gốc được giải phóng đúng luồng nghiệp vụ.
+- Nếu gọi `GET /tables/{tableId}/active-order` bằng ID của bàn thành viên sau khi gộp, service vẫn tự quy về bàn gốc và trả về active order của cả nhóm bàn.
+- Nếu tạo order mới bằng một bàn đang là thành viên nhóm gộp, service cũng tự quy về bàn gốc thay vì mở thêm order mới cho bàn thành viên.
 
 ### 4.6 Dữ liệu seed cho reports
 
@@ -167,15 +183,23 @@ Biến gợi ý để test report:
 - `seed_cleaning_table_id = 4`
 - `seed_reserved_table_id = 5`
 - `seed_partial_bill_table_id = 7`
+- `seed_merge_source_table_id = 11`
+- `seed_merge_target_table_id = 12`
 - `seed_order_processing_id = 1`
 - `seed_order_billable_id = 2`
 - `seed_order_paid_id = 3`
 - `seed_order_cancelled_id = 4`
 - `seed_order_partial_bill_id = 5`
+- `seed_order_merge_source_id = 6`
+- `seed_order_merge_target_id = 7`
 - `seed_order_item_processing_id = 1`
 - `seed_order_item_waiting_stock_id = 2`
 - `seed_order_item_served_1_id = 3`
 - `seed_order_item_served_2_id = 4`
+- `seed_order_item_merge_source_id = 10`
+- `seed_order_item_merge_target_id = 11`
+- `seed_order_item_merge_source_extra_id = 12`
+- `seed_order_item_merge_target_extra_id = 13`
 - `seed_bill_paid_id = 1`
 - `seed_bill_partial_id = 2`
 
@@ -249,7 +273,67 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
 - Điểm phát sinh từ bill hiện tại chỉ dùng cho lần thanh toán sau.
 - Khách mới tạo nhanh ở quầy có thể chưa được giảm ở bill đầu tiên.
 
-### 6.5 Reports đang dùng dữ liệu seed cố định
+### 6.5 Merge bàn hiện có 2 kiểu test khác nhau
+
+- Kiểu 1: đi đúng collection E2E hiện tại, tức là chạy `Split Seed Table` trước để tạo order mới trên bàn `T05`, sau đó mới `Merge Seed Tables`.
+- Kiểu 2: test trực tiếp API merge mới bằng bộ seed độc lập `T06 -> T07`, tương ứng `sourceTableId = 11`, `targetTableId = 12`.
+- Sau khi gộp, các API lấy chi tiết bàn và lấy active order sẽ trả thêm thông tin nhóm bàn như `merged`, `mergeRoot`, `mergeRootTableId`, `displayName`, `mergedTableIds`, `mergedTableNames`.
+- Nếu bạn muốn “tháo” nhóm bàn về trạng thái bình thường, cần kết thúc luồng order ở bàn gốc, đưa bàn gốc về `CLEANING`, rồi chuyển tiếp từ `CLEANING -> AVAILABLE`.
+
+### 6.5.1 Kỳ vọng chi tiết khi test gộp bàn trực tiếp bằng seed mới
+
+Thứ tự nên chạy:
+
+1. `GET /tables/11/active-order`
+2. `GET /tables/12/active-order`
+3. `POST /tables/merge` với body:
+
+```json
+{
+  "sourceTableId": 11,
+  "targetTableId": 12
+}
+```
+
+4. `GET /tables/11`
+5. `GET /tables/12`
+6. `GET /tables/11/active-order`
+7. `GET /tables/12/active-order`
+8. `GET /orders/7`
+
+Kỳ vọng trước khi gộp:
+
+- Bàn `11` trả về active order `6`
+- Bàn `12` trả về active order `7`
+- Cả hai bàn đều chưa nằm trong nhóm gộp
+
+Kỳ vọng ngay sau khi gộp:
+
+- Response `POST /tables/merge` có `action = "MERGE"`
+- `sourceTableId = 11`, `targetTableId = 12`
+- `sourceOrderId = 6`
+- `targetOrderId = 7`
+- `sourceOrderStatus = "CANCELLED"`
+- `targetOrderStatus = "PENDING"`
+- `sourceTableDisplayName = "T07&T06"`
+- `targetTableDisplayName = "T07&T06"`
+- `targetTableStatus = "OCCUPIED"`
+
+Kỳ vọng khi gọi lại API bàn:
+
+- `GET /tables/11` trả về `merged = true`, `mergeRoot = false`, `mergeRootTableId = 12`
+- `GET /tables/12` trả về `merged = true`, `mergeRoot = true`, `mergeRootTableId = 12`
+- Cả hai bàn đều có `displayName = "T07&T06"`
+- Mảng `mergedTableIds` và `mergedTableNames` sẽ chứa cả `11`, `12` và `T06`, `T07`
+
+Kỳ vọng khi gọi lại active order:
+
+- `GET /tables/11/active-order` vẫn trả về order `7` vì hệ thống tự quy bàn thành viên về bàn gốc
+- `GET /tables/12/active-order` trả về order `7`
+- `GET /orders/7` trả về `tableId = 12`, `tableName = "T07"`, `tableDisplayName = "T07&T06"`
+- Sau khi gộp, order `7` phải chứa cả món gốc của bàn `T07` lẫn các món được chuyển từ bàn `T06`
+
+### 6.6 Reports đang dùng dữ liệu seed cố định
 
 - Nếu bạn tạo thêm bill hoặc payment trong lúc test, số liệu reports sẽ thay đổi.
 - Muốn đối chiếu đúng như runbook, hãy reseed database trước khi test module `Reports`.
@@ -285,6 +369,8 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
    - `Orders`
    - `Kitchen`
    - `Billing`
+   - `Tables -> Split Seed Table`
+   - `Tables -> Merge Seed Tables`
 5. Test loyalty flow:
    - `Customers -> Lookup Customers`
    - `Customers -> Quick Create Customer`
@@ -304,6 +390,11 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
 7. Test full luồng demo:
    - chạy folder `End-to-End Flow`
 8. Test password APIs cuối cùng
+
+Gợi ý riêng cho merge bàn:
+
+- Nếu bạn muốn bám đúng collection hiện tại: chạy `Get Active Order By Seed Processing Table` -> `Split Seed Table` -> `Merge Seed Tables`.
+- Nếu bạn muốn test API merge mới nhanh hơn: duplicate request `Merge Seed Tables`, sửa body thành `{"sourceTableId":11,"targetTableId":12}` rồi gửi trực tiếp.
 
 ## 8. Danh sách folder Postman
 
@@ -389,7 +480,7 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
 | Get Customers | `GET /customers?page=0&size=10` | Bearer `manager_token` | CRUD khách hàng CRM |
 | Lookup Customers | `GET /customers/lookup?keyword={{seed_customer_lookup_keyword}}&size=5` | Bearer `staff_token` | Tìm nhanh khách hàng trong luồng POS |
 | Get Customer By ID | `GET /customers/{customerId}` | Bearer `manager_token` | Xem chi tiết khách hàng seed |
-| Get Loyalty Transactions for Seed Gold Customer | `GET /customers/{customerId}/loyalty-transactions?page=0&size=10` | Bearer `staff_token` | Xem lịch sử điểm của khách Gold |
+| Get Loyalty Transactions for Seed Gold Customer | `GET /customers/{customerId}/loyalty-transactions?page=0&size=10` | Bearer `staff_token` | Xem lịch sử điểm của khách hạng Vàng |
 | Create Customer | `POST /customers` | Bearer `manager_token` | Tạo khách hàng CRM, lưu `created_customer_id` |
 | Quick Create Customer | `POST /customers/quick-create` | Bearer `staff_token` | Tạo nhanh khách vãng lai, lưu `created_quick_customer_id` |
 | Update Created Customer | `PUT /customers/{created_customer_id}` | Bearer `manager_token` | Sửa khách hàng vừa tạo |
@@ -450,9 +541,52 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
 | Update Created Table | `PUT /tables/{created_table_id}` | Bearer `manager_token` | Sửa bàn vừa tạo |
 | Update Created Table Status to RESERVED | `PUT /tables/{created_table_id}/status` | Bearer `staff_token` | Test quyền staff đổi trạng thái bàn vận hành |
 | Get Active Order By Seed Processing Table | `GET /tables/{tableId}/active-order` | Bearer `staff_token` | Xem order đang mở của bàn seed |
-| Split Seed Table | `POST /tables/{tableId}/split` | Bearer `staff_token` | Test tách bàn |
-| Merge Seed Tables | `POST /tables/merge` | Bearer `staff_token` | Test gộp bàn |
+| Split Seed Table | `POST /tables/{tableId}/split` | Bearer `staff_token` | Tách 1 món từ bàn `T02` sang bàn `T05`; đây là bước tiền đề cho request merge trong collection hiện tại |
+| Merge Seed Tables | `POST /tables/merge` | Bearer `staff_token` | Gộp lại bàn `T05` vào bàn `T02` sau khi đã split; kết quả trả về nhóm bàn mới và bàn `T02` là bàn gốc |
+| Merge Độc Lập Bằng Seed Mới | `POST /tables/merge` | Bearer `staff_token` | Dùng body `{"sourceTableId":11,"targetTableId":12}` để test API gộp bàn mới; sau khi gộp, gọi lại `GET /tables/11`, `GET /tables/12` và `GET /tables/11/active-order` để kiểm tra cơ chế quy về bàn gốc |
 | Delete Created Table | `DELETE /tables/{created_table_id}` | Bearer `admin_token` | Xóa bàn vừa tạo |
+
+### Ví dụ body cho API gộp bàn trực tiếp
+
+```json
+{
+  "sourceTableId": 11,
+  "targetTableId": 12
+}
+```
+
+### Ví dụ response mong đợi cho API gộp bàn trực tiếp
+
+```json
+{
+  "success": true,
+  "message": "Tables merged successfully",
+  "data": {
+    "action": "MERGE",
+    "sourceTableId": 11,
+    "sourceTableName": "T06",
+    "sourceTableDisplayName": "T07&T06",
+    "sourceTableStatus": "OCCUPIED",
+    "sourceOrderId": 6,
+    "sourceOrderStatus": "CANCELLED",
+    "sourceSubtotal": 247000.00,
+    "targetTableId": 12,
+    "targetTableName": "T07",
+    "targetTableDisplayName": "T07&T06",
+    "targetTableStatus": "OCCUPIED",
+    "targetOrderId": 7,
+    "targetOrderStatus": "PENDING",
+    "targetSubtotal": 511000.00
+  }
+}
+```
+
+Lưu ý:
+
+- `targetSubtotal = 511000` vì bàn đích giữ nguyên `189000 + 75000` và nhận thêm `89000 + 2 x 79000` từ bàn nguồn.
+- `sourceTableStatus` vẫn có thể còn là `OCCUPIED` ngay trong response vì bàn nguồn vừa trở thành thành viên của nhóm bàn đang hoạt động.
+- `sourceTableName` vẫn là tên bàn gốc ban đầu của nguồn là `T06`, nhưng `sourceTableDisplayName` sẽ đổi thành tên nhóm `T07&T06`.
+- Tên hiển thị nhóm bàn ưu tiên bàn gốc trước, nên kết quả sẽ là `T07&T06`, không phải `T06&T07`.
 
 ## Orders
 
@@ -475,7 +609,7 @@ Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại 
 
 | Request name | API | Auth | Mục đích |
 |---|---|---|---|
-| Preview Seed Billable Order with Loyalty | `GET /bills/preview?orderId={{seed_order_billable_id}}&discount=0&taxRate=0&applyLoyaltyDiscount=true` | Bearer `staff_token` | Xem discount loyalty của order Bronze seed |
+| Preview Seed Billable Order with Loyalty | `GET /bills/preview?orderId={{seed_order_billable_id}}&discount=0&taxRate=0&applyLoyaltyDiscount=true` | Bearer `staff_token` | Xem discount loyalty của order seed gắn khách hạng Đồng |
 | Preview Created Order with Loyalty | `GET /bills/preview?orderId={{created_order_id}}&discount=0&taxRate=0&applyLoyaltyDiscount=true` | Bearer `staff_token` | Preview order vừa tạo sau khi đã gắn customer |
 | Create Bill from Created Order | `POST /bills` | Bearer `staff_token` | Tạo bill cho created order, lưu `created_bill_id` và `created_bill_remaining_amount` |
 | Add Payment to Created Bill | `POST /bills/{created_bill_id}/payments` | Bearer `staff_token` | Thanh toán phần còn lại, nếu đủ tiền bill sẽ thành `PAID` và khách được cộng điểm |
@@ -549,3 +683,15 @@ Kiểm tra:
 - Database có vừa được reseed hay chưa
 - Trong quá trình test có phát sinh thêm bill hoặc payment mới không
 - Đã dùng đúng khoảng ngày trong biến `report_anchor_date`, `report_from_date`, `report_to_date` chưa
+
+### 10.6 Merge bàn bị conflict
+
+Nguyên nhân thường gặp:
+
+- Source table và target table không cùng chi nhánh
+- Một trong hai bàn chưa có active order
+- Một trong hai order đã có bill
+- Bàn đang chọn đã là thành viên của một nhóm bàn gộp khác
+- Bạn chạy request `Merge Seed Tables` trước khi chạy `Split Seed Table`, nên bàn `T05` chưa có order để gộp
+- Bạn đang cố gộp hai bàn đã cùng thuộc một nhóm gộp, nên service trả conflict thay vì gộp lặp
+- Bạn kiểm tra active order ở bàn thành viên sau khi gộp nhưng lại kỳ vọng order cũ của bàn nguồn; thực tế service luôn quy về order của bàn gốc

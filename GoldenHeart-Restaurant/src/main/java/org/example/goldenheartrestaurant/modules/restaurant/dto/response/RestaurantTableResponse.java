@@ -1,6 +1,7 @@
 package org.example.goldenheartrestaurant.modules.restaurant.dto.response;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record RestaurantTableResponse(
         Integer id,
@@ -15,6 +16,13 @@ public record RestaurantTableResponse(
         BigDecimal width,
         BigDecimal height,
         Integer displayOrder,
-        String status
+        String status,
+        Boolean merged,
+        Boolean mergeRoot,
+        Integer mergeRootTableId,
+        String mergeRootTableName,
+        String displayName,
+        List<Integer> mergedTableIds,
+        List<String> mergedTableNames
 ) {
 }

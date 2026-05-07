@@ -36,6 +36,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * Service xử lý luồng nghiệp vụ của bếp.
+ *
+ * Lớp này quyết định:
+ * - món nào xuất hiện trong màn hình chờ bếp
+ * - món được phép chuyển trạng thái theo thứ tự nào
+ * - thời điểm nào được trừ kho
+ * - khi nào order đổi từ PENDING sang PROCESSING hoặc COMPLETED
+ *
+ * Quy ước cốt lõi:
+ * kho chỉ bị trừ một lần duy nhất khi món chuyển sang PROCESSING.
+ * Vì vậy endpoint complete chỉ hoàn tất trạng thái, không trừ kho thêm lần nữa.
+ */
 @Service
 @RequiredArgsConstructor
 /**
@@ -68,6 +81,8 @@ public class KitchenWorkflowService {
         requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_KITCHEN);
 
         Integer scopedBranchId = resolveKitchenBranchScope(branchId, currentUser);
+        // Danh sách bếp cố ý bao gồm cả WAITING_STOCK để bếp và quản lý
+        // thấy được món nào đang bị kẹt do thiếu nguyên liệu.
         return orderItemRepository.findKitchenItemsByStatuses(
                         EnumSet.of(OrderItemStatus.PENDING, OrderItemStatus.WAITING_STOCK, OrderItemStatus.PROCESSING),
                         scopedBranchId
@@ -124,6 +139,7 @@ public class KitchenWorkflowService {
 
         List<StockDeductionResponse> deductions = List.of();
         if (targetStatus == OrderItemStatus.PROCESSING) {
+            // Chỉ nhánh này mới được phép trừ kho.
             return startProcessing(orderItem, previousStatus, currentUser);
         }
         if (targetStatus == OrderItemStatus.CANCELLED) {
@@ -201,6 +217,7 @@ public class KitchenWorkflowService {
                                                           OrderItemStatus previousStatus,
                                                           CustomUserDetails currentUser) {
         try {
+            // Trừ kho xong mới chính thức cho món vào PROCESSING.
             List<StockDeductionResponse> deductions = deductStockForProcessing(orderItem, currentUser);
             orderItem.setNote(clearTaggedNote(orderItem.getNote(), "Stock issue"));
             orderItem.setStatus(OrderItemStatus.PROCESSING);
@@ -279,6 +296,7 @@ public class KitchenWorkflowService {
                 .map(recipe -> recipe.getIngredient().getId())
                 .toList();
 
+        // Khóa tồn kho cần dùng ngay từ đầu để tránh hai request bếp cùng trừ chồng lên nhau.
         Map<Integer, Inventory> inventoryMap = inventoryRepository
                 .findAllForUpdateByBranchIdAndIngredientIds(orderItem.getOrder().getBranch().getId(), ingredientIds)
                 .stream()
@@ -296,6 +314,7 @@ public class KitchenWorkflowService {
                 throw new ConflictException("Inventory not found for ingredient: " + recipe.getIngredient().getName());
             }
 
+            // Lượng cần trừ = định mức recipe cho 1 phần x số lượng món khách đã gọi.
             BigDecimal quantityToDeduct = recipe.getQuantity().multiply(BigDecimal.valueOf(orderItem.getQuantity()));
             BigDecimal currentStock = inventory.getQuantity() == null ? BigDecimal.ZERO : inventory.getQuantity();
 
@@ -377,6 +396,7 @@ public class KitchenWorkflowService {
     }
 
     private void recalculateOrderStatus(Order order) {
+        // Trạng thái order ở góc nhìn bếp phụ thuộc vào trạng thái tổng hợp của toàn bộ món.
         boolean allCancelled = order.getOrderItems().stream()
                 .allMatch(item -> item.getStatus() == OrderItemStatus.CANCELLED);
         boolean allFinal = order.getOrderItems().stream()

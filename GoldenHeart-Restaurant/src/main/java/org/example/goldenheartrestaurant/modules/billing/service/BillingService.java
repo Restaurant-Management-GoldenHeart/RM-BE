@@ -1,12 +1,15 @@
 package org.example.goldenheartrestaurant.modules.billing.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.goldenheartrestaurant.common.exception.BadRequestException;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
 import org.example.goldenheartrestaurant.common.exception.ForbiddenException;
 import org.example.goldenheartrestaurant.common.exception.NotFoundException;
+import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.billing.dto.request.CreateBillRequest;
 import org.example.goldenheartrestaurant.modules.billing.dto.request.CreatePaymentRequest;
+import org.example.goldenheartrestaurant.modules.billing.dto.response.BillHistoryItemResponse;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.BillResponse;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.CheckoutPreviewResponse;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.PaymentResponse;
@@ -31,15 +34,22 @@ import org.example.goldenheartrestaurant.modules.order.service.OrderManagementSe
 import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTable;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTableStatus;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.RestaurantTableRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Service xử lý toàn bộ nghiệp vụ thanh toán cuối cùng của order.
@@ -176,6 +186,76 @@ public class BillingService {
         registerPayment(bill, request.amount(), resolvePaymentMethod(request.method()));
         finalizeOrderIfPaid(bill, bill.getOrder());
         return toResponse(reloadBill(bill.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public BillResponse getBillById(Integer billId, CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        Bill bill = reloadBill(billId);
+        enforceBillingScope(bill.getOrder(), currentUser);
+        return toResponse(bill);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BillResponse> getBillsByOrderId(Integer orderId, CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        // Tái sử dụng luồng đọc order hiện có để đảm bảo:
+        // - order phải tồn tại
+        // - user hiện tại có quyền xem order đó
+        orderManagementService.getOrderById(orderId, currentUser);
+
+        return billRepository.findAllDetailsByOrderId(orderId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<BillHistoryItemResponse> getBillHistory(Integer branchId,
+                                                                BillStatus status,
+                                                                LocalDate fromDate,
+                                                                LocalDate toDate,
+                                                                String keyword,
+                                                                int page,
+                                                                int size,
+                                                                CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+        validateHistoryDateRange(fromDate, toDate);
+
+        Integer scopedBranchId = resolveReadableHistoryBranchId(branchId, currentUser);
+        LocalDateTime fromDateTime = fromDate != null ? fromDate.atStartOfDay() : null;
+        LocalDateTime toDateTime = toDate != null ? toDate.plusDays(1).atStartOfDay() : null;
+
+        Page<Integer> billIdPage = billRepository.searchHistoryIds(
+                normalizeKeyword(keyword),
+                scopedBranchId,
+                status,
+                fromDateTime,
+                toDateTime,
+                PageRequest.of(page, size)
+        );
+
+        List<BillHistoryItemResponse> content = List.of();
+        if (!billIdPage.isEmpty()) {
+            Map<Integer, Bill> billMap = billRepository.findAllDetailsByIds(billIdPage.getContent()).stream()
+                    .collect(Collectors.toMap(Bill::getId, Function.identity(), (left, right) -> left));
+
+            content = billIdPage.getContent().stream()
+                    .map(billMap::get)
+                    .filter(Objects::nonNull)
+                    .map(this::toHistoryItemResponse)
+                    .toList();
+        }
+
+        return PageResponse.<BillHistoryItemResponse>builder()
+                .content(content)
+                .page(billIdPage.getNumber())
+                .size(billIdPage.getSize())
+                .totalElements(billIdPage.getTotalElements())
+                .totalPages(billIdPage.getTotalPages())
+                .last(billIdPage.isLast())
+                .build();
     }
 
     private PricingSnapshot buildPricingSnapshot(Order order,
@@ -344,6 +424,12 @@ public class BillingService {
                 .orElseThrow(() -> new NotFoundException("Bill not found"));
     }
 
+    private void validateHistoryDateRange(LocalDate fromDate, LocalDate toDate) {
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new BadRequestException("fromDate must be before or equal to toDate");
+        }
+    }
+
     private PaymentMethod resolvePaymentMethod(String rawMethod) {
         if (!StringUtils.hasText(rawMethod)) {
             return PaymentMethod.CASH;
@@ -443,6 +529,41 @@ public class BillingService {
         );
     }
 
+    private BillHistoryItemResponse toHistoryItemResponse(Bill bill) {
+        Customer customer = bill.getOrder().getCustomer();
+        List<Payment> sortedPayments = bill.getPayments().stream()
+                .sorted(Comparator.comparing(Payment::getPaidAt))
+                .toList();
+
+        LocalDateTime lastPaidAt = sortedPayments.stream()
+                .map(Payment::getPaidAt)
+                .filter(Objects::nonNull)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+
+        return new BillHistoryItemResponse(
+                bill.getId(),
+                bill.getOrder().getId(),
+                bill.getOrder().getBranch().getId(),
+                bill.getOrder().getBranch().getName(),
+                bill.getOrder().getTable() != null ? bill.getOrder().getTable().getId() : null,
+                bill.getOrder().getTable() != null ? bill.getOrder().getTable().getTableNumber() : null,
+                customer != null ? customer.getId() : null,
+                customer != null ? customer.getName() : null,
+                bill.getStatus().name(),
+                nonNegative(bill.getTotal()),
+                paidAmount(bill),
+                remainingAmount(bill),
+                nonNegative(bill.getGrossProfit()),
+                lastPaidAt,
+                (long) sortedPayments.size(),
+                sortedPayments.stream()
+                        .map(payment -> payment.getMethod().name())
+                        .distinct()
+                        .toList()
+        );
+    }
+
     private void enforceBillingScope(Order order, CustomUserDetails currentUser) {
         if (hasRole(currentUser, ROLE_ADMIN) || hasRole(currentUser, ROLE_MANAGER)) {
             return;
@@ -458,6 +579,31 @@ public class BillingService {
         if (!ownBranchId.equals(order.getBranch().getId())) {
             throw new ForbiddenException("You do not have permission to settle another branch order");
         }
+    }
+
+    private Integer resolveReadableHistoryBranchId(Integer branchId, CustomUserDetails currentUser) {
+        if (hasRole(currentUser, ROLE_ADMIN) || hasRole(currentUser, ROLE_MANAGER)) {
+            return branchId;
+        }
+
+        Integer ownBranchId = getAssignedBranchId(currentUser);
+        if (branchId != null && !branchId.equals(ownBranchId)) {
+            throw new ForbiddenException("You do not have permission to view another branch bill history");
+        }
+        return ownBranchId;
+    }
+
+    private Integer getAssignedBranchId(CustomUserDetails currentUser) {
+        User currentUserEntity = userRepository.findEmployeeDetailById(currentUser.getUserId())
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+        if (currentUserEntity.getProfile() == null || currentUserEntity.getProfile().getBranch() == null) {
+            throw new ForbiddenException("Your account is not assigned to any branch");
+        }
+        return currentUserEntity.getProfile().getBranch().getId();
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 
     private boolean hasRole(CustomUserDetails currentUser, String role) {

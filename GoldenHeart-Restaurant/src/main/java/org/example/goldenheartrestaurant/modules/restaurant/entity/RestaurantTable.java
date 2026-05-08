@@ -78,6 +78,9 @@ public class RestaurantTable {
     @JoinColumn(name = "merged_into_table_id")
     private RestaurantTable mergedIntoTable;
 
+    @Column(name = "merged_into_table_id", insertable = false, updatable = false)
+    private Integer mergedIntoTableId;
+
     @Builder.Default
     @OneToMany(mappedBy = "table")
     private List<Order> orders = new ArrayList<>();

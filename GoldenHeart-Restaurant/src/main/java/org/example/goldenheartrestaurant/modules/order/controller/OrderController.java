@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.goldenheartrestaurant.common.response.ApiResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
+import org.example.goldenheartrestaurant.modules.billing.dto.response.BillResponse;
+import org.example.goldenheartrestaurant.modules.billing.service.BillingService;
 import org.example.goldenheartrestaurant.modules.order.dto.request.AssignOrderCustomerRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.request.CreateOrderRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemStatusChangeResponse;
@@ -21,12 +23,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
 public class OrderController {
 
     private final OrderManagementService orderManagementService;
+    private final BillingService billingService;
 
     @PostMapping
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
@@ -52,6 +57,20 @@ public class OrderController {
                 ApiResponse.<OrderResponse>builder()
                         .message("Order retrieved successfully")
                         .data(orderManagementService.getOrderById(orderId, currentUser))
+                        .build()
+        );
+    }
+
+    @GetMapping("/{orderId}/bills")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<List<BillResponse>>> getBillsByOrderId(
+            @PathVariable Integer orderId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<List<BillResponse>>builder()
+                        .message("Order bills retrieved successfully")
+                        .data(billingService.getBillsByOrderId(orderId, currentUser))
                         .build()
         );
     }

@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -71,9 +72,19 @@ public class RestaurantTableService {
 
         Integer scopedBranchId = resolveAccessibleBranchId(branchId, currentUser);
         RestaurantTableStatus statusFilter = parseStatus(status);
-        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        String normalizedKeyword = StringUtils.hasText(keyword)
+                ? keyword.trim().toLowerCase(Locale.ROOT)
+                : null;
 
-        List<RestaurantTable> tables = restaurantTableRepository.findAllForListing(scopedBranchId, statusFilter, normalizedKeyword);
+        List<RestaurantTable> baseTables = scopedBranchId != null
+                ? restaurantTableRepository.findAllForListingBaseByBranchId(scopedBranchId)
+                : restaurantTableRepository.findAllForListingBase();
+
+        List<RestaurantTable> tables = baseTables
+                .stream()
+                .filter(table -> statusFilter == null || table.getStatus() == statusFilter)
+                .filter(table -> matchesListingKeyword(table, normalizedKeyword))
+                .toList();
         // Tải trước toàn bộ nhóm gộp liên quan để tránh mỗi bàn lại phải truy vấn riêng.
         Map<Integer, List<RestaurantTable>> mergedGroupMap = loadMergedGroupMap(tables);
 
@@ -375,11 +386,11 @@ public class RestaurantTableService {
     }
 
     private Integer extractMergeRootId(RestaurantTable table) {
-        return table.getMergedIntoTable() != null ? table.getMergedIntoTable().getId() : table.getId();
+        return table.getMergedIntoTableId() != null ? table.getMergedIntoTableId() : table.getId();
     }
 
     private boolean isMergedMember(RestaurantTable table) {
-        return table.getMergedIntoTable() != null;
+        return table.getMergedIntoTableId() != null;
     }
 
     private boolean hasMergedMembers(Integer tableId) {
@@ -445,6 +456,19 @@ public class RestaurantTableService {
             throw new ConflictException("Table number is required");
         }
         return tableNumber.trim();
+    }
+
+    private boolean matchesListingKeyword(RestaurantTable table, String normalizedKeyword) {
+        if (normalizedKeyword == null) {
+            return true;
+        }
+
+        return containsNormalizedText(table.getTableNumber(), normalizedKeyword)
+                || containsNormalizedText(table.getArea() != null ? table.getArea().getName() : null, normalizedKeyword);
+    }
+
+    private boolean containsNormalizedText(String value, String normalizedKeyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(normalizedKeyword);
     }
 
     private boolean hasRole(CustomUserDetails currentUser, String role) {

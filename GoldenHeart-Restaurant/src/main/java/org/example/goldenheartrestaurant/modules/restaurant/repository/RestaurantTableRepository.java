@@ -1,7 +1,6 @@
 package org.example.goldenheartrestaurant.modules.restaurant.repository;
 
 import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTable;
-import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTableStatus;
 import org.example.goldenheartrestaurant.modules.report.repository.projection.TableStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,32 +21,43 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
 
     boolean existsByMergedIntoTable_Id(Integer rootTableId);
 
+    /**
+     * Lấy danh sách bàn theo branchId, status và keyword tìm kiếm.
+     *
+     * Dùng nativeQuery = true để tránh lỗi Hibernate 7 + MySQL: Hibernate 7 tự thêm
+     * `escape ''` vào mệnh đề LIKE (invalid syntax trong MySQL), gây 500 lỗi khi gọi
+     * API danh sách bàn. Native SQL không đi qua JPQL parser nên không bị ảnh hưởng.
+     */
     @Query("""
             select t
             from RestaurantTable t
             join fetch t.branch b
             left join fetch t.area a
-            left join fetch t.mergedIntoTable m
-            where (:branchId is null or b.id = :branchId)
-              and (:status is null or t.status = :status)
-              and (:keyword is null
-                   or lower(t.tableNumber) like lower(concat('%', :keyword, '%'))
-                   or lower(coalesce(a.name, '')) like lower(concat('%', :keyword, '%')))
             order by b.name asc,
                      coalesce(a.displayOrder, 999999) asc,
                      coalesce(t.displayOrder, 999999) asc,
-                     t.tableNumber asc
+                     lower(t.tableNumber) asc
             """)
-    List<RestaurantTable> findAllForListing(@Param("branchId") Integer branchId,
-                                            @Param("status") RestaurantTableStatus status,
-                                            @Param("keyword") String keyword);
+    List<RestaurantTable> findAllForListingBase();
+
+    @Query("""
+            select t
+            from RestaurantTable t
+            join fetch t.branch b
+            left join fetch t.area a
+            where b.id = :branchId
+            order by b.name asc,
+                     coalesce(a.displayOrder, 999999) asc,
+                     coalesce(t.displayOrder, 999999) asc,
+                     lower(t.tableNumber) asc
+            """)
+    List<RestaurantTable> findAllForListingBaseByBranchId(@Param("branchId") Integer branchId);
 
     @Query("""
             select t
             from RestaurantTable t
             join fetch t.branch
             left join fetch t.area
-            left join fetch t.mergedIntoTable
             where t.id = :tableId
             """)
     Optional<RestaurantTable> findDetailById(@Param("tableId") Integer tableId);
@@ -57,9 +67,8 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
             from RestaurantTable t
             join fetch t.branch b
             left join fetch t.area a
-            left join fetch t.mergedIntoTable m
             where t.id in :rootIds
-               or m.id in :rootIds
+               or t.mergedIntoTableId in :rootIds
             order by coalesce(t.displayOrder, 999999) asc, t.tableNumber asc
             """)
     List<RestaurantTable> findAllInMergedGroups(@Param("rootIds") List<Integer> rootIds);
@@ -69,8 +78,7 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
             from RestaurantTable t
             join fetch t.branch
             left join fetch t.area
-            left join fetch t.mergedIntoTable
-            where t.mergedIntoTable.id = :rootTableId
+            where t.mergedIntoTableId = :rootTableId
             order by coalesce(t.displayOrder, 999999) asc, t.tableNumber asc
             """)
     List<RestaurantTable> findMergedMembersByRootTableId(@Param("rootTableId") Integer rootTableId);

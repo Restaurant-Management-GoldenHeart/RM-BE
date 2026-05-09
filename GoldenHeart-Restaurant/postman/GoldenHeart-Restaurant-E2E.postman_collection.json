@@ -1,4 +1,4 @@
-﻿{
+{
     "info":  {
                  "_postman_id":  "b6f77e4d-4f51-4f27-b979-e2fa8e0eb9d9",
                  "name":  "GoldenHeart Restaurant E2E",
@@ -3510,6 +3510,702 @@
                                   },
                                   {
                                       "name":  "Get E2E Customer Loyalty Transactions",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/customers/{{created_quick_customer_id}}/loyalty-transactions?page=0\u0026size=10",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "PayOS",
+                     "description":  "Quick PayOS requests. Set {{ngrok_public_url}} before creating a QR so the return/cancel URLs point to your public ngrok domain. Configure the payOS dashboard webhook to {{payos_webhook_url}}.",
+                     "item":  [
+                                  {
+                                      "name":  "Create PayOS QR from Seed Partial Bill",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/bills/{{seed_bill_partial_id}}/payos/qr",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"returnUrl\":\"{{payos_return_url}}\",\"cancelUrl\":\"{{payos_cancel_url}}\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data) {",
+                                                                                "  pm.environment.set(\"created_payos_transaction_id\", json.data.transactionId);",
+                                                                                "  pm.environment.set(\"created_payos_provider_order_code\", json.data.providerOrderCode);",
+                                                                                "  pm.environment.set(\"created_payos_payment_link_id\", json.data.providerPaymentLinkId || \"\");",
+                                                                                "  pm.environment.set(\"created_payos_checkout_url\", json.data.checkoutUrl || \"\");",
+                                                                                "  pm.environment.set(\"created_payos_qr_code\", json.data.qrCode || \"\");",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Get Latest PayOS QR for Seed Partial Bill",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/bills/{{seed_bill_partial_id}}/payos/qr",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Cancel PayOS QR for Seed Partial Bill",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/bills/{{seed_bill_partial_id}}/payos/qr/cancel",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"reason\":\"Customer changed payment method in Postman test\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get PayOS Transaction by Created Transaction ID",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/payment-gateways/transactions/{{created_payos_transaction_id}}",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get Seed Partial Bill After PayOS Webhook",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/bills/{{seed_bill_partial_id}}",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "End-to-End Flow - PayOS",
+                     "description":  "Full staff -\u003e kitchen -\u003e bill -\u003e PayOS QR flow. After creating the QR, complete payment in the payOS checkout page, wait for the webhook through ngrok, then run the final verification requests.",
+                     "item":  [
+                                  {
+                                      "name":  "Login Staff (PayOS E2E)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/auth/login",
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"username\":\"{{staff_username}}\",\"password\":\"{{staff_password}}\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data \u0026\u0026 json.data.accessToken) {",
+                                                                                "  pm.environment.set(\"staff_token\", json.data.accessToken);",
+                                                                                "  pm.environment.set(\"auth_token\", json.data.accessToken);",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Quick Create E2E Customer (PayOS)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/customers/quick-create",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"name\":\"E2E PayOS Walk-in {{$timestamp}}\",\"phone\":\"0928{{$timestamp}}\",\"email\":\"e2e-payos{{$timestamp}}@goldenheart.com\",\"note\":\"Quick-created in PayOS E2E flow\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data \u0026\u0026 json.data.id) {",
+                                                                                "  pm.environment.set(\"created_quick_customer_id\", json.data.id);",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Create E2E Order (PayOS)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/orders",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"tableId\":{{seed_available_table_id}},\"items\":[{\"menuItemId\":7,\"quantity\":1,\"note\":\"E2E payOS no onion\"}]}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data) {",
+                                                                                "  pm.environment.set(\"e2e_order_id\", json.data.orderId);",
+                                                                                "  if (json.data.items \u0026\u0026 json.data.items.length \u003e 0) {",
+                                                                                "    pm.environment.set(\"e2e_order_item_1_id\", json.data.items[0].id);",
+                                                                                "  }",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Assign E2E Customer To Order (PayOS)",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  "{{base_url}}/orders/{{e2e_order_id}}/customer",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"customerId\":{{created_quick_customer_id}}}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Login Kitchen (PayOS E2E)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/auth/login",
+                                                      "auth":  {
+                                                                   "type":  "noauth"
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"username\":\"{{kitchen_username}}\",\"password\":\"{{kitchen_password}}\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data \u0026\u0026 json.data.accessToken) {",
+                                                                                "  pm.environment.set(\"kitchen_token\", json.data.accessToken);",
+                                                                                "  pm.environment.set(\"auth_token\", json.data.accessToken);",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Update E2E Item to PROCESSING (PayOS)",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  "{{base_url}}/kitchen/order-items/{{e2e_order_item_1_id}}/status",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{kitchen_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"status\":\"PROCESSING\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Complete E2E Item (PayOS)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/kitchen/order-items/{{e2e_order_item_1_id}}/complete",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{kitchen_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Serve E2E Item (PayOS)",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "url":  "{{base_url}}/orders/order-items/{{e2e_order_item_1_id}}/serve",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Preview E2E Bill with Loyalty (PayOS)",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/bills/preview?orderId={{e2e_order_id}}\u0026discount=0\u0026taxRate=0\u0026applyLoyaltyDiscount=true",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Create E2E Bill (PayOS)",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/bills",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"orderId\":{{e2e_order_id}},\"discount\":0,\"taxRate\":0,\"applyLoyaltyDiscount\":true}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data) {",
+                                                                                "  pm.environment.set(\"e2e_bill_id\", json.data.id);",
+                                                                                "  pm.environment.set(\"e2e_bill_remaining_amount\", json.data.remainingAmount);",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Create E2E PayOS QR",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/bills/{{e2e_bill_id}}/payos/qr",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\"returnUrl\":\"{{payos_return_url}}\",\"cancelUrl\":\"{{payos_cancel_url}}\"}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "event":  {
+                                                    "listen":  "test",
+                                                    "script":  {
+                                                                   "type":  "text/javascript",
+                                                                   "exec":  [
+                                                                                "const json = pm.response.json();",
+                                                                                "if (json \u0026\u0026 json.data) {",
+                                                                                "  pm.environment.set(\"e2e_payos_transaction_id\", json.data.transactionId);",
+                                                                                "  pm.environment.set(\"e2e_payos_provider_order_code\", json.data.providerOrderCode);",
+                                                                                "  pm.environment.set(\"e2e_payos_payment_link_id\", json.data.providerPaymentLinkId || \"\");",
+                                                                                "  pm.environment.set(\"e2e_payos_checkout_url\", json.data.checkoutUrl || \"\");",
+                                                                                "  pm.environment.set(\"e2e_payos_qr_code\", json.data.qrCode || \"\");",
+                                                                                "}"
+                                                                            ]
+                                                               }
+                                                }
+                                  },
+                                  {
+                                      "name":  "Get E2E Latest PayOS QR",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/bills/{{e2e_bill_id}}/payos/qr",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get E2E PayOS Transaction",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/payment-gateways/transactions/{{e2e_payos_transaction_id}}",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get E2E Bill After PayOS Webhook",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/bills/{{e2e_bill_id}}",
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "value":  "{{staff_token}}",
+                                                                                      "type":  "string"
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                      "header":  {
+                                                                     "key":  "Content-Type",
+                                                                     "value":  "application/json"
+                                                                 },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  }
+                                  },
+                                  {
+                                      "name":  "Get E2E Customer Loyalty Transactions After PayOS",
                                       "request":  {
                                                       "method":  "GET",
                                                       "url":  "{{base_url}}/customers/{{created_quick_customer_id}}/loyalty-transactions?page=0\u0026size=10",

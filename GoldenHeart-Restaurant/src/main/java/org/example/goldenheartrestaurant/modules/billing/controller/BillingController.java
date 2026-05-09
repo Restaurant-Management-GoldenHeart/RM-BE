@@ -12,6 +12,10 @@ import org.example.goldenheartrestaurant.modules.billing.dto.response.BillRespon
 import org.example.goldenheartrestaurant.modules.billing.dto.response.CheckoutPreviewResponse;
 import org.example.goldenheartrestaurant.modules.billing.entity.BillStatus;
 import org.example.goldenheartrestaurant.modules.billing.service.BillingService;
+import org.example.goldenheartrestaurant.modules.paymentgateway.dto.request.CancelPayOsQrRequest;
+import org.example.goldenheartrestaurant.modules.paymentgateway.dto.request.CreatePayOsQrRequest;
+import org.example.goldenheartrestaurant.modules.paymentgateway.dto.response.PaymentGatewayTransactionResponse;
+import org.example.goldenheartrestaurant.modules.paymentgateway.service.PaymentGatewayService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
@@ -34,6 +38,7 @@ import java.time.LocalDate;
 public class BillingController {
 
     private final BillingService billingService;
+    private final PaymentGatewayService paymentGatewayService;
 
     @GetMapping("/preview")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
@@ -111,6 +116,52 @@ public class BillingController {
                 ApiResponse.<BillResponse>builder()
                         .message("Payment recorded successfully")
                         .data(billingService.addPayment(billId, request, currentUser))
+                        .build()
+        );
+    }
+
+    @PostMapping("/{billId}/payos/qr")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<PaymentGatewayTransactionResponse>> createPayOsQr(
+            @PathVariable Integer billId,
+            @Valid @RequestBody(required = false) CreatePayOsQrRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        CreatePayOsQrRequest safeRequest = request != null ? request : new CreatePayOsQrRequest(null, null);
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.<PaymentGatewayTransactionResponse>builder()
+                        .message("payOS QR created successfully")
+                        .data(paymentGatewayService.createPayOsQr(billId, safeRequest, currentUser))
+                        .build()
+        );
+    }
+
+    @GetMapping("/{billId}/payos/qr")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<PaymentGatewayTransactionResponse>> getLatestPayOsQr(
+            @PathVariable Integer billId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<PaymentGatewayTransactionResponse>builder()
+                        .message("payOS QR transaction retrieved successfully")
+                        .data(paymentGatewayService.getLatestPayOsQrByBillId(billId, currentUser))
+                        .build()
+        );
+    }
+
+    @PostMapping("/{billId}/payos/qr/cancel")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<PaymentGatewayTransactionResponse>> cancelPayOsQr(
+            @PathVariable Integer billId,
+            @Valid @RequestBody(required = false) CancelPayOsQrRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        CancelPayOsQrRequest safeRequest = request != null ? request : new CancelPayOsQrRequest(null);
+        return ResponseEntity.ok(
+                ApiResponse.<PaymentGatewayTransactionResponse>builder()
+                        .message("payOS QR transaction cancelled successfully")
+                        .data(paymentGatewayService.cancelPayOsQr(billId, safeRequest, currentUser))
                         .build()
         );
     }

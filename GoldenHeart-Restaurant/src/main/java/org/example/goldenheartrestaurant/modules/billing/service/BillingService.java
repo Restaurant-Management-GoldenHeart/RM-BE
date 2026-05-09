@@ -31,6 +31,9 @@ import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItemStatus;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderStatus;
 import org.example.goldenheartrestaurant.modules.order.service.OrderManagementService;
+import org.example.goldenheartrestaurant.modules.paymentgateway.entity.PaymentGatewayProvider;
+import org.example.goldenheartrestaurant.modules.paymentgateway.entity.PaymentGatewayTransactionStatus;
+import org.example.goldenheartrestaurant.modules.paymentgateway.repository.PaymentGatewayTransactionRepository;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTable;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTableStatus;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.RestaurantTableRepository;
@@ -85,6 +88,7 @@ public class BillingService {
     private final StockMovementRepository stockMovementRepository;
     private final UserRepository userRepository;
     private final CustomerLoyaltyService customerLoyaltyService;
+    private final PaymentGatewayTransactionRepository paymentGatewayTransactionRepository;
 
     @Transactional(readOnly = true)
     public CheckoutPreviewResponse previewCheckout(Integer orderId,
@@ -124,6 +128,13 @@ public class BillingService {
         }
         if (existingBill != null && !existingBill.getPayments().isEmpty()) {
             throw new ConflictException("Bill with recorded payments cannot be recalculated");
+        }
+        if (existingBill != null && paymentGatewayTransactionRepository.existsByBill_IdAndProviderAndStatus(
+                existingBill.getId(),
+                PaymentGatewayProvider.PAYOS,
+                PaymentGatewayTransactionStatus.PENDING
+        )) {
+            throw new ConflictException("Bill has an active payOS QR request and cannot be recalculated");
         }
 
         // Tại thời điểm tạo bill, toàn bộ discount/tax/loyalty phải được chốt thành số tiền cụ thể
@@ -181,6 +192,13 @@ public class BillingService {
         if (bill.getStatus() == BillStatus.PAID) {
             throw new ConflictException("Bill is already fully paid");
         }
+        if (paymentGatewayTransactionRepository.existsByBill_IdAndProviderAndStatus(
+                bill.getId(),
+                PaymentGatewayProvider.PAYOS,
+                PaymentGatewayTransactionStatus.PENDING
+        )) {
+            throw new ConflictException("Cancel the active payOS QR request before recording a manual payment");
+        }
 
         // Bill có thể được thanh toán nhiều lần cho đến khi đủ tổng tiền.
         registerPayment(bill, request.amount(), resolvePaymentMethod(request.method()));
@@ -195,6 +213,30 @@ public class BillingService {
         Bill bill = reloadBill(billId);
         enforceBillingScope(bill.getOrder(), currentUser);
         return toResponse(bill);
+    }
+
+    @Transactional(readOnly = true)
+    public Bill getBillEntityById(Integer billId, CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        Bill bill = reloadBill(billId);
+        enforceBillingScope(bill.getOrder(), currentUser);
+        return bill;
+    }
+
+    @Transactional
+    public Payment recordConfirmedGatewayPayment(Integer billId,
+                                                 BigDecimal amount,
+                                                 PaymentMethod method,
+                                                 LocalDateTime paidAt) {
+        Bill bill = reloadBill(billId);
+        if (bill.getStatus() == BillStatus.PAID) {
+            throw new ConflictException("Bill is already fully paid");
+        }
+
+        Payment payment = registerPayment(bill, amount, method, paidAt);
+        finalizeOrderIfPaid(bill, bill.getOrder());
+        return payment;
     }
 
     @Transactional(readOnly = true)
@@ -305,7 +347,11 @@ public class BillingService {
         );
     }
 
-    private void registerPayment(Bill bill, BigDecimal amount, PaymentMethod method) {
+    private Payment registerPayment(Bill bill, BigDecimal amount, PaymentMethod method) {
+        return registerPayment(bill, amount, method, LocalDateTime.now());
+    }
+
+    private Payment registerPayment(Bill bill, BigDecimal amount, PaymentMethod method, LocalDateTime paidAt) {
         BigDecimal remaining = remainingAmount(bill);
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ConflictException("Payment amount must be greater than zero");
@@ -318,13 +364,14 @@ public class BillingService {
                 .bill(bill)
                 .amount(amount)
                 .method(method)
-                .paidAt(LocalDateTime.now())
+                .paidAt(paidAt != null ? paidAt : LocalDateTime.now())
                 .build();
 
         bill.getPayments().add(payment);
         updateBillStatus(bill);
         paymentRepository.save(payment);
         billRepository.save(bill);
+        return payment;
     }
 
     private void finalizeOrderIfPaid(Bill bill, Order order) {

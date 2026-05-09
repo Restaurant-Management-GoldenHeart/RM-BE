@@ -79,7 +79,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout",
-                                "/api/v1/auth/password-recovery/**"
+                                "/api/v1/auth/password-recovery/**",
+                                "/api/v1/payment-gateways/payos/webhook"
                         ).permitAll()
                         // Đổi mật khẩu là thao tác của user đã đăng nhập.
                         .requestMatchers("/api/v1/auth/change-password").authenticated()

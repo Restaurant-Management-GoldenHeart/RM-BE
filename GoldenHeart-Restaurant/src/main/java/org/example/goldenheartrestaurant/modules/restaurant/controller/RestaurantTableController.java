@@ -9,10 +9,12 @@ import org.example.goldenheartrestaurant.modules.order.service.OrderManagementSe
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.CreateRestaurantTableRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.MergeTablesRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.SplitTableRequest;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UnmergeTablesRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UpdateTableStatusRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UpdateRestaurantTableRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.response.RestaurantTableResponse;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.response.TableOrderTransferResponse;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.response.UnmergeTablesResponse;
 import org.example.goldenheartrestaurant.modules.restaurant.service.RestaurantTableService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -153,6 +155,21 @@ public class RestaurantTableController {
                 ApiResponse.<TableOrderTransferResponse>builder()
                         .message("Table split successfully")
                         .data(orderManagementService.splitTable(tableId, request, currentUser))
+                        .build()
+        );
+    }
+
+    @PostMapping("/{tableId}/unmerge")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<ApiResponse<UnmergeTablesResponse>> unmergeTables(
+            @PathVariable Integer tableId,
+            @Valid @RequestBody UnmergeTablesRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<UnmergeTablesResponse>builder()
+                        .message("Tables unmerged successfully")
+                        .data(orderManagementService.unmergeTables(tableId, request, currentUser))
                         .build()
         );
     }

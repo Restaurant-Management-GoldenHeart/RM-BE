@@ -134,6 +134,19 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
      */
     Optional<Inventory> findByBranchIdAndIngredientId(Integer branchId, Integer ingredientId);
 
+    @Query("""
+            select i
+            from Inventory i
+            join fetch i.ingredient ing
+            left join fetch ing.measurementUnit
+            where i.branch.id = :branchId
+              and i.ingredient.id in :ingredientIds
+            """)
+    List<Inventory> findAllByBranchIdAndIngredientIds(
+            @Param("branchId") Integer branchId,
+            @Param("ingredientIds") List<Integer> ingredientIds
+    );
+
     /**
      * Trả danh sách cảnh báo tồn kho thấp để FE hiển thị alert.
      * Chỉ lấy những item có minStockLevel và quantity đã chạm/ngã xuống ngưỡng.

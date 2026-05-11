@@ -20,13 +20,15 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Integer>
      * Tìm nguyên liệu theo tên, bỏ qua hoa thường.
      * Dùng khi create để tránh tạo trùng master ingredient.
      */
-    Optional<Ingredient> findByNameIgnoreCase(String name);
+    Optional<Ingredient> findByBranchIdAndNameIgnoreCase(Integer branchId, String name);
 
     /**
      * Kiểm tra tên nguyên liệu có bị trùng với bản ghi khác hay không
      * trong luồng update.
      */
-    boolean existsByNameIgnoreCaseAndIdNot(String name, Integer id);
+    boolean existsByBranchIdAndNameIgnoreCaseAndIdNot(Integer branchId, String name, Integer id);
+
+    Optional<Ingredient> findByIdAndBranchId(Integer id, Integer branchId);
 
     /**
      * Dùng cho luồng backfill/migration để tìm những nguyên liệu cũ

@@ -5,7 +5,9 @@ import org.example.goldenheartrestaurant.common.exception.ConflictException;
 import org.example.goldenheartrestaurant.common.exception.NotFoundException;
 import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Ingredient;
+import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
 import org.example.goldenheartrestaurant.modules.inventory.repository.IngredientRepository;
+import org.example.goldenheartrestaurant.modules.inventory.repository.InventoryRepository;
 import org.example.goldenheartrestaurant.modules.menu.dto.request.CreateMenuItemRequest;
 import org.example.goldenheartrestaurant.modules.menu.dto.request.RecipeIngredientRequest;
 import org.example.goldenheartrestaurant.modules.menu.dto.request.UpdateMenuItemRequest;
@@ -26,8 +28,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -46,14 +52,18 @@ public class MenuManagementService {
     private final CategoryRepository categoryRepository;
     private final BranchRepository branchRepository;
     private final IngredientRepository ingredientRepository;
+    private final InventoryRepository inventoryRepository;
     private final RecipeRepository recipeRepository;
 
     @Transactional(readOnly = true)
     public PageResponse<MenuItemResponse> getMenuItems(String keyword, Integer branchId, Integer categoryId, int page, int size) {
         Page<MenuItem> menuItems = menuItemRepository.search(normalizeKeyword(keyword), branchId, categoryId, PageRequest.of(page, size));
+        Map<Integer, MenuAvailabilitySnapshot> availabilityByMenuItemId = buildAvailabilityMap(menuItems.getContent());
 
         return PageResponse.<MenuItemResponse>builder()
-                .content(menuItems.getContent().stream().map(this::toMenuItemResponse).toList())
+                .content(menuItems.getContent().stream()
+                        .map(menuItem -> toMenuItemResponse(menuItem, availabilityByMenuItemId.get(menuItem.getId())))
+                        .toList())
                 .page(menuItems.getNumber())
                 .size(menuItems.getSize())
                 .totalElements(menuItems.getTotalElements())
@@ -65,7 +75,8 @@ public class MenuManagementService {
 
     @Transactional(readOnly = true)
     public MenuItemResponse getMenuItemById(Integer menuItemId) {
-        return toMenuItemResponse(getMenuItemOrThrow(menuItemId));
+        MenuItem menuItem = getMenuItemOrThrow(menuItemId);
+        return toMenuItemResponse(menuItem, evaluateAvailability(menuItem));
     }
 
     @Transactional
@@ -87,7 +98,8 @@ public class MenuManagementService {
 
         replaceRecipes(menuItem, request.recipes());
 
-        return toMenuItemResponse(menuItemRepository.save(menuItem));
+        MenuItem savedMenuItem = menuItemRepository.save(menuItem);
+        return toMenuItemResponse(savedMenuItem, evaluateAvailability(savedMenuItem));
     }
 
     @Transactional
@@ -112,7 +124,8 @@ public class MenuManagementService {
         recipeRepository.deleteByMenuItemId(menuItemId);
         recipeRepository.saveAll(buildRecipes(savedMenuItem, request.recipes()));
 
-        return toMenuItemResponse(getMenuItemOrThrow(menuItemId));
+        MenuItem refreshedMenuItem = getMenuItemOrThrow(menuItemId);
+        return toMenuItemResponse(refreshedMenuItem, evaluateAvailability(refreshedMenuItem));
     }
 
     @Transactional
@@ -171,8 +184,11 @@ public class MenuManagementService {
     private List<Recipe> buildRecipes(MenuItem menuItem, List<RecipeIngredientRequest> recipes) {
         return recipes.stream()
                 .map(recipeRequest -> {
-                    Ingredient ingredient = ingredientRepository.findById(recipeRequest.ingredientId())
-                            .orElseThrow(() -> new NotFoundException("Ingredient not found: " + recipeRequest.ingredientId()));
+                    Ingredient ingredient = ingredientRepository
+                            .findByIdAndBranchId(recipeRequest.ingredientId(), menuItem.getBranch().getId())
+                            .orElseThrow(() -> new NotFoundException(
+                                    "Ingredient not found in branch: " + recipeRequest.ingredientId()
+                            ));
 
                     return Recipe.builder()
                             .menuItem(menuItem)
@@ -188,7 +204,11 @@ public class MenuManagementService {
                 .orElseThrow(() -> new NotFoundException("Menu item not found"));
     }
 
-    private MenuItemResponse toMenuItemResponse(MenuItem menuItem) {
+    private MenuItemResponse toMenuItemResponse(MenuItem menuItem, MenuAvailabilitySnapshot availability) {
+        MenuAvailabilitySnapshot resolvedAvailability = availability != null
+                ? availability
+                : evaluateAvailability(menuItem);
+
         return new MenuItemResponse(
                 menuItem.getId(),
                 menuItem.getBranch().getId(),
@@ -199,6 +219,8 @@ public class MenuManagementService {
                 menuItem.getDescription(),
                 menuItem.getPrice(),
                 menuItem.getStatus().name(),
+                resolvedAvailability.status().name(),
+                resolvedAvailability.available(),
                 menuItem.getRecipes().stream()
                         .map(recipe -> new RecipeResponse(
                                 recipe.getIngredient().getId(),
@@ -208,5 +230,90 @@ public class MenuManagementService {
                         ))
                         .toList()
         );
+    }
+
+    private Map<Integer, MenuAvailabilitySnapshot> buildAvailabilityMap(Collection<MenuItem> menuItems) {
+        Map<Integer, MenuAvailabilitySnapshot> result = new HashMap<>();
+        if (menuItems == null || menuItems.isEmpty()) {
+            return result;
+        }
+
+        Map<Integer, List<MenuItem>> menuItemsByBranch = new HashMap<>();
+        for (MenuItem menuItem : menuItems) {
+            menuItemsByBranch.computeIfAbsent(menuItem.getBranch().getId(), ignored -> new java.util.ArrayList<>())
+                    .add(menuItem);
+        }
+
+        for (Map.Entry<Integer, List<MenuItem>> entry : menuItemsByBranch.entrySet()) {
+            Integer branchId = entry.getKey();
+            List<MenuItem> branchMenuItems = entry.getValue();
+            List<Integer> ingredientIds = branchMenuItems.stream()
+                    .flatMap(menuItem -> menuItem.getRecipes().stream())
+                    .map(recipe -> recipe.getIngredient().getId())
+                    .distinct()
+                    .toList();
+
+            Map<Integer, Inventory> inventoryByIngredientId = ingredientIds.isEmpty()
+                    ? Map.of()
+                    : inventoryRepository.findAllByBranchIdAndIngredientIds(branchId, ingredientIds)
+                    .stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            inventory -> inventory.getIngredient().getId(),
+                            java.util.function.Function.identity()
+                    ));
+
+            for (MenuItem menuItem : branchMenuItems) {
+                result.put(menuItem.getId(), evaluateAvailability(menuItem, inventoryByIngredientId));
+            }
+        }
+
+        return result;
+    }
+
+    private MenuAvailabilitySnapshot evaluateAvailability(MenuItem menuItem) {
+        List<Integer> ingredientIds = menuItem.getRecipes().stream()
+                .map(recipe -> recipe.getIngredient().getId())
+                .distinct()
+                .toList();
+
+        Map<Integer, Inventory> inventoryByIngredientId = ingredientIds.isEmpty()
+                ? Map.of()
+                : inventoryRepository.findAllByBranchIdAndIngredientIds(menuItem.getBranch().getId(), ingredientIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        inventory -> inventory.getIngredient().getId(),
+                        java.util.function.Function.identity()
+                ));
+
+        return evaluateAvailability(menuItem, inventoryByIngredientId);
+    }
+
+    private MenuAvailabilitySnapshot evaluateAvailability(MenuItem menuItem,
+                                                          Map<Integer, Inventory> inventoryByIngredientId) {
+        if (menuItem.getStatus() != MenuItemStatus.AVAILABLE) {
+            return new MenuAvailabilitySnapshot(MenuItemStatus.OUT_OF_STOCK, false);
+        }
+
+        if (menuItem.getRecipes() == null || menuItem.getRecipes().isEmpty()) {
+            return new MenuAvailabilitySnapshot(MenuItemStatus.OUT_OF_STOCK, false);
+        }
+
+        for (Recipe recipe : menuItem.getRecipes()) {
+            Inventory inventory = inventoryByIngredientId.get(recipe.getIngredient().getId());
+            if (inventory == null) {
+                return new MenuAvailabilitySnapshot(MenuItemStatus.OUT_OF_STOCK, false);
+            }
+
+            BigDecimal currentQuantity = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+            BigDecimal requiredQuantity = recipe.getQuantity() != null ? recipe.getQuantity() : BigDecimal.ZERO;
+            if (currentQuantity.compareTo(requiredQuantity) < 0) {
+                return new MenuAvailabilitySnapshot(MenuItemStatus.OUT_OF_STOCK, false);
+            }
+        }
+
+        return new MenuAvailabilitySnapshot(MenuItemStatus.AVAILABLE, true);
+    }
+
+    private record MenuAvailabilitySnapshot(MenuItemStatus status, boolean available) {
     }
 }

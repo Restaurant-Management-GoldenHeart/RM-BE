@@ -11,6 +11,8 @@ import org.example.goldenheartrestaurant.modules.customer.entity.Customer;
 import org.example.goldenheartrestaurant.modules.customer.repository.CustomerRepository;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.identity.repository.UserRepository;
+import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
+import org.example.goldenheartrestaurant.modules.inventory.repository.InventoryRepository;
 import org.example.goldenheartrestaurant.modules.menu.entity.MenuItem;
 import org.example.goldenheartrestaurant.modules.menu.entity.MenuItemStatus;
 import org.example.goldenheartrestaurant.modules.menu.repository.MenuItemRepository;
@@ -31,7 +33,11 @@ import org.example.goldenheartrestaurant.modules.restaurant.entity.RestaurantTab
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.MergeTablesRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.SplitOrderItemRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.request.SplitTableRequest;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UnmergeTableTargetRequest;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.request.UnmergeTablesRequest;
 import org.example.goldenheartrestaurant.modules.restaurant.dto.response.TableOrderTransferResponse;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.response.UnmergeTableResultResponse;
+import org.example.goldenheartrestaurant.modules.restaurant.dto.response.UnmergeTablesResponse;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.BranchRepository;
 import org.example.goldenheartrestaurant.modules.restaurant.repository.RestaurantTableRepository;
 import org.springframework.stereotype.Service;
@@ -42,10 +48,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Service trung tâm xử lý vòng đời đơn hàng tại quầy.
@@ -80,6 +89,7 @@ public class OrderManagementService {
     private final RestaurantTableRepository restaurantTableRepository;
     private final BranchRepository branchRepository;
     private final MenuItemRepository menuItemRepository;
+    private final InventoryRepository inventoryRepository;
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
 
@@ -360,6 +370,67 @@ public class OrderManagementService {
         return buildTableTransferResponse("MERGE", sourceTable, sourceOrder, targetTable, loadOrder(savedTargetOrder.getId()));
     }
 
+    @Transactional
+    public UnmergeTablesResponse unmergeTables(Integer rootTableId,
+                                               UnmergeTablesRequest request,
+                                               CustomUserDetails currentUser) {
+        requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF);
+
+        RestaurantTable requestedRootTable = resolveTable(rootTableId);
+        RestaurantTable rootTable = resolveOperationalTable(requestedRootTable);
+        enforceTableReadScope(rootTable, currentUser);
+
+        List<RestaurantTable> mergedGroup = loadMergedGroup(rootTable);
+        if (mergedGroup.size() < 2) {
+            throw new ConflictException("Selected table is not a merged-table root");
+        }
+
+        Order rootOrder = findActiveOrderEntityByTableId(rootTable.getId())
+                .orElseThrow(() -> new ConflictException("Merged root table does not have an active order"));
+        ensureOrderHasNoBilling(rootOrder);
+        validateUnmergeSelections(rootTable, mergedGroup, rootOrder, request.targets(), currentUser);
+
+        User actor = getCurrentUser(currentUser.getUserId());
+        Map<Integer, Order> targetOrders = new LinkedHashMap<>();
+
+        for (UnmergeTableTargetRequest targetRequest : request.targets()) {
+            RestaurantTable targetTable = resolveTable(targetRequest.targetTableId());
+            Order targetOrder = createDerivedOrder(rootOrder, targetTable, actor);
+            int movedQuantity = moveSelectedItemsToNewOrder(rootOrder, targetOrder, targetRequest.items());
+            if (movedQuantity <= 0) {
+                throw new ConflictException("Each target table must receive at least one dish");
+            }
+            recalculateOrderStatus(targetOrder);
+            targetTable.setStatus(RestaurantTableStatus.OCCUPIED);
+            targetOrders.put(targetTable.getId(), targetOrder);
+        }
+
+        int remainingQuantity = countBillableQuantity(rootOrder);
+        if (remainingQuantity > 0) {
+            recalculateOrderStatus(rootOrder);
+            rootTable.setStatus(RestaurantTableStatus.OCCUPIED);
+        } else {
+            rootOrder.setStatus(OrderStatus.CANCELLED);
+            rootOrder.setClosedAt(LocalDateTime.now());
+            rootTable.setStatus(RestaurantTableStatus.AVAILABLE);
+        }
+
+        for (RestaurantTable groupedTable : mergedGroup) {
+            if (!groupedTable.getId().equals(rootTable.getId())) {
+                groupedTable.setMergedIntoTable(null);
+                if (!targetOrders.containsKey(groupedTable.getId())) {
+                    groupedTable.setStatus(RestaurantTableStatus.AVAILABLE);
+                }
+            }
+        }
+
+        Order savedRootOrder = orderRepository.save(rootOrder);
+        List<Order> savedTargetOrders = orderRepository.saveAll(targetOrders.values());
+        restaurantTableRepository.saveAll(mergedGroup);
+
+        return buildUnmergeResponse(rootTable, savedRootOrder, savedTargetOrders, mergedGroup);
+    }
+
     private void appendItems(Order order, List<OrderItemRequest> requests, Branch branch) {
         for (OrderItemRequest request : requests) {
             MenuItem menuItem = resolveMenuItemForOrder(request.menuItemId(), branch.getId());
@@ -422,11 +493,46 @@ public class OrderManagementService {
         if (!menuItem.getBranch().getId().equals(branchId)) {
             throw new ConflictException("Menu item does not belong to the selected branch");
         }
-        if (menuItem.getStatus() != MenuItemStatus.AVAILABLE) {
+        if (!isMenuItemOrderable(menuItem)) {
             throw new ConflictException("Menu item is not available for ordering");
         }
 
         return menuItem;
+    }
+
+    private boolean isMenuItemOrderable(MenuItem menuItem) {
+        if (menuItem.getStatus() != MenuItemStatus.AVAILABLE) {
+            return false;
+        }
+
+        if (menuItem.getRecipes() == null || menuItem.getRecipes().isEmpty()) {
+            return false;
+        }
+
+        List<Integer> ingredientIds = menuItem.getRecipes().stream()
+                .map(recipe -> recipe.getIngredient().getId())
+                .distinct()
+                .toList();
+
+        Map<Integer, Inventory> inventoryByIngredientId = ingredientIds.isEmpty()
+                ? Map.of()
+                : inventoryRepository.findAllByBranchIdAndIngredientIds(menuItem.getBranch().getId(), ingredientIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        inventory -> inventory.getIngredient().getId(),
+                        java.util.function.Function.identity()
+                ));
+
+        return menuItem.getRecipes().stream().allMatch(recipe -> {
+            Inventory inventory = inventoryByIngredientId.get(recipe.getIngredient().getId());
+            if (inventory == null) {
+                return false;
+            }
+
+            BigDecimal currentQuantity = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+            BigDecimal requiredQuantity = recipe.getQuantity() != null ? recipe.getQuantity() : BigDecimal.ZERO;
+            return currentQuantity.compareTo(requiredQuantity) >= 0;
+        });
     }
 
     private Branch resolveBranch(Integer branchId) {
@@ -606,6 +712,20 @@ public class OrderManagementService {
         return movedQuantity;
     }
 
+    private Order createDerivedOrder(Order sourceOrder, RestaurantTable targetTable, User actor) {
+        ensureNoDirectActiveOrder(targetTable);
+
+        return Order.builder()
+                .branch(sourceOrder.getBranch())
+                .table(targetTable)
+                .customer(sourceOrder.getCustomer())
+                .createdBy(actor)
+                .status(OrderStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .closedAt(null)
+                .build();
+    }
+
     private int countBillableQuantity(Order order) {
         return order.getOrderItems().stream()
                 .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
@@ -616,6 +736,16 @@ public class OrderManagementService {
     private void ensureOrderHasNoBilling(Order order) {
         if (billRepository.existsByOrder_Id(order.getId())) {
             throw new ConflictException("Orders that already have bill records cannot be split or merged");
+        }
+    }
+
+    private void ensureNoDirectActiveOrder(RestaurantTable table) {
+        boolean hasDirectActiveOrder = orderRepository.findActiveOrdersByTableId(table.getId())
+                .stream()
+                .findFirst()
+                .isPresent();
+        if (hasDirectActiveOrder) {
+            throw new ConflictException("Target table already has an active order");
         }
     }
 
@@ -660,6 +790,47 @@ public class OrderManagementService {
                 targetOrder.getId(),
                 targetOrder.getStatus().name(),
                 calculateSubtotal(targetOrder)
+        );
+    }
+
+    private UnmergeTablesResponse buildUnmergeResponse(RestaurantTable rootTable,
+                                                       Order rootOrder,
+                                                       List<Order> targetOrders,
+                                                       List<RestaurantTable> originalGroup) {
+        Map<Integer, Order> orderByTableId = new HashMap<>();
+        if (rootOrder.getStatus() != OrderStatus.CANCELLED) {
+            orderByTableId.put(rootTable.getId(), rootOrder);
+        }
+        for (Order targetOrder : targetOrders) {
+            if (targetOrder.getTable() != null) {
+                orderByTableId.put(targetOrder.getTable().getId(), targetOrder);
+            }
+        }
+
+        List<UnmergeTableResultResponse> tableSnapshots = originalGroup.stream()
+                .sorted(TABLE_GROUP_COMPARATOR)
+                .map(table -> {
+                    Order activeOrder = orderByTableId.get(table.getId());
+                    return new UnmergeTableResultResponse(
+                            table.getId(),
+                            table.getTableNumber(),
+                            table.getTableNumber(),
+                            table.getStatus().name(),
+                            activeOrder != null ? activeOrder.getId() : null,
+                            activeOrder != null ? activeOrder.getStatus().name() : null,
+                            activeOrder != null ? calculateSubtotal(activeOrder) : BigDecimal.ZERO
+                    );
+                })
+                .toList();
+
+        return new UnmergeTablesResponse(
+                "UNMERGE",
+                rootTable.getId(),
+                rootTable.getTableNumber(),
+                rootTable.getTableNumber(),
+                rootOrder.getId(),
+                rootOrder.getStatus().name(),
+                tableSnapshots
         );
     }
 
@@ -723,6 +894,57 @@ public class OrderManagementService {
         }
         mergedGroup.sort(TABLE_GROUP_COMPARATOR);
         return mergedGroup;
+    }
+
+    private void validateUnmergeSelections(RestaurantTable rootTable,
+                                           List<RestaurantTable> mergedGroup,
+                                           Order rootOrder,
+                                           List<UnmergeTableTargetRequest> targets,
+                                           CustomUserDetails currentUser) {
+        Map<Integer, RestaurantTable> groupedMembers = mergedGroup.stream()
+                .filter(table -> !table.getId().equals(rootTable.getId()))
+                .collect(LinkedHashMap::new, (map, table) -> map.put(table.getId(), table), Map::putAll);
+
+        Map<Integer, Integer> requestedQuantityByItemId = new HashMap<>();
+        Set<Integer> seenTargetTableIds = new HashSet<>();
+
+        for (UnmergeTableTargetRequest targetRequest : targets) {
+            Integer targetTableId = targetRequest.targetTableId();
+            if (!seenTargetTableIds.add(targetTableId)) {
+                throw new ConflictException("Each member table can only appear once in an unmerge request");
+            }
+            RestaurantTable targetTable = groupedMembers.get(targetTableId);
+            if (targetTable == null) {
+                throw new ConflictException("Unmerge targets must be member tables of the selected merged group");
+            }
+            validateTableTransferScope(rootTable, targetTable, currentUser);
+
+            if (targetRequest.items() == null || targetRequest.items().isEmpty()) {
+                throw new ConflictException("Each target table must receive at least one dish");
+            }
+
+            for (SplitOrderItemRequest itemRequest : targetRequest.items()) {
+                OrderItem sourceItem = rootOrder.getOrderItems().stream()
+                        .filter(item -> item.getId().equals(itemRequest.orderItemId()))
+                        .findFirst()
+                        .orElseThrow(() -> new ConflictException("Selected order item does not belong to the merged root order"));
+
+                if (sourceItem.getStatus() == OrderItemStatus.CANCELLED) {
+                    throw new ConflictException("Cancelled dishes cannot be moved during unmerge");
+                }
+
+                int accumulatedQuantity = requestedQuantityByItemId.getOrDefault(itemRequest.orderItemId(), 0)
+                        + itemRequest.quantity();
+                if (accumulatedQuantity > sourceItem.getQuantity()) {
+                    throw new ConflictException("Total unmerge quantity exceeds the source dish quantity");
+                }
+                requestedQuantityByItemId.put(itemRequest.orderItemId(), accumulatedQuantity);
+            }
+        }
+
+        if (requestedQuantityByItemId.isEmpty()) {
+            throw new ConflictException("At least one dish must be assigned back to a member table");
+        }
     }
 
     private void ensureStandaloneTable(RestaurantTable table, String label) {

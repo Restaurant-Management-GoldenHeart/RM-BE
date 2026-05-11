@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.goldenheartrestaurant.modules.menu.entity.Recipe;
+import org.example.goldenheartrestaurant.modules.restaurant.entity.Branch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ import java.util.List;
 @Table(
         name = "ingredients",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_ingredients_name", columnNames = "name")
+                @UniqueConstraint(name = "uk_ingredients_branch_name", columnNames = {"branch_id", "name"})
         }
 )
 @Getter
@@ -41,8 +42,12 @@ public class Ingredient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 100, unique = true)
+    @Column(nullable = false, length = 100)
     private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_id")

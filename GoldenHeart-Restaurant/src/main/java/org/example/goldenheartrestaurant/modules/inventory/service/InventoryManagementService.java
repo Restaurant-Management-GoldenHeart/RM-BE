@@ -232,7 +232,7 @@ public class InventoryManagementService {
         Branch branch = resolveBranch(request.branchId());
         MeasurementUnit unit = resolveMeasurementUnit(request.unitId());
         User actor = resolveActor(currentUser.getUserId());
-        Ingredient ingredient = resolveOrCreateIngredient(request.ingredientName(), unit);
+        Ingredient ingredient = resolveOrCreateIngredient(branch, request.ingredientName(), unit);
 
         if (inventoryRepository.findByBranchIdAndIngredientId(branch.getId(), ingredient.getId()).isPresent()) {
             // Cùng 1 chi nhánh không được có 2 inventory active cho cùng 1 ingredient.
@@ -310,7 +310,8 @@ public class InventoryManagementService {
 
         if (StringUtils.hasText(request.ingredientName())) {
             String normalizedIngredientName = request.ingredientName().trim();
-            if (ingredientRepository.existsByNameIgnoreCaseAndIdNot(normalizedIngredientName, ingredient.getId())) {
+            Integer branchId = inventory.getBranch().getId();
+            if (ingredientRepository.existsByBranchIdAndNameIgnoreCaseAndIdNot(branchId, normalizedIngredientName, ingredient.getId())) {
                 throw new ConflictException("Ingredient name already exists");
             }
             ingredient.setName(normalizedIngredientName);
@@ -512,12 +513,10 @@ public class InventoryManagementService {
                 .orElseThrow(() -> new NotFoundException("Measurement unit not found"));
     }
 
-    private Ingredient resolveOrCreateIngredient(String ingredientName, MeasurementUnit unit) {
+    private Ingredient resolveOrCreateIngredient(Branch branch, String ingredientName, MeasurementUnit unit) {
         String normalizedName = ingredientName.trim();
 
-        // Giu Ingredient lam master dung chung cho recipe/menu de khong pha vo luong bep dang chay on.
-        // FE se lay danh sach nguyen lieu qua inventory API, nhung recipe van tham chieu Ingredient.
-        return ingredientRepository.findByNameIgnoreCase(normalizedName)
+        return ingredientRepository.findByBranchIdAndNameIgnoreCase(branch.getId(), normalizedName)
                 .map(existingIngredient -> {
                     Integer existingUnitId = existingIngredient.getMeasurementUnit() != null ? existingIngredient.getMeasurementUnit().getId() : null;
                     if (existingUnitId != null && !existingUnitId.equals(unit.getId())) {
@@ -532,6 +531,7 @@ public class InventoryManagementService {
                 .orElseGet(() -> ingredientRepository.save(
                         Ingredient.builder()
                                 .name(normalizedName)
+                                .branch(branch)
                                 .measurementUnit(unit)
                                 .legacyUnit(unit.getSymbol())
                                 .build()

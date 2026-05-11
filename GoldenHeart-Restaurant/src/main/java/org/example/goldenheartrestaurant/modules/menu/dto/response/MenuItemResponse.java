@@ -13,6 +13,8 @@ public record MenuItemResponse(
         String description,
         BigDecimal price,
         String status,
+        String effectiveStatus,
+        boolean effectiveAvailable,
         List<RecipeResponse> recipes
 ) {
 }

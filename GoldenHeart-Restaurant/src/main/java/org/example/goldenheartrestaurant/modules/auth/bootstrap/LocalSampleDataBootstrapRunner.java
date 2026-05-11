@@ -113,6 +113,7 @@ public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
         Ingredient beef = ingredientRepository.save(
                 Ingredient.builder()
                         .name("Beef")
+                        .branch(branch)
                         .measurementUnit(kgUnit)
                         .legacyUnit(kgUnit.getSymbol())
                         .build()
@@ -121,6 +122,7 @@ public class LocalSampleDataBootstrapRunner implements ApplicationRunner {
         Ingredient noodle = ingredientRepository.save(
                 Ingredient.builder()
                         .name("Rice Noodle")
+                        .branch(branch)
                         .measurementUnit(kgUnit)
                         .legacyUnit(kgUnit.getSymbol())
                         .build()

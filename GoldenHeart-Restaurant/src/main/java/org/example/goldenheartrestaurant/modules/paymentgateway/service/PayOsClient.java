@@ -14,6 +14,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 public class PayOsClient {
@@ -35,7 +37,25 @@ public class PayOsClient {
         );
     }
 
+    public PayOsResponse<Map<String, Object>> confirmWebhook(String webhookUrl) {
+        return executePost(
+                "/confirm-webhook",
+                Map.of("webhookUrl", webhookUrl),
+                new org.springframework.core.ParameterizedTypeReference<>() {}
+        );
+    }
+
     private PayOsResponse<PayOsPaymentLinkData> executePost(String path, Object body) {
+        return executePost(
+                path,
+                body,
+                new org.springframework.core.ParameterizedTypeReference<>() {}
+        );
+    }
+
+    private <T> PayOsResponse<T> executePost(String path,
+                                             Object body,
+                                             org.springframework.core.ParameterizedTypeReference<PayOsResponse<T>> responseType) {
         try {
             RestClient.RequestBodySpec request = buildRestClient().post()
                     .uri(path)
@@ -49,7 +69,7 @@ public class PayOsClient {
             return request
                     .body(body)
                     .retrieve()
-                    .body(new org.springframework.core.ParameterizedTypeReference<>() {});
+                    .body(responseType);
         } catch (RestClientResponseException exception) {
             throw new ConflictException("payOS request failed: " + exception.getResponseBodyAsString());
         }

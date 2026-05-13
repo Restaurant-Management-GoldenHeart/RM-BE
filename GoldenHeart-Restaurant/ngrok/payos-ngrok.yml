@@ -1,0 +1,11 @@
+version: 3
+
+agent:
+  authtoken: 3DT2nrktDZ28Sn6j76HnVhjkhZL_yZ1YJQRwGJPQjUmsJo3Q
+
+endpoints:
+  - name: goldenheart-payos-be
+    url: https://overload-stopper-substance.ngrok-free.dev
+    upstream:
+      url: http://127.0.0.1:1010
+      protocol: http1

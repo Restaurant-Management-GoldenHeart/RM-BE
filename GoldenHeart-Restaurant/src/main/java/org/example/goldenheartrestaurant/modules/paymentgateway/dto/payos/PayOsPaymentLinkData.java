@@ -1,9 +1,11 @@
 package org.example.goldenheartrestaurant.modules.paymentgateway.dto.payos;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record PayOsPaymentLinkData(
+        @JsonAlias({"id", "paymentLinkId"})
         String id,
         Long orderCode,
         Integer amount,

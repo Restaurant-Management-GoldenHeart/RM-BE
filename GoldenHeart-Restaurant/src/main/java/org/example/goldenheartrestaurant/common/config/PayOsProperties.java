@@ -16,19 +16,19 @@ public class PayOsProperties {
 
     private boolean enabled = false;
 
-    private String clientId;
+    private String clientId = "a703d984-ca43-4ae5-a473-c9c2fcdc13fa";
 
-    private String apiKey;
+    private String apiKey = "930b93d0-865d-407c-b732-951c920c13cb";
 
-    private String checksumKey;
+    private String checksumKey = "a593dc88b912f7d89681061d22ca8b15c33e33d352f3057725911c27aafabd72";
 
     private String baseUrl = "https://api-merchant.payos.vn";
 
-    private String returnUrl = "http://localhost:3000/payment-success";
+    private String returnUrl = "http://localhost:5173/payment-success";
 
-    private String cancelUrl = "http://localhost:3000/payment-cancel";
+    private String cancelUrl = "http://localhost:5173/payment-cancel";
 
-    private String webhookUrl = "http://localhost:1010/api/v1/payment-gateways/payos/webhook";
+    private String webhookUrl = "";
 
     private String partnerCode;
 

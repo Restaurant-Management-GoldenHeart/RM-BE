@@ -88,6 +88,8 @@ public class PaymentGatewayService {
                 .atZone(ZoneId.systemDefault())
                 .toEpochSecond();
 
+        confirmWebhookUrlIfConfigured();
+
         PayOsCreatePaymentLinkRequest payOsRequest = new PayOsCreatePaymentLinkRequest(
                 providerOrderCode,
                 amount,
@@ -133,6 +135,7 @@ public class PaymentGatewayService {
         billingService.getBillEntityById(billId, currentUser);
 
         PaymentGatewayTransaction latestTransaction = findLatestTransactionByBillId(billId);
+        latestTransaction = syncTransactionWithProviderIfPending(latestTransaction);
         latestTransaction = expireIfNeeded(latestTransaction);
         return latestTransaction != null ? toResponse(latestTransaction) : null;
     }
@@ -176,6 +179,7 @@ public class PaymentGatewayService {
         PaymentGatewayTransaction transaction = paymentGatewayTransactionRepository.findDetailById(transactionId)
                 .orElseThrow(() -> new NotFoundException("Payment gateway transaction not found"));
         billingService.getBillEntityById(transaction.getBill().getId(), currentUser);
+        transaction = syncTransactionWithProviderIfPending(transaction);
         transaction = expireIfNeeded(transaction);
         return toResponse(transaction);
     }
@@ -195,7 +199,11 @@ public class PaymentGatewayService {
                         PaymentGatewayProvider.PAYOS,
                         request.data().orderCode()
                 )
-                .orElseThrow(() -> new NotFoundException("Payment gateway transaction not found"));
+                .orElse(null);
+
+        if (transaction == null) {
+            return new PayOsWebhookAckResponse(true, "payOS webhook accepted for an untracked transaction");
+        }
 
         transaction.setWebhookPayload(writePayloadSafely(request));
         transaction.setProviderReference(request.data().reference());
@@ -269,6 +277,67 @@ public class PaymentGatewayService {
                 .orElse(null);
     }
 
+    private void confirmWebhookUrlIfConfigured() {
+        if (!StringUtils.hasText(payOsProperties.getWebhookUrl())) {
+            return;
+        }
+
+        PayOsResponse<java.util.Map<String, Object>> response = payOsClient.confirmWebhook(payOsProperties.getWebhookUrl().trim());
+        if (response == null || !"00".equals(response.code())) {
+            throw new ConflictException("payOS webhook URL could not be confirmed");
+        }
+    }
+
+    private PaymentGatewayTransaction syncTransactionWithProviderIfPending(PaymentGatewayTransaction transaction) {
+        if (transaction == null || transaction.getStatus() != PaymentGatewayTransactionStatus.PENDING) {
+            return transaction;
+        }
+
+        PayOsResponse<PayOsPaymentLinkData> payOsResponse = payOsClient.getPaymentLink(resolveProviderIdentifier(transaction));
+        PayOsPaymentLinkData payOsData = requirePayOsData(payOsResponse);
+
+        transaction.setProviderCode(payOsResponse.code());
+        transaction.setProviderMessage(payOsResponse.desc());
+        if (StringUtils.hasText(payOsData.id())) {
+            transaction.setProviderPaymentLinkId(payOsData.id());
+        }
+        if (StringUtils.hasText(payOsData.checkoutUrl())) {
+            transaction.setCheckoutUrl(payOsData.checkoutUrl());
+        }
+        if (StringUtils.hasText(payOsData.qrCode())) {
+            transaction.setQrCode(payOsData.qrCode());
+        }
+        if (StringUtils.hasText(payOsData.deepLink())) {
+            transaction.setDeepLink(payOsData.deepLink());
+        }
+        if (payOsData.expiredAt() != null) {
+            transaction.setExpiredAt(resolveExpiredAt(payOsData.expiredAt(), payOsData.expiredAt()));
+        }
+
+        BigDecimal providerPaidAmount = resolveProviderPaidAmount(payOsData, transaction);
+        if (providerPaidAmount.compareTo(BigDecimal.ZERO) > 0) {
+            transaction.setPaidAmount(providerPaidAmount);
+        }
+
+        String providerStatus = normalizeProviderStatus(payOsData.status());
+        if ("PAID".equals(providerStatus) || providerPaidAmount.compareTo(transaction.getRequestedAmount()) >= 0) {
+            return settleConfirmedProviderTransaction(transaction, providerPaidAmount);
+        }
+        if ("CANCELLED".equals(providerStatus)) {
+            transaction.setStatus(PaymentGatewayTransactionStatus.CANCELLED);
+            transaction.setCancelledAt(LocalDateTime.now());
+            transaction.setFailureReason("payOS payment link was cancelled");
+            return paymentGatewayTransactionRepository.save(transaction);
+        }
+        if ("EXPIRED".equals(providerStatus)) {
+            transaction.setStatus(PaymentGatewayTransactionStatus.EXPIRED);
+            transaction.setFailureReason("payOS payment link expired on provider");
+            return paymentGatewayTransactionRepository.save(transaction);
+        }
+
+        return paymentGatewayTransactionRepository.save(transaction);
+    }
+
     private PaymentGatewayTransaction expireIfNeeded(PaymentGatewayTransaction transaction) {
         if (transaction == null
                 || transaction.getStatus() != PaymentGatewayTransactionStatus.PENDING
@@ -279,6 +348,41 @@ public class PaymentGatewayService {
 
         transaction.setStatus(PaymentGatewayTransactionStatus.EXPIRED);
         transaction.setFailureReason("payOS QR request expired");
+        return paymentGatewayTransactionRepository.save(transaction);
+    }
+
+    private PaymentGatewayTransaction settleConfirmedProviderTransaction(PaymentGatewayTransaction transaction,
+                                                                         BigDecimal paidAmount) {
+        BigDecimal effectivePaidAmount = paidAmount.compareTo(BigDecimal.ZERO) > 0 ? paidAmount : transaction.getRequestedAmount();
+        if (transaction.getBill().getStatus() == BillStatus.PAID) {
+            transaction.setStatus(PaymentGatewayTransactionStatus.PAID);
+            transaction.setPaidAmount(effectivePaidAmount);
+            if (transaction.getConfirmedAt() == null) {
+                transaction.setConfirmedAt(LocalDateTime.now());
+            }
+            return paymentGatewayTransactionRepository.save(transaction);
+        }
+
+        BigDecimal expectedAmount = calculateRemainingAmount(transaction.getBill());
+        if (effectivePaidAmount.compareTo(expectedAmount) != 0) {
+            transaction.setStatus(PaymentGatewayTransactionStatus.FAILED);
+            transaction.setFailureReason("payOS amount does not match the current remaining bill amount");
+            transaction.setPaidAmount(effectivePaidAmount);
+            return paymentGatewayTransactionRepository.save(transaction);
+        }
+
+        Payment payment = billingService.recordConfirmedGatewayPayment(
+                transaction.getBill().getId(),
+                effectivePaidAmount,
+                PaymentMethod.PAYOS_QR,
+                LocalDateTime.now()
+        );
+
+        transaction.setPayment(payment);
+        transaction.setPaidAmount(effectivePaidAmount);
+        transaction.setStatus(PaymentGatewayTransactionStatus.PAID);
+        transaction.setConfirmedAt(payment.getPaidAt());
+        transaction.setFailureReason(null);
         return paymentGatewayTransactionRepository.save(transaction);
     }
 
@@ -395,6 +499,21 @@ public class PaymentGatewayService {
 
     private BigDecimal toBigDecimal(Integer amount) {
         return amount == null ? BigDecimal.ZERO : BigDecimal.valueOf(amount.longValue());
+    }
+
+    private BigDecimal resolveProviderPaidAmount(PayOsPaymentLinkData payOsData, PaymentGatewayTransaction transaction) {
+        BigDecimal paidAmount = toBigDecimal(payOsData.amountPaid());
+        if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+            return paidAmount;
+        }
+        if ("PAID".equals(normalizeProviderStatus(payOsData.status()))) {
+            return payOsData.amount() != null ? toBigDecimal(payOsData.amount()) : transaction.getRequestedAmount();
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private String normalizeProviderStatus(String rawStatus) {
+        return StringUtils.hasText(rawStatus) ? rawStatus.trim().toUpperCase() : "";
     }
 
     private String writePayloadSafely(Object payload) {

@@ -8,6 +8,14 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 
+/**
+ * Nhóm cấu hình dành riêng cho tích hợp payOS.
+ *
+ * Tách riêng thành {@code ConfigurationProperties} giúp:
+ * - service thanh toán không phải hard-code URL, timeout hay credential
+ * - mỗi môi trường có thể override qua env hoặc file cấu hình
+ * - các lớp như startup logger, client và payment gateway cùng đọc một nguồn thống nhất
+ */
 @Getter
 @Setter
 @Validated

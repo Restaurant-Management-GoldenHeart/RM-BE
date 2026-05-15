@@ -120,6 +120,7 @@ public class BillingService {
         Order order = orderManagementService.findOrderEntityById(request.orderId());
         enforceBillingScope(order, currentUser);
         ensureOrderReadyForCheckout(order);
+        User actor = requireCurrentUserEntity(currentUser);
 
         Bill existingBill = findLatestBillByOrderId(order.getId());
         if (existingBill != null && existingBill.getStatus() == BillStatus.PAID) {
@@ -152,8 +153,13 @@ public class BillingService {
 
         Bill bill = existingBill != null ? existingBill : Bill.builder()
                 .order(order)
+                .createdBy(actor)
                 .status(BillStatus.UNPAID)
                 .build();
+
+        if (bill.getCreatedBy() == null) {
+            bill.setCreatedBy(actor);
+        }
 
         // Giá vốn hàng bán được lấy từ stock movement đã trừ trong luồng bếp.
         // Nhờ vậy báo cáo lợi nhuận bám sát dữ liệu vận hành thực tế hơn là dùng ước lượng.
@@ -578,6 +584,8 @@ public class BillingService {
 
     private BillHistoryItemResponse toHistoryItemResponse(Bill bill) {
         Customer customer = bill.getOrder().getCustomer();
+        User orderCreator = bill.getOrder().getCreatedBy();
+        User billCreator = bill.getCreatedBy();
         List<Payment> sortedPayments = bill.getPayments().stream()
                 .sorted(Comparator.comparing(Payment::getPaidAt))
                 .toList();
@@ -597,6 +605,10 @@ public class BillingService {
                 bill.getOrder().getTable() != null ? bill.getOrder().getTable().getTableNumber() : null,
                 customer != null ? customer.getId() : null,
                 customer != null ? customer.getName() : null,
+                orderCreator != null ? orderCreator.getId() : null,
+                resolveDisplayName(orderCreator),
+                billCreator != null ? billCreator.getId() : null,
+                resolveDisplayName(billCreator != null ? billCreator : orderCreator),
                 bill.getStatus().name(),
                 nonNegative(bill.getTotal()),
                 paidAmount(bill),
@@ -641,12 +653,26 @@ public class BillingService {
     }
 
     private Integer getAssignedBranchId(CustomUserDetails currentUser) {
-        User currentUserEntity = userRepository.findEmployeeDetailById(currentUser.getUserId())
-                .orElseThrow(() -> new NotFoundException("Current user not found"));
+        User currentUserEntity = requireCurrentUserEntity(currentUser);
         if (currentUserEntity.getProfile() == null || currentUserEntity.getProfile().getBranch() == null) {
             throw new ForbiddenException("Your account is not assigned to any branch");
         }
         return currentUserEntity.getProfile().getBranch().getId();
+    }
+
+    private User requireCurrentUserEntity(CustomUserDetails currentUser) {
+        return userRepository.findEmployeeDetailById(currentUser.getUserId())
+                .orElseThrow(() -> new NotFoundException("Current user not found"));
+    }
+
+    private String resolveDisplayName(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getProfile() != null && StringUtils.hasText(user.getProfile().getFullName())) {
+            return user.getProfile().getFullName().trim();
+        }
+        return StringUtils.hasText(user.getUsername()) ? user.getUsername().trim() : null;
     }
 
     private String normalizeKeyword(String keyword) {

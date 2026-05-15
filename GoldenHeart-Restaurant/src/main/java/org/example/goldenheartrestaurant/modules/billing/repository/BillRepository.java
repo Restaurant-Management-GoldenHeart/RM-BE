@@ -24,6 +24,10 @@ public interface BillRepository extends JpaRepository<Bill, Integer> {
             join fetch b.order o
             left join fetch o.table
             left join fetch o.customer
+            join fetch o.createdBy ocb
+            left join fetch ocb.profile
+            left join fetch b.createdBy bcb
+            left join fetch bcb.profile
             left join fetch b.appliedCustomerTier
             left join fetch b.payments p
             where b.id = :billId
@@ -36,6 +40,10 @@ public interface BillRepository extends JpaRepository<Bill, Integer> {
             join fetch b.order o
             left join fetch o.table
             left join fetch o.customer
+            join fetch o.createdBy ocb
+            left join fetch ocb.profile
+            left join fetch b.createdBy bcb
+            left join fetch bcb.profile
             left join fetch b.appliedCustomerTier
             left join fetch b.payments p
             where o.id = :orderId
@@ -50,6 +58,10 @@ public interface BillRepository extends JpaRepository<Bill, Integer> {
             join fetch o.branch
             left join fetch o.table
             left join fetch o.customer
+            join fetch o.createdBy ocb
+            left join fetch ocb.profile
+            left join fetch b.createdBy bcb
+            left join fetch bcb.profile
             left join fetch b.appliedCustomerTier
             left join fetch b.payments p
             where b.id in :billIds

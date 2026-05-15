@@ -3,6 +3,7 @@ package org.example.goldenheartrestaurant.modules.paymentgateway.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.goldenheartrestaurant.common.config.PayOsProperties;
 import org.example.goldenheartrestaurant.common.exception.BadRequestException;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
@@ -43,8 +44,21 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
+/**
+ * Service điều phối toàn bộ luồng payOS.
+ *
+ * Nguyên tắc quan trọng của lớp này:
+ * - QR payOS chỉ đại diện cho một phiên thu tiền với provider
+ * - tiền đã nhận thật chỉ được công nhận khi tạo {@link Payment} nội bộ thành công
+ * - mọi lần đối soát với provider đều phải kiểm tra lại số tiền còn phải thu hiện tại
+ *
+ * Nói ngắn gọn:
+ * transaction payOS là trạng thái bên ngoài,
+ * còn {@link Payment} của billing mới là sự thật bên trong hệ thống.
+ */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentGatewayService {
 
     private static final DateTimeFormatter PAYOS_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -67,12 +81,17 @@ public class PaymentGatewayService {
             throw new ConflictException("Bill is already fully paid");
         }
 
+        // Một bill tại một thời điểm chỉ được phép tồn tại một QR đang chờ.
+        // Nếu QR cũ đã hết hạn thì expire trước, nếu vẫn PENDING thì chặn tạo mới.
         PaymentGatewayTransaction activeTransaction = findLatestTransactionByBillId(billId);
         activeTransaction = expireIfNeeded(activeTransaction);
         if (activeTransaction != null && activeTransaction.getStatus() == PaymentGatewayTransactionStatus.PENDING) {
             throw new ConflictException("Bill already has an active payOS QR request");
         }
 
+        // Số tiền gửi lên payOS phải đúng với phần còn lại của bill ngay lúc tạo QR.
+        // Cách này tránh việc tổng order gốc lệch với tổng tiền thật sau discount, tax
+        // hoặc sau một đợt thanh toán một phần trước đó.
         BigDecimal remainingAmount = calculateRemainingAmount(bill);
         if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ConflictException("Bill has no remaining amount for payOS payment");
@@ -88,8 +107,12 @@ public class PaymentGatewayService {
                 .atZone(ZoneId.systemDefault())
                 .toEpochSecond();
 
+        // Có webhook công khai thì cố gắng confirm trước để callback đến đúng endpoint.
+        // Không confirm được vẫn cho tạo QR và để luồng polling/reconcile xử lý tiếp.
         confirmWebhookUrlIfConfigured();
 
+        // Payload gửi sang payOS chỉ gồm một dòng tổng hợp.
+        // Đây là cách an toàn nhất để amount bên provider khớp với remainingAmount hiện tại.
         PayOsCreatePaymentLinkRequest payOsRequest = new PayOsCreatePaymentLinkRequest(
                 providerOrderCode,
                 amount,
@@ -107,6 +130,11 @@ public class PaymentGatewayService {
         PayOsResponse<PayOsPaymentLinkData> payOsResponse = payOsClient.createPaymentLink(payOsRequest);
         PayOsPaymentLinkData payOsData = requirePayOsData(payOsResponse);
 
+        // Lưu lại toàn bộ metadata cần cho POS:
+        // - link checkout
+        // - QR payload
+        // - thời điểm hết hạn
+        // - mã tham chiếu phía provider để polling, cancel và webhook đối soát.
         PaymentGatewayTransaction transaction = PaymentGatewayTransaction.builder()
                 .bill(bill)
                 .provider(PaymentGatewayProvider.PAYOS)
@@ -134,6 +162,8 @@ public class PaymentGatewayService {
         ensurePayOsEnabled();
         billingService.getBillEntityById(billId, currentUser);
 
+        // Mỗi lần đọc QR hiện tại đều cho phép hệ thống tự động đối soát lại với provider
+        // để frontend nhìn thấy trạng thái mới nhất mà không cần đợi webhook.
         PaymentGatewayTransaction latestTransaction = findLatestTransactionByBillId(billId);
         latestTransaction = syncTransactionWithProviderIfPending(latestTransaction);
         latestTransaction = expireIfNeeded(latestTransaction);
@@ -191,6 +221,8 @@ public class PaymentGatewayService {
         if (request == null || request.data() == null) {
             throw new BadRequestException("Invalid payOS webhook payload");
         }
+        // Webhook chỉ hợp lệ khi chữ ký đúng.
+        // Nếu bỏ qua bước này, bất kỳ ai biết endpoint đều có thể giả callback thành công.
         if (!payOsSignatureService.isValidWebhookSignature(request.data(), request.signature())) {
             throw new BadRequestException("Invalid payOS webhook signature");
         }
@@ -201,10 +233,13 @@ public class PaymentGatewayService {
                 )
                 .orElse(null);
 
+        // Trả ack sớm cho callback của giao dịch không nằm trong DB để payOS không retry vô hạn.
         if (transaction == null) {
             return new PayOsWebhookAckResponse(true, "payOS webhook accepted for an untracked transaction");
         }
 
+        // Lưu lại payload và metadata provider trước, kể cả khi callback này về trạng thái fail.
+        // Việc này giúp debug và đối soát lại dữ liệu sau này.
         transaction.setWebhookPayload(writePayloadSafely(request));
         transaction.setProviderReference(request.data().reference());
         transaction.setProviderCode(request.data().code());
@@ -213,11 +248,13 @@ public class PaymentGatewayService {
             transaction.setProviderPaymentLinkId(request.data().paymentLinkId());
         }
 
+        // Nếu đã xử lý thành công trước đó thì webhook lặp lại phải trở thành idempotent.
         if (transaction.getStatus() == PaymentGatewayTransactionStatus.PAID) {
             paymentGatewayTransactionRepository.save(transaction);
             return new PayOsWebhookAckResponse(true, "payOS webhook already processed");
         }
 
+        // payOS báo thất bại thì chỉ ghi nhận vào transaction, không được tự ý tạo Payment nội bộ.
         if (!Boolean.TRUE.equals(request.success()) || !"00".equals(request.data().code())) {
             transaction.setStatus(PaymentGatewayTransactionStatus.FAILED);
             transaction.setFailureReason(request.data().desc());
@@ -226,6 +263,8 @@ public class PaymentGatewayService {
         }
 
         BigDecimal paidAmount = toBigDecimal(request.data().amount());
+        // Nếu bill đã PAID bằng một kênh khác trước khi webhook này về,
+        // callback phải được đánh dấu failed để tránh nhận đôi tiền.
         if (transaction.getBill().getStatus() == BillStatus.PAID) {
             transaction.setStatus(PaymentGatewayTransactionStatus.FAILED);
             transaction.setFailureReason("Bill was already paid before this payOS callback was processed");
@@ -234,6 +273,8 @@ public class PaymentGatewayService {
             return new PayOsWebhookAckResponse(true, "Bill was already paid before payOS callback");
         }
 
+        // Số tiền callback phải khớp với số tiền còn phải thu tại thời điểm xử lý.
+        // Nếu không khớp, hệ thống chỉ đánh dấu lỗi để nhân viên/quản lý đối soát tay.
         BigDecimal expectedAmount = calculateRemainingAmount(transaction.getBill());
         if (paidAmount.compareTo(expectedAmount) != 0) {
             transaction.setStatus(PaymentGatewayTransactionStatus.FAILED);
@@ -243,6 +284,7 @@ public class PaymentGatewayService {
             return new PayOsWebhookAckResponse(true, "payOS amount mismatch recorded");
         }
 
+        // Đây mới là điểm biến thanh toán provider thành Payment nội bộ của hệ thống.
         Payment payment = billingService.recordConfirmedGatewayPayment(
                 transaction.getBill().getId(),
                 paidAmount,
@@ -282,9 +324,15 @@ public class PaymentGatewayService {
             return;
         }
 
-        PayOsResponse<java.util.Map<String, Object>> response = payOsClient.confirmWebhook(payOsProperties.getWebhookUrl().trim());
-        if (response == null || !"00".equals(response.code())) {
-            throw new ConflictException("payOS webhook URL could not be confirmed");
+        String webhookUrl = payOsProperties.getWebhookUrl().trim();
+
+        try {
+            PayOsResponse<java.util.Map<String, Object>> response = payOsClient.confirmWebhook(webhookUrl);
+            if (response == null || !"00".equals(response.code())) {
+                log.warn("[PAYOS] Webhook URL confirmation returned non-success for {}. QR creation will continue and rely on polling/reconcile.", webhookUrl);
+            }
+        } catch (ConflictException exception) {
+            log.warn("[PAYOS] Webhook URL confirmation failed for {}. QR creation will continue and rely on polling/reconcile. Cause: {}", webhookUrl, exception.getMessage());
         }
     }
 
@@ -293,6 +341,10 @@ public class PaymentGatewayService {
             return transaction;
         }
 
+        // Polling lấy dữ liệu mới nhất từ provider để POS có thể:
+        // - thấy QR đã bị huỷ
+        // - thấy link đã hết hạn
+        // - thấy provider đã thu tiền dù webhook chưa kịp về
         PayOsResponse<PayOsPaymentLinkData> payOsResponse = payOsClient.getPaymentLink(resolveProviderIdentifier(transaction));
         PayOsPaymentLinkData payOsData = requirePayOsData(payOsResponse);
 
@@ -320,6 +372,9 @@ public class PaymentGatewayService {
         }
 
         String providerStatus = normalizeProviderStatus(payOsData.status());
+        // Có 2 dấu hiệu đủ để xem như đã thu tiền:
+        // - provider trả status PAID
+        // - hoặc số tiền đã thu >= requestedAmount
         if ("PAID".equals(providerStatus) || providerPaidAmount.compareTo(transaction.getRequestedAmount()) >= 0) {
             return settleConfirmedProviderTransaction(transaction, providerPaidAmount);
         }
@@ -346,6 +401,7 @@ public class PaymentGatewayService {
             return transaction;
         }
 
+        // Hệ thống tự đánh dấu hết hạn để frontend không tiếp tục coi QR cũ là còn dùng được.
         transaction.setStatus(PaymentGatewayTransactionStatus.EXPIRED);
         transaction.setFailureReason("payOS QR request expired");
         return paymentGatewayTransactionRepository.save(transaction);
@@ -353,6 +409,8 @@ public class PaymentGatewayService {
 
     private PaymentGatewayTransaction settleConfirmedProviderTransaction(PaymentGatewayTransaction transaction,
                                                                          BigDecimal paidAmount) {
+        // Provider có lúc không trả amountPaid rõ ràng trong mọi API đọc.
+        // Khi đó fallback về requestedAmount để xử lý tiếp theo cùng một công thức.
         BigDecimal effectivePaidAmount = paidAmount.compareTo(BigDecimal.ZERO) > 0 ? paidAmount : transaction.getRequestedAmount();
         if (transaction.getBill().getStatus() == BillStatus.PAID) {
             transaction.setStatus(PaymentGatewayTransactionStatus.PAID);
@@ -363,6 +421,7 @@ public class PaymentGatewayService {
             return paymentGatewayTransactionRepository.save(transaction);
         }
 
+        // Với polling reconcile, vẫn phải lặp lại rule amount-match y như webhook.
         BigDecimal expectedAmount = calculateRemainingAmount(transaction.getBill());
         if (effectivePaidAmount.compareTo(expectedAmount) != 0) {
             transaction.setStatus(PaymentGatewayTransactionStatus.FAILED);
@@ -426,9 +485,11 @@ public class PaymentGatewayService {
     }
 
     private List<PayOsItemRequest> buildItems(Bill bill, BigDecimal remainingAmount) {
-        // payOS should receive the same amount this bill is currently collecting.
-        // A single aggregate line avoids mismatches once discounts, tax, or prior
-        // payments make the remaining payable amount diverge from raw order items.
+        // Gửi một dòng tổng hợp thay vì từng món.
+        // Lý do:
+        // - tổng tiền bill có thể đã thay đổi bởi tax, discount, loyalty
+        // - bill có thể đã thu một phần trước đó
+        // - provider chỉ cần biết số tiền phiên này cần thu, không cần hiểu chi tiết từng món
         return List.of(
                 new PayOsItemRequest(
                         buildAggregateItemName(bill),
@@ -490,6 +551,8 @@ public class PaymentGatewayService {
     }
 
     private BigDecimal calculateRemainingAmount(Bill bill) {
+        // Tính trực tiếp trên bill đang load để luồng payment gateway
+        // luôn dựa trên số liệu hiện tại nhất của backend.
         BigDecimal paidAmount = bill.getPayments().stream()
                 .map(Payment::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

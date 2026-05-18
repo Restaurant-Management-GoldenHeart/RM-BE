@@ -11,12 +11,15 @@ import org.example.goldenheartrestaurant.modules.billing.dto.response.BillHistor
 import org.example.goldenheartrestaurant.modules.billing.dto.response.BillResponse;
 import org.example.goldenheartrestaurant.modules.billing.dto.response.CheckoutPreviewResponse;
 import org.example.goldenheartrestaurant.modules.billing.entity.BillStatus;
+import org.example.goldenheartrestaurant.modules.billing.service.BillInvoiceService;
 import org.example.goldenheartrestaurant.modules.billing.service.BillingService;
 import org.example.goldenheartrestaurant.modules.paymentgateway.dto.request.CancelPayOsQrRequest;
 import org.example.goldenheartrestaurant.modules.paymentgateway.dto.request.CreatePayOsQrRequest;
 import org.example.goldenheartrestaurant.modules.paymentgateway.dto.response.PaymentGatewayTransactionResponse;
 import org.example.goldenheartrestaurant.modules.paymentgateway.service.PaymentGatewayService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,6 +41,7 @@ import java.time.LocalDate;
 public class BillingController {
 
     private final BillingService billingService;
+    private final BillInvoiceService billInvoiceService;
     private final PaymentGatewayService paymentGatewayService;
 
     @GetMapping("/preview")
@@ -87,8 +91,22 @@ public class BillingController {
                 ApiResponse.<BillResponse>builder()
                         .message("Bill retrieved successfully")
                         .data(billingService.getBillById(billId, currentUser))
-                        .build()
+                .build()
         );
+    }
+
+    @GetMapping(value = "/{billId}/invoice.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF"})
+    public ResponseEntity<byte[]> downloadBillInvoicePdf(
+            @PathVariable Integer billId,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        byte[] pdfBytes = billInvoiceService.generateInvoicePdf(billId, currentUser);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + billInvoiceService.buildInvoiceFilename(billId) + "\"")
+                .body(pdfBytes);
     }
 
     @PostMapping

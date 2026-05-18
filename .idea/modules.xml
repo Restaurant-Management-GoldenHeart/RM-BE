@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GoldenHeart-Restaurant.main.iml" filepath="$PROJECT_DIR$/.idea/modules/GoldenHeart-Restaurant.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/GoldenHeart-Restaurant.test.iml" filepath="$PROJECT_DIR$/.idea/modules/GoldenHeart-Restaurant.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/RM-BE.iml" filepath="$PROJECT_DIR$/.idea/RM-BE.iml" />
     </modules>
   </component>

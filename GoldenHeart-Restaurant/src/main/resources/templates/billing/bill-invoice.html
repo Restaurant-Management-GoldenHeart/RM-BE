@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        @page {
+            size: A4;
+            margin: 16mm;
+        }
+
+        body {
+            font-family: "InvoiceSans", sans-serif;
+            color: #0f172a;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .page {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 24px;
+            background: #ffffff;
+        }
+
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 22px;
+        }
+
+        .header-left,
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin: 0 0 6px;
+        }
+
+        h1,
+        h2,
+        p {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 26px;
+            line-height: 1.2;
+        }
+
+        .branch {
+            margin-top: 8px;
+            color: #475569;
+        }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+        }
+
+        .meta-grid {
+            display: table;
+            width: 100%;
+            margin-bottom: 22px;
+        }
+
+        .meta-col {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding-right: 14px;
+        }
+
+        .meta-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px 16px;
+            min-height: 108px;
+            background: #f8fafc;
+        }
+
+        .meta-row + .meta-row {
+            margin-top: 10px;
+        }
+
+        .meta-label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #64748b;
+            margin-bottom: 3px;
+        }
+
+        .meta-value {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .items-table thead th {
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: #64748b;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 10px 12px;
+            background: #f8fafc;
+        }
+
+        .items-table tbody td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+            vertical-align: top;
+        }
+
+        .items-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .number {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .qty {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .note {
+            margin-top: 4px;
+            color: #b45309;
+            font-size: 10px;
+            font-style: italic;
+        }
+
+        .bottom-grid {
+            display: table;
+            width: 100%;
+            margin-top: 22px;
+        }
+
+        .bottom-left,
+        .bottom-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+
+        .bottom-left {
+            width: 54%;
+            padding-right: 18px;
+        }
+
+        .bottom-right {
+            width: 46%;
+        }
+
+        .payment-card,
+        .summary-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .section-title {
+            margin-bottom: 10px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        .payment-item + .payment-item {
+            margin-top: 8px;
+        }
+
+        .payment-methods {
+            margin-top: 12px;
+            color: #475569;
+        }
+
+        .summary-row {
+            display: table;
+            width: 100%;
+        }
+
+        .summary-row + .summary-row {
+            margin-top: 8px;
+        }
+
+        .summary-row span {
+            display: table-cell;
+        }
+
+        .summary-row span:last-child {
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .discount {
+            color: #b91c1c;
+        }
+
+        .total-row {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed #cbd5e1;
+        }
+
+        .total-row span {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <div class="header-left">
+            <p class="eyebrow">GoldenHeart POS</p>
+            <h1 th:text="${invoice.restaurantName}">GoldenHeart Restaurant</h1>
+            <p class="branch" th:text="${invoice.branchName}">Chi nhánh Quận 1</p>
+            <p class="branch" th:text="${invoice.branchAddress}">Địa chỉ</p>
+            <p class="branch">Điện thoại: <span th:text="${invoice.branchPhone}">--</span></p>
+        </div>
+        <div class="header-right">
+            <span class="status-chip">Đã thanh toán</span>
+            <p class="eyebrow" style="margin-top: 14px;">Mã hóa đơn</p>
+            <h2 th:text="'#' + ${invoice.billId}">#1</h2>
+        </div>
+    </div>
+
+    <div class="meta-grid">
+        <div class="meta-col">
+            <div class="meta-card">
+                <div class="meta-row">
+                    <span class="meta-label">Mã order</span>
+                    <span class="meta-value" th:text="'#' + ${invoice.orderId}">#10</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Bàn</span>
+                    <span class="meta-value" th:text="${invoice.tableName}">T01</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Khách hàng</span>
+                    <span class="meta-value" th:text="${invoice.customerName}">Khách lẻ</span>
+                </div>
+            </div>
+        </div>
+        <div class="meta-col">
+            <div class="meta-card">
+                <div class="meta-row">
+                    <span class="meta-label">Mở bàn</span>
+                    <span class="meta-value" th:text="${invoice.openedByName}">Nhân viên A</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Tạo bill</span>
+                    <span class="meta-value" th:text="${invoice.billCreatedByName}">Nhân viên B</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">Thanh toán lúc</span>
+                    <span class="meta-value" th:text="${invoice.paidAt}">18/05/2026 10:20</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="items-table">
+        <thead>
+        <tr>
+            <th>Món ăn</th>
+            <th class="qty">SL</th>
+            <th class="number">Đơn giá</th>
+            <th class="number">Thành tiền</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${invoice.items}">
+            <td>
+                <div th:text="${item.name}">Bò lúc lắc</div>
+                <div class="note" th:if="${item.note}" th:text="'Ghi chú: ' + ${item.note}">Ghi chú</div>
+            </td>
+            <td class="qty" th:text="${item.quantity}">1</td>
+            <td class="number" th:text="${item.unitPrice}">2.000 ₫</td>
+            <td class="number" th:text="${item.lineTotal}">2.000 ₫</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="bottom-grid">
+        <div class="bottom-left">
+            <div class="payment-card">
+                <div class="section-title">Giao dịch thanh toán</div>
+                <div class="payment-item" th:each="payment : ${invoice.payments}">
+                    <strong th:text="${payment.method}">PAYOS_QR</strong>
+                    <span> • </span>
+                    <span th:text="${payment.amount}">2.000 ₫</span>
+                    <span> • </span>
+                    <span th:text="${payment.paidAt}">18/05/2026 10:20</span>
+                </div>
+                <div class="payment-methods">
+                    Phương thức:
+                    <span th:text="${#strings.listJoin(invoice.paymentMethods, ', ')}">PAYOS_QR</span>
+                </div>
+            </div>
+        </div>
+        <div class="bottom-right">
+            <div class="summary-card">
+                <div class="section-title">Tổng kết hóa đơn</div>
+                <div class="summary-row">
+                    <span>Tạm tính</span>
+                    <span th:text="${invoice.subtotal}">2.000 ₫</span>
+                </div>
+                <div class="summary-row">
+                    <span th:text="${invoice.vatLabel}">VAT (8%)</span>
+                    <span th:text="${invoice.tax}">160 ₫</span>
+                </div>
+                <div class="summary-row" th:if="${invoice.hasManualDiscount}">
+                    <span>Giảm giá tay</span>
+                    <span class="discount" th:text="'-' + ${invoice.manualDiscount}">-0 ₫</span>
+                </div>
+                <div class="summary-row" th:if="${invoice.hasMemberDiscount}">
+                    <span th:text="${invoice.memberLabel}">Member (4%)</span>
+                    <span class="discount" th:text="'-' + ${invoice.loyaltyDiscount}">-0 ₫</span>
+                </div>
+                <div class="summary-row">
+                    <span>Đã thu</span>
+                    <span th:text="${invoice.paidAmount}">2.160 ₫</span>
+                </div>
+                <div class="summary-row">
+                    <span>Còn lại</span>
+                    <span th:text="${invoice.remainingAmount}">0 ₫</span>
+                </div>
+                <div class="summary-row total-row">
+                    <span>Tổng thanh toán</span>
+                    <span th:text="${invoice.total}">2.160 ₫</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Hóa đơn điện tử nội bộ được sinh từ dữ liệu bill đã xác nhận thanh toán trên GoldenHeart POS.
+    </div>
+</div>
+</body>
+</html>

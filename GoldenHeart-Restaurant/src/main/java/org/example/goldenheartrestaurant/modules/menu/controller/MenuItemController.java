@@ -8,6 +8,7 @@ import org.example.goldenheartrestaurant.modules.menu.dto.request.CreateMenuItem
 import org.example.goldenheartrestaurant.modules.menu.dto.request.UpdateMenuItemRequest;
 import org.example.goldenheartrestaurant.modules.menu.dto.response.MenuItemResponse;
 import org.example.goldenheartrestaurant.modules.menu.service.MenuManagementService;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
@@ -16,10 +17,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/menu-items")
@@ -67,27 +69,31 @@ public class MenuItemController {
         );
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Secured("ROLE_ADMIN")
-    public ResponseEntity<ApiResponse<MenuItemResponse>> createMenuItem(@Valid @RequestBody CreateMenuItemRequest request) {
+    public ResponseEntity<ApiResponse<MenuItemResponse>> createMenuItem(
+            @Valid @RequestPart("payload") CreateMenuItemRequest request,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<MenuItemResponse>builder()
                         .message("Menu item created successfully")
-                        .data(menuManagementService.createMenuItem(request))
+                        .data(menuManagementService.createMenuItem(request, imageFile))
                         .build()
         );
     }
 
-    @PutMapping("/{menuItemId}")
+    @PutMapping(value = "/{menuItemId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Secured("ROLE_ADMIN")
     public ResponseEntity<ApiResponse<MenuItemResponse>> updateMenuItem(
             @PathVariable Integer menuItemId,
-            @Valid @RequestBody UpdateMenuItemRequest request
+            @Valid @RequestPart("payload") UpdateMenuItemRequest request,
+            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile
     ) {
         return ResponseEntity.ok(
                 ApiResponse.<MenuItemResponse>builder()
                         .message("Menu item updated successfully")
-                        .data(menuManagementService.updateMenuItem(menuItemId, request))
+                        .data(menuManagementService.updateMenuItem(menuItemId, request, imageFile))
                         .build()
         );
     }

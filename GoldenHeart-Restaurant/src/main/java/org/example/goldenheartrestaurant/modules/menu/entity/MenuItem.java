@@ -65,6 +65,16 @@ public class MenuItem {
     @Column(precision = 10, scale = 2)
     private BigDecimal price;
 
+    @Column(name = "image_url", length = 1000)
+    private String imageUrl;
+
+    @Column(name = "image_public_id", length = 255)
+    private String imagePublicId;
+
+    @Builder.Default
+    @Column(name = "sold_count")
+    private Long soldCount = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MenuItemStatus status;

@@ -12,6 +12,8 @@ public record MenuItemResponse(
         String name,
         String description,
         BigDecimal price,
+        String imageUrl,
+        Long soldCount,
         String status,
         String effectiveStatus,
         boolean effectiveAvailable,

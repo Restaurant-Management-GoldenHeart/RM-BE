@@ -67,6 +67,10 @@ public class Bill {
     @Column(name = "gross_profit", precision = 12, scale = 2)
     private BigDecimal grossProfit;
 
+    @Builder.Default
+    @Column(name = "sales_count_applied")
+    private Boolean salesCountApplied = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applied_customer_tier_id")
     private CustomerTier appliedCustomerTier;

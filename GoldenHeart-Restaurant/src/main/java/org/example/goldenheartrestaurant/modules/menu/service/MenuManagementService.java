@@ -27,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -54,6 +55,7 @@ public class MenuManagementService {
     private final IngredientRepository ingredientRepository;
     private final InventoryRepository inventoryRepository;
     private final RecipeRepository recipeRepository;
+    private final MenuItemImageStorageService menuItemImageStorageService;
 
     @Transactional(readOnly = true)
     public PageResponse<MenuItemResponse> getMenuItems(String keyword, Integer branchId, Integer categoryId, int page, int size) {
@@ -80,7 +82,7 @@ public class MenuManagementService {
     }
 
     @Transactional
-    public MenuItemResponse createMenuItem(CreateMenuItemRequest request) {
+    public MenuItemResponse createMenuItem(CreateMenuItemRequest request, MultipartFile imageFile) {
         // Trước khi tạo món phải kiểm tra:
         // - tên món có bị trùng trong cùng branch/category hay không
         // - recipe có bị lặp ingredient hay không
@@ -98,31 +100,96 @@ public class MenuManagementService {
 
         replaceRecipes(menuItem, request.recipes());
 
-        MenuItem savedMenuItem = menuItemRepository.save(menuItem);
-        return toMenuItemResponse(savedMenuItem, evaluateAvailability(savedMenuItem));
+        MenuItemImageStorageService.StoredMenuItemImage storedImage = menuItemImageStorageService.uploadMenuItemImage(
+                imageFile,
+                request.branchId(),
+                request.name()
+        );
+        if (storedImage != null) {
+            menuItem.setImageUrl(storedImage.imageUrl());
+            menuItem.setImagePublicId(storedImage.imagePublicId());
+        }
+
+        try {
+            MenuItem savedMenuItem = menuItemRepository.save(menuItem);
+            return toMenuItemResponse(savedMenuItem, evaluateAvailability(savedMenuItem));
+        } catch (RuntimeException exception) {
+            if (storedImage != null) {
+                menuItemImageStorageService.deleteMenuItemImage(storedImage.imagePublicId());
+            }
+            throw exception;
+        }
     }
 
     @Transactional
-    public MenuItemResponse updateMenuItem(Integer menuItemId, UpdateMenuItemRequest request) {
+    public MenuItemResponse updateMenuItem(Integer menuItemId, UpdateMenuItemRequest request, MultipartFile imageFile) {
         MenuItem menuItem = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new NotFoundException("Menu item not found"));
-        validateMenuUniqueness(request.branchId(), request.categoryId(), request.name(), menuItemId);
-        validateRecipeRequests(request.recipes());
+        Integer nextBranchId = request.branchId() != null ? request.branchId() : menuItem.getBranch().getId();
+        Integer nextCategoryId = request.categoryId() != null ? request.categoryId() : menuItem.getCategory().getId();
+        String nextName = mergeRequiredText(request.name(), menuItem.getName(), "Menu item name must not be blank");
+        BigDecimal nextPrice = request.price() != null ? request.price() : menuItem.getPrice();
+        String nextDescription = request.description() != null ? request.description() : menuItem.getDescription();
+        MenuItemStatus nextStatus = StringUtils.hasText(request.status())
+                ? resolveMenuStatus(request.status())
+                : menuItem.getStatus();
+        List<RecipeIngredientRequest> nextRecipes = request.recipes();
 
-        menuItem.setBranch(resolveBranch(request.branchId()));
-        menuItem.setCategory(resolveCategory(request.categoryId()));
-        menuItem.setName(request.name().trim());
-        menuItem.setDescription(request.description());
-        menuItem.setPrice(request.price());
-        menuItem.setStatus(resolveMenuStatus(request.status()));
+        if (nextPrice == null) {
+            throw new ConflictException("Menu item price must not be null");
+        }
+        if (nextPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ConflictException("Menu item price must not be negative");
+        }
+        if (nextRecipes != null) {
+            if (nextRecipes.isEmpty()) {
+                throw new ConflictException("Recipe list must not be empty when updating menu item");
+            }
+            validateRecipeRequests(nextRecipes);
+        }
+
+        validateMenuUniqueness(nextBranchId, nextCategoryId, nextName, menuItemId);
+
+        menuItem.setBranch(resolveBranch(nextBranchId));
+        menuItem.setCategory(resolveCategory(nextCategoryId));
+        menuItem.setName(nextName);
+        menuItem.setDescription(nextDescription);
+        menuItem.setPrice(nextPrice);
+        menuItem.setStatus(nextStatus);
+
+        String previousImagePublicId = menuItem.getImagePublicId();
+        MenuItemImageStorageService.StoredMenuItemImage storedImage = menuItemImageStorageService.uploadMenuItemImage(
+                imageFile,
+                nextBranchId,
+                nextName
+        );
+        if (storedImage != null) {
+            menuItem.setImageUrl(storedImage.imageUrl());
+            menuItem.setImagePublicId(storedImage.imagePublicId());
+        }
 
         // Save trước để các field chính của menu item được cập nhật ổn định.
-        MenuItem savedMenuItem = menuItemRepository.saveAndFlush(menuItem);
+        MenuItem savedMenuItem;
+        try {
+            savedMenuItem = menuItemRepository.saveAndFlush(menuItem);
+        } catch (RuntimeException exception) {
+            if (storedImage != null) {
+                menuItemImageStorageService.deleteMenuItemImage(storedImage.imagePublicId());
+            }
+            throw exception;
+        }
 
         // Xóa toàn bộ recipe cũ rồi insert recipe mới.
         // Cách này đơn giản và an toàn hơn so với việc diff từng dòng recipe.
-        recipeRepository.deleteByMenuItemId(menuItemId);
-        recipeRepository.saveAll(buildRecipes(savedMenuItem, request.recipes()));
+        if (nextRecipes != null) {
+            recipeRepository.deleteByMenuItemId(menuItemId);
+            recipeRepository.saveAll(buildRecipes(savedMenuItem, nextRecipes));
+        }
+
+        if (storedImage != null && StringUtils.hasText(previousImagePublicId)
+                && !previousImagePublicId.equals(storedImage.imagePublicId())) {
+            menuItemImageStorageService.deleteMenuItemImage(previousImagePublicId);
+        }
 
         MenuItem refreshedMenuItem = getMenuItemOrThrow(menuItemId);
         return toMenuItemResponse(refreshedMenuItem, evaluateAvailability(refreshedMenuItem));
@@ -138,6 +205,9 @@ public class MenuManagementService {
     }
 
     private void validateRecipeRequests(List<RecipeIngredientRequest> recipes) {
+        if (recipes == null) {
+            return;
+        }
         Set<Integer> ingredientIds = new HashSet<>();
 
         for (RecipeIngredientRequest recipe : recipes) {
@@ -181,6 +251,16 @@ public class MenuManagementService {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 
+    private String mergeRequiredText(String candidate, String currentValue, String message) {
+        if (candidate == null) {
+            return currentValue;
+        }
+        if (!StringUtils.hasText(candidate)) {
+            throw new ConflictException(message);
+        }
+        return candidate.trim();
+    }
+
     private List<Recipe> buildRecipes(MenuItem menuItem, List<RecipeIngredientRequest> recipes) {
         return recipes.stream()
                 .map(recipeRequest -> {
@@ -218,6 +298,8 @@ public class MenuManagementService {
                 menuItem.getName(),
                 menuItem.getDescription(),
                 menuItem.getPrice(),
+                menuItem.getImageUrl(),
+                menuItem.getSoldCount() != null ? menuItem.getSoldCount() : 0L,
                 menuItem.getStatus().name(),
                 resolvedAvailability.status().name(),
                 resolvedAvailability.available(),

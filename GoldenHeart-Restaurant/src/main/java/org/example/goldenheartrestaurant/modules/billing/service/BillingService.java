@@ -26,6 +26,7 @@ import org.example.goldenheartrestaurant.modules.customer.service.CustomerLoyalt
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.identity.repository.UserRepository;
 import org.example.goldenheartrestaurant.modules.inventory.repository.StockMovementRepository;
+import org.example.goldenheartrestaurant.modules.menu.entity.MenuItem;
 import org.example.goldenheartrestaurant.modules.order.entity.Order;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItemStatus;
@@ -48,6 +49,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -385,6 +387,8 @@ public class BillingService {
             return;
         }
 
+        applySoldCountIfNeeded(bill, order);
+
         // Khi bill đã thanh toán đủ:
         // 1. order được xem là hoàn tất
         // 2. bàn hoặc cả nhóm bàn chuyển sang CLEANING
@@ -409,6 +413,51 @@ public class BillingService {
         }
 
         customerLoyaltyService.rewardPaidBill(bill);
+    }
+
+    private void applySoldCountIfNeeded(Bill bill, Order order) {
+        if (Boolean.TRUE.equals(bill.getSalesCountApplied())) {
+            return;
+        }
+
+        List<OrderItem> soldItems = order.getOrderItems().stream()
+                .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
+                .filter(item -> item.getMenuItem() != null)
+                .filter(item -> item.getQuantity() != null && item.getQuantity() > 0)
+                .toList();
+
+        if (soldItems.isEmpty()) {
+            bill.setSalesCountApplied(true);
+            return;
+        }
+
+        Map<Integer, Long> soldQuantityByMenuItemId = soldItems.stream()
+                .collect(Collectors.groupingBy(
+                        item -> item.getMenuItem().getId(),
+                        LinkedHashMap::new,
+                        Collectors.summingLong(OrderItem::getQuantity)
+                ));
+
+        Map<Integer, MenuItem> menuItemById = soldItems.stream()
+                .map(OrderItem::getMenuItem)
+                .collect(Collectors.toMap(
+                        MenuItem::getId,
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        soldQuantityByMenuItemId.forEach((menuItemId, soldQuantity) -> {
+            MenuItem menuItem = menuItemById.get(menuItemId);
+            if (menuItem == null) {
+                return;
+            }
+
+            long currentSoldCount = menuItem.getSoldCount() != null ? menuItem.getSoldCount() : 0L;
+            menuItem.setSoldCount(currentSoldCount + soldQuantity);
+        });
+
+        bill.setSalesCountApplied(true);
     }
 
     private void ensureOrderReadyForCheckout(Order order) {

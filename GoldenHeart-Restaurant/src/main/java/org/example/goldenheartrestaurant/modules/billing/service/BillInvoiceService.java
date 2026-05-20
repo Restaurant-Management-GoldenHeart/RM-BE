@@ -1,7 +1,7 @@
 package org.example.goldenheartrestaurant.modules.billing.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.goldenheartrestaurant.common.exception.ConflictException;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.billing.entity.Bill;
@@ -10,6 +10,7 @@ import org.example.goldenheartrestaurant.modules.billing.entity.Payment;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItemStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import org.thymeleaf.context.Context;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.NumberFormat;
@@ -30,7 +32,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class BillInvoiceService {
 
     private static final Locale VIETNAMESE = Locale.forLanguageTag("vi-VN");
@@ -47,6 +49,14 @@ public class BillInvoiceService {
 
     @Value("${app.invoice.pdf-font-path:}")
     private String configuredFontPath;
+
+    public BillInvoiceService(
+            BillingService billingService,
+            @Qualifier("invoicePdfTemplateEngine") TemplateEngine templateEngine
+    ) {
+        this.billingService = billingService;
+        this.templateEngine = templateEngine;
+    }
 
     @Transactional(readOnly = true)
     public byte[] generateInvoicePdf(Integer billId, CustomUserDetails currentUser) {
@@ -171,15 +181,23 @@ public class BillInvoiceService {
             builder.run();
             return outputStream.toByteArray();
         } catch (Exception exception) {
+            log.error("Invoice PDF generation failed. fontPath={}, htmlPreview={}",
+                    fontPath,
+                    html.substring(0, Math.min(html.length(), 400)),
+                    exception);
             throw new IllegalStateException("Cannot generate invoice PDF", exception);
         }
     }
 
     private Path resolveFontPath() {
         if (StringUtils.hasText(configuredFontPath)) {
-            Path configuredPath = Path.of(configuredFontPath.trim());
-            if (Files.isRegularFile(configuredPath)) {
-                return configuredPath;
+            try {
+                Path configuredPath = Path.of(configuredFontPath.trim());
+                if (Files.isRegularFile(configuredPath)) {
+                    return configuredPath;
+                }
+            } catch (InvalidPathException exception) {
+                log.warn("Ignore invalid app.invoice.pdf-font-path value: {}", configuredFontPath);
             }
         }
 

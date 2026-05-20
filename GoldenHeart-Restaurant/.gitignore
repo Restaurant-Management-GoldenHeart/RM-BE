@@ -2,9 +2,15 @@ HELP.md
 .gradle
 build/
 .gradle-user-home/
+.gradle-home-*/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+.tmp/
+.tmp-gradle-home/
+.tmp-gradle-home-abs/
+codex-boot.err
+codex-boot.log
 
 ### STS ###
 .apt_generated
@@ -36,3 +42,4 @@ out/
 
 ### VS Code ###
 .vscode/
+

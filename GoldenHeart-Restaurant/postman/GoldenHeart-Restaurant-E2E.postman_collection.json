@@ -340,7 +340,7 @@
                                                                  ],
                                                       "body":  {
                                                                    "mode":  "raw",
-                                                                   "raw":  "{\"currentPassword\":\"{{password_test_old_password}}\",\"newPassword\":\"{{password_test_new_password}}\"}",
+                                                                   "raw":  "{\"currentPassword\":\"{{password_test_old_password}}\",\"newPassword\":\"{{password_test_new_password}}\",\"confirmNewPassword\":\"{{password_test_new_password}}\"}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"

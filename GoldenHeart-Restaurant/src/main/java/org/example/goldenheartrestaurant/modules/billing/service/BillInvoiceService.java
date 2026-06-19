@@ -27,8 +27,10 @@ import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -82,10 +84,7 @@ public class BillInvoiceService {
                 ? bill.getOrder().getBranch().getRestaurant().getName().trim()
                 : "GoldenHeart Restaurant";
 
-        List<InvoiceLineItemView> items = bill.getOrder().getOrderItems().stream()
-                .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
-                .map(this::toLineItemView)
-                .toList();
+        List<InvoiceLineItemView> items = toGroupedLineItemViews(bill.getOrder().getOrderItems());
 
         List<InvoicePaymentView> payments = bill.getPayments().stream()
                 .sorted(Comparator.comparing(Payment::getPaidAt, Comparator.nullsLast(LocalDateTime::compareTo)))
@@ -147,18 +146,27 @@ public class BillInvoiceService {
         );
     }
 
-    private InvoiceLineItemView toLineItemView(OrderItem item) {
-        BigDecimal unitPrice = nonNegative(item.getPrice());
-        BigDecimal quantity = BigDecimal.valueOf(item.getQuantity() != null ? item.getQuantity() : 0);
-        BigDecimal lineTotal = unitPrice.multiply(quantity);
+    private List<InvoiceLineItemView> toGroupedLineItemViews(List<OrderItem> orderItems) {
+        Map<InvoiceLineItemKey, InvoiceLineItemAccumulator> groupedItems = new LinkedHashMap<>();
 
-        return new InvoiceLineItemView(
-                item.getMenuItem() != null ? item.getMenuItem().getName() : "Món ăn",
-                item.getQuantity() != null ? item.getQuantity() : 0,
-                formatCurrency(unitPrice),
-                formatCurrency(lineTotal),
-                item.getNote()
-        );
+        orderItems.stream()
+                .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
+                .forEach(item -> {
+                    BigDecimal unitPrice = nonNegative(item.getPrice());
+                    String itemName = item.getMenuItem() != null ? item.getMenuItem().getName() : "Món ăn";
+                    String note = normalizeNote(item.getNote());
+                    InvoiceLineItemKey key = new InvoiceLineItemKey(
+                            item.getMenuItem() != null ? item.getMenuItem().getId() : null,
+                            itemName,
+                            unitPrice,
+                            note
+                    );
+                    groupedItems.computeIfAbsent(key, InvoiceLineItemAccumulator::new).add(item);
+                });
+
+        return groupedItems.values().stream()
+                .map(InvoiceLineItemAccumulator::toView)
+                .toList();
     }
 
     private InvoicePaymentView toPaymentView(Payment payment) {
@@ -276,6 +284,43 @@ public class BillInvoiceService {
 
     private String blankFallback(String value, String fallback) {
         return StringUtils.hasText(value) ? value.trim() : fallback;
+    }
+
+    private String normalizeNote(String note) {
+        return StringUtils.hasText(note) ? note.trim() : null;
+    }
+
+    private record InvoiceLineItemKey(
+            Integer menuItemId,
+            String itemName,
+            BigDecimal unitPrice,
+            String note
+    ) {
+    }
+
+    private class InvoiceLineItemAccumulator {
+        private final InvoiceLineItemKey key;
+        private int quantity;
+
+        private InvoiceLineItemAccumulator(InvoiceLineItemKey key) {
+            this.key = key;
+        }
+
+        private void add(OrderItem item) {
+            quantity += item.getQuantity() != null ? item.getQuantity() : 0;
+        }
+
+        private InvoiceLineItemView toView() {
+            BigDecimal lineTotal = key.unitPrice().multiply(BigDecimal.valueOf(quantity));
+
+            return new InvoiceLineItemView(
+                    key.itemName(),
+                    quantity,
+                    formatCurrency(key.unitPrice()),
+                    formatCurrency(lineTotal),
+                    key.note()
+            );
+        }
     }
 
     private record InvoiceView(

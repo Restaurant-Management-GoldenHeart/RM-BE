@@ -15,6 +15,7 @@ import org.example.goldenheartrestaurant.modules.auth.dto.request.PasswordRecove
 import org.example.goldenheartrestaurant.modules.auth.dto.request.PasswordRecoveryVerifyOtpRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.RegisterRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.AuthResponse;
+import org.example.goldenheartrestaurant.modules.auth.dto.response.ChangePasswordResponse;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.PasswordRecoveryRequestOtpResponse;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.PasswordRecoveryVerifyOtpResponse;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.RegisterResponse;
@@ -89,18 +90,19 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    @Secured({"ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
+    public ResponseEntity<ApiResponse<ChangePasswordResponse>> changePassword(
             @AuthenticationPrincipal CustomUserDetails currentUser,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
-        authService.changePassword(currentUser, request);
+        ChangePasswordResponse response = authService.changePassword(currentUser, request);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, jwtService.clearRefreshTokenCookie().toString())
                 .body(
-                        ApiResponse.<Void>builder()
+                        ApiResponse.<ChangePasswordResponse>builder()
                                 .message("Password changed successfully. Please log in again")
+                                .data(response)
                                 .build()
                 );
     }

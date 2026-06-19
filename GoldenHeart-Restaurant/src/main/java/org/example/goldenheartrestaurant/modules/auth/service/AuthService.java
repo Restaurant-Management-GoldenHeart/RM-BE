@@ -10,6 +10,7 @@ import org.example.goldenheartrestaurant.common.security.JwtService;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.ChangePasswordRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.LoginRequest;
 import org.example.goldenheartrestaurant.modules.auth.dto.request.RegisterRequest;
+import org.example.goldenheartrestaurant.modules.auth.dto.response.ChangePasswordResponse;
 import org.example.goldenheartrestaurant.modules.auth.dto.response.RegisterResponse;
 import org.example.goldenheartrestaurant.modules.auth.entity.RefreshToken;
 import org.example.goldenheartrestaurant.modules.auth.repository.RefreshTokenRepository;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -133,11 +135,12 @@ public class AuthService {
     }
 
     @Transactional
-    public void changePassword(CustomUserDetails currentUser, ChangePasswordRequest request) {
+    public ChangePasswordResponse changePassword(CustomUserDetails currentUser, ChangePasswordRequest request) {
         User user = userRepository.findActiveAuthUserById(currentUser.getUserId(), UserStatus.ACTIVE)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         validateChangePasswordEligibleRole(user);
+        validatePasswordConfirmation(request);
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new BadRequestException("Current password is incorrect");
@@ -147,11 +150,22 @@ public class AuthService {
             throw new ConflictException("New password must be different from current password");
         }
 
+        LocalDateTime changedAt = LocalDateTime.now();
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordChangedAt(changedAt);
         userRepository.save(user);
 
         // Đổi mật khẩu xong phải revoke toàn bộ refresh token để buộc các phiên đăng nhập lại.
-        refreshTokenRepository.revokeAllActiveByUserId(user.getId(), LocalDateTime.now());
+        int revokedSessionCount = refreshTokenRepository.revokeAllActiveByUserId(user.getId(), changedAt);
+
+        return ChangePasswordResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .role(user.getRole().getName())
+                .changedAt(changedAt)
+                .revokedSessionCount(revokedSessionCount)
+                .requiresLoginAgain(true)
+                .build();
     }
 
     private IssuedTokens issueTokens(User user) {
@@ -178,6 +192,12 @@ public class AuthService {
         String normalizedRole = user.getRole().getName().toUpperCase();
         if (!CHANGE_PASSWORD_ALLOWED_ROLES.contains(normalizedRole)) {
             throw new ForbiddenException("Role is not allowed to change password");
+        }
+    }
+
+    private void validatePasswordConfirmation(ChangePasswordRequest request) {
+        if (!Objects.equals(request.getNewPassword(), request.getConfirmNewPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
         }
     }
 }

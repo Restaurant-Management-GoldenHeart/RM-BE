@@ -23,7 +23,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Inte
             where rt.user.id = :userId
               and rt.revoked = false
             """)
-    void revokeAllActiveByUserId(
+    int revokeAllActiveByUserId(
             @Param("userId") Integer userId,
             @Param("revokedAt") LocalDateTime revokedAt
     );

@@ -256,6 +256,10 @@ Các request sau sẽ thay đổi mật khẩu của `staff_q1_b`:
 
 Nếu muốn quay về trạng thái ban đầu nhanh nhất, hãy reseed lại database.
 
+`Change Password (Password Test Staff)` gửi `currentPassword`, `newPassword`,
+và `confirmNewPassword`. `confirmNewPassword` phải trùng `newPassword`, còn
+`newPassword` phải khác mật khẩu hiện tại.
+
 ### 6.2 OTP local
 
 - Nếu chưa cấu hình SMTP hoặc SMS thật, OTP có thể đang chạy theo mode local/dev.

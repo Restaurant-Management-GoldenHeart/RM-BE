@@ -19,6 +19,7 @@ public record OrderResponse(
         LocalDateTime createdAt,
         LocalDateTime closedAt,
         BigDecimal subtotal,
-        List<OrderItemResponse> items
+        List<OrderItemResponse> items,
+        List<OrderItemSummaryResponse> summaryItems
 ) {
 }

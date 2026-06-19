@@ -19,6 +19,7 @@ import org.example.goldenheartrestaurant.modules.menu.repository.MenuItemReposit
 import org.example.goldenheartrestaurant.modules.order.dto.request.CreateOrderRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.request.OrderItemRequest;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemResponse;
+import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemSummaryResponse;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemStatusChangeResponse;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderResponse;
 import org.example.goldenheartrestaurant.modules.order.entity.Order;
@@ -861,18 +862,112 @@ public class OrderManagementService {
                 order.getClosedAt(),
                 calculateSubtotal(order),
                 order.getOrderItems().stream()
-                        .map(item -> new OrderItemResponse(
-                                item.getId(),
-                                item.getMenuItem().getId(),
-                                item.getMenuItem().getName(),
-                                item.getPrice(),
-                                item.getQuantity(),
-                                item.getNote(),
-                                item.getStatus().name(),
-                                item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()))
-                        ))
-                        .toList()
+                        .map(this::toOrderItemResponse)
+                        .toList(),
+                toOrderItemSummaryResponses(order)
         );
+    }
+
+    private OrderItemResponse toOrderItemResponse(OrderItem item) {
+        int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
+        BigDecimal unitPrice = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
+
+        return new OrderItemResponse(
+                item.getId(),
+                item.getMenuItem().getId(),
+                item.getMenuItem().getName(),
+                unitPrice,
+                quantity,
+                item.getNote(),
+                item.getStatus().name(),
+                unitPrice.multiply(BigDecimal.valueOf(quantity))
+        );
+    }
+
+    private List<OrderItemSummaryResponse> toOrderItemSummaryResponses(Order order) {
+        Map<OrderItemSummaryKey, OrderItemSummaryAccumulator> groupedItems = new LinkedHashMap<>();
+
+        order.getOrderItems().stream()
+                .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
+                .filter(item -> item.getMenuItem() != null)
+                .forEach(item -> {
+                    BigDecimal unitPrice = item.getPrice() != null ? item.getPrice() : BigDecimal.ZERO;
+                    String note = normalizeNote(item.getNote());
+                    OrderItemSummaryKey key = new OrderItemSummaryKey(
+                            item.getMenuItem().getId(),
+                            item.getMenuItem().getName(),
+                            unitPrice,
+                            note
+                    );
+                    groupedItems.computeIfAbsent(key, OrderItemSummaryAccumulator::new).add(item);
+                });
+
+        return groupedItems.values().stream()
+                .map(OrderItemSummaryAccumulator::toResponse)
+                .toList();
+    }
+
+    private record OrderItemSummaryKey(
+            Integer menuItemId,
+            String menuItemName,
+            BigDecimal unitPrice,
+            String note
+    ) {
+    }
+
+    private static class OrderItemSummaryAccumulator {
+        private final OrderItemSummaryKey key;
+        private int quantity;
+        private int sentQuantity;
+        private int preparingQuantity;
+        private int readyQuantity;
+        private int servedQuantity;
+        private final List<Integer> orderItemIds = new ArrayList<>();
+        private final List<Integer> readyOrderItemIds = new ArrayList<>();
+        private final List<Integer> cancellableOrderItemIds = new ArrayList<>();
+
+        private OrderItemSummaryAccumulator(OrderItemSummaryKey key) {
+            this.key = key;
+        }
+
+        private void add(OrderItem item) {
+            int itemQuantity = item.getQuantity() != null ? item.getQuantity() : 0;
+            quantity += itemQuantity;
+            orderItemIds.add(item.getId());
+
+            if (item.getStatus() == OrderItemStatus.PENDING || item.getStatus() == OrderItemStatus.WAITING_STOCK) {
+                sentQuantity += itemQuantity;
+                cancellableOrderItemIds.add(item.getId());
+            } else if (item.getStatus() == OrderItemStatus.PROCESSING) {
+                preparingQuantity += itemQuantity;
+                cancellableOrderItemIds.add(item.getId());
+            } else if (item.getStatus() == OrderItemStatus.COMPLETED) {
+                readyQuantity += itemQuantity;
+                readyOrderItemIds.add(item.getId());
+            } else if (item.getStatus() == OrderItemStatus.SERVED) {
+                servedQuantity += itemQuantity;
+            }
+        }
+
+        private OrderItemSummaryResponse toResponse() {
+            BigDecimal lineTotal = key.unitPrice().multiply(BigDecimal.valueOf(quantity));
+
+            return new OrderItemSummaryResponse(
+                    key.menuItemId(),
+                    key.menuItemName(),
+                    key.unitPrice(),
+                    quantity,
+                    key.note(),
+                    lineTotal,
+                    sentQuantity,
+                    preparingQuantity,
+                    readyQuantity,
+                    servedQuantity,
+                    List.copyOf(orderItemIds),
+                    List.copyOf(readyOrderItemIds),
+                    List.copyOf(cancellableOrderItemIds)
+            );
+        }
     }
 
     private RestaurantTable resolveOperationalTable(RestaurantTable table) {

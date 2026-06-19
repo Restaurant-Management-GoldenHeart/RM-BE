@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -27,17 +28,20 @@ public class CustomUserDetails implements UserDetails {
     private final String username;
     private final String password;
     private final String roleName;
+    private final LocalDateTime passwordChangedAt;
     private final Collection<? extends GrantedAuthority> authorities;
 
     private CustomUserDetails(Integer userId,
                               String username,
                               String password,
                               String roleName,
+                              LocalDateTime passwordChangedAt,
                               Collection<? extends GrantedAuthority> authorities) {
         this.userId = userId;
         this.username = username;
         this.password = password;
         this.roleName = roleName;
+        this.passwordChangedAt = passwordChangedAt;
         this.authorities = authorities;
     }
 
@@ -49,6 +53,7 @@ public class CustomUserDetails implements UserDetails {
                 user.getUsername(),
                 user.getPasswordHash(),
                 normalizedRole,
+                user.getPasswordChangedAt(),
                 // Spring Security với hasRole('ADMIN') thực chất sẽ kiểm tra authority ROLE_ADMIN.
                 // Vì vậy cần chuẩn hóa authority theo format ROLE_<TEN_ROLE>.
                 List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole))

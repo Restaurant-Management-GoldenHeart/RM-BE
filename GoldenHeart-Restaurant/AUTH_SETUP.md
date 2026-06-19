@@ -50,6 +50,7 @@ Available endpoints:
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/change-password`
 
 ## 4. Request examples
 
@@ -72,6 +73,27 @@ Login:
   "password": "StrongPass123"
 }
 ```
+
+Change password:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+```json
+{
+  "currentPassword": "StrongPass123",
+  "newPassword": "NewStrongPass456",
+  "confirmNewPassword": "NewStrongPass456"
+}
+```
+
+Rules:
+
+- `newPassword` must satisfy the password policy
+- `confirmNewPassword` must match `newPassword`
+- `newPassword` must be different from the current password
+- after success, active refresh sessions are revoked, older access tokens are rejected, and the client must log in again
 
 ## 5. Response flow
 

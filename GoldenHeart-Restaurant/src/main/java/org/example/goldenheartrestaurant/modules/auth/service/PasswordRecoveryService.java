@@ -222,6 +222,7 @@ public class PasswordRecoveryService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordChangedAt(now);
         userRepository.save(user);
 
         resetSession.setUsedAt(now);

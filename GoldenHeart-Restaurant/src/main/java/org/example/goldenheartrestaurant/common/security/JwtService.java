@@ -111,6 +111,7 @@ public class JwtService {
 
         CustomUserDetails userDetails =
                 (CustomUserDetails) userDetailsService.loadUserByUsername(claims.getSubject());
+        validateIssuedAfterPasswordChange(claims, userDetails);
 
         return UsernamePasswordAuthenticationToken.authenticated(
                 userDetails,
@@ -160,6 +161,20 @@ public class JwtService {
         }
 
         return claims;
+    }
+
+    private void validateIssuedAfterPasswordChange(Claims claims, CustomUserDetails userDetails) {
+        if (userDetails.getPasswordChangedAt() == null || claims.getIssuedAt() == null) {
+            return;
+        }
+
+        Instant issuedAt = claims.getIssuedAt().toInstant();
+        Instant passwordChangedAt = userDetails.getPasswordChangedAt()
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
+        if (issuedAt.plusSeconds(1).isBefore(passwordChangedAt)) {
+            throw new JwtException("Token was issued before password was changed");
+        }
     }
 
     private SecretKey getSigningKey() {

@@ -4,6 +4,7 @@ public record CategoryResponse(
         Integer id,
         String name,
         String description,
+        String productionStation,
         int menuItemCount
 ) {
 }

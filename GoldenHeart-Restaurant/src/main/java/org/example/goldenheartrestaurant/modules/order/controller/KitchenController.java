@@ -41,12 +41,13 @@ public class KitchenController {
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<List<KitchenPendingOrderItemResponse>>> getPendingKitchenItems(
             @RequestParam(required = false) Integer branchId,
+            @RequestParam(required = false) String station,
             @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
         return ResponseEntity.ok(
                 ApiResponse.<List<KitchenPendingOrderItemResponse>>builder()
                         .message("Kitchen items retrieved successfully")
-                        .data(kitchenWorkflowService.getPendingItems(branchId, currentUser))
+                        .data(kitchenWorkflowService.getPendingItems(branchId, station, currentUser))
                         .build()
         );
     }

@@ -8,8 +8,6 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 @Order(1)
 @RequiredArgsConstructor
@@ -19,11 +17,19 @@ public class MeasurementUnitBootstrapRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        ensureUnit("KG", "Kilogram", "kg", "Don vi tinh cho thit, bot, rau cu...");
-        ensureUnit("PIECE", "Piece", "piece", "Don vi tinh theo tung cai, qua, chai...");
-        ensureUnit("LITER", "Liter", "l", "Don vi tinh theo lit");
-        ensureUnit("GRAM", "Gram", "g", "Don vi tinh nho hon kilogram");
-        ensureUnit("MILLILITER", "Milliliter", "ml", "Don vi tinh nho hon liter");
+        ensureUnit("KG", "Kilogram", "kg", "Don vi ton kho cho thit, bot, rau cu...");
+        ensureUnit("PIECE", "Piece", "piece", "Don vi dem theo tung cai, qua, chai...");
+        ensureUnit("LITER", "Liter", "l", "Don vi ton kho theo lit");
+        ensureUnit("GRAM", "Gram", "g", "Don vi ton kho nho hon kilogram");
+        ensureUnit("MILLILITER", "Milliliter", "ml", "Don vi ton kho nho hon liter");
+        ensureUnit("PCS", "Cai/Chiec", "pcs", "Don vi dem thong dung");
+        ensureUnit("BOX", "Hop", "box", "Don vi mua/dong goi theo hop");
+        ensureUnit("BUNCH", "Bo", "bunch", "Don vi mua theo bo rau/cu");
+        ensureUnit("JAR", "Hu", "jar", "Don vi mua theo hu/lo");
+        ensureUnit("BOTTLE", "Chai", "bottle", "Don vi mua theo chai");
+        ensureUnit("CASE", "Thung", "case", "Don vi mua theo thung/kien");
+        ensureUnit("BAG", "Bao/Tui", "bag", "Don vi mua theo bao/tui");
+        ensureUnit("CAN", "Lon", "can", "Don vi mua theo lon");
     }
 
     private void ensureUnit(String code, String name, String symbol, String description) {

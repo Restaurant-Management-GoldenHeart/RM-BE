@@ -9,6 +9,7 @@ public record MenuItemResponse(
         String branchName,
         Integer categoryId,
         String categoryName,
+        String productionStation,
         String name,
         String description,
         BigDecimal price,

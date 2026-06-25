@@ -8,6 +8,7 @@ import org.example.goldenheartrestaurant.modules.menu.dto.request.CreateCategory
 import org.example.goldenheartrestaurant.modules.menu.dto.request.UpdateCategoryRequest;
 import org.example.goldenheartrestaurant.modules.menu.dto.response.CategoryResponse;
 import org.example.goldenheartrestaurant.modules.menu.entity.Category;
+import org.example.goldenheartrestaurant.modules.menu.entity.ProductionStation;
 import org.example.goldenheartrestaurant.modules.menu.repository.CategoryRepository;
 import org.example.goldenheartrestaurant.modules.menu.repository.MenuItemRepository;
 import org.springframework.data.domain.Page;
@@ -56,6 +57,7 @@ public class CategoryManagementService {
         Category category = Category.builder()
                 .name(request.name().trim())
                 .description(normalizeDescription(request.description()))
+                .productionStation(resolveProductionStation(request.productionStation()))
                 .build();
 
         return toCategoryResponse(categoryRepository.save(category));
@@ -68,6 +70,7 @@ public class CategoryManagementService {
 
         category.setName(request.name().trim());
         category.setDescription(normalizeDescription(request.description()));
+        category.setProductionStation(resolveProductionStation(request.productionStation()));
 
         return toCategoryResponse(categoryRepository.save(category));
     }
@@ -108,6 +111,23 @@ public class CategoryManagementService {
         return StringUtils.hasText(description) ? description.trim() : null;
     }
 
+    private ProductionStation resolveProductionStation(String productionStation) {
+        if (!StringUtils.hasText(productionStation)) {
+            return ProductionStation.KITCHEN;
+        }
+        try {
+            return ProductionStation.valueOf(productionStation.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new ConflictException("Unsupported production station");
+        }
+    }
+
+    private ProductionStation resolveCategoryStation(Category category) {
+        return category.getProductionStation() != null
+                ? category.getProductionStation()
+                : ProductionStation.KITCHEN;
+    }
+
     private CategoryResponse toCategoryResponse(Category category) {
         int menuItemCount = category.getMenuItems() != null ? category.getMenuItems().size() : 0;
 
@@ -115,6 +135,7 @@ public class CategoryManagementService {
                 category.getId(),
                 category.getName(),
                 category.getDescription(),
+                resolveCategoryStation(category).name(),
                 menuItemCount
         );
     }

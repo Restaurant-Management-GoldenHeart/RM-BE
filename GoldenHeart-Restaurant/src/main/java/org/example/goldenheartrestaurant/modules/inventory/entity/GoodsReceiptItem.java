@@ -48,6 +48,23 @@ public class GoodsReceiptItem {
     @Column(name = "line_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal lineTotal;
 
+    @Column(name = "purchase_quantity", precision = 12, scale = 2)
+    private BigDecimal purchaseQuantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchase_unit_id")
+    private MeasurementUnit purchaseUnit;
+
+    @Column(name = "conversion_rate", precision = 12, scale = 6)
+    private BigDecimal conversionRate;
+
+    @Column(name = "converted_quantity", precision = 12, scale = 2)
+    private BigDecimal convertedQuantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "base_unit_id")
+    private MeasurementUnit baseUnit;
+
     @Column(name = "batch_number", length = 50)
     private String batchNumber;
 

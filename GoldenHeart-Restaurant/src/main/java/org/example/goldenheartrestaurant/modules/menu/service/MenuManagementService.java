@@ -15,6 +15,7 @@ import org.example.goldenheartrestaurant.modules.menu.dto.response.MenuItemRespo
 import org.example.goldenheartrestaurant.modules.menu.dto.response.RecipeResponse;
 import org.example.goldenheartrestaurant.modules.menu.entity.Category;
 import org.example.goldenheartrestaurant.modules.menu.entity.MenuItem;
+import org.example.goldenheartrestaurant.modules.menu.entity.ProductionStation;
 import org.example.goldenheartrestaurant.modules.menu.entity.MenuItemStatus;
 import org.example.goldenheartrestaurant.modules.menu.entity.Recipe;
 import org.example.goldenheartrestaurant.modules.menu.repository.CategoryRepository;
@@ -295,6 +296,7 @@ public class MenuManagementService {
                 menuItem.getBranch().getName(),
                 menuItem.getCategory().getId(),
                 menuItem.getCategory().getName(),
+                resolveProductionStation(menuItem.getCategory()).name(),
                 menuItem.getName(),
                 menuItem.getDescription(),
                 menuItem.getPrice(),
@@ -312,6 +314,12 @@ public class MenuManagementService {
                         ))
                         .toList()
         );
+    }
+
+    private ProductionStation resolveProductionStation(Category category) {
+        return category != null && category.getProductionStation() != null
+                ? category.getProductionStation()
+                : ProductionStation.KITCHEN;
     }
 
     private Map<Integer, MenuAvailabilitySnapshot> buildAvailabilityMap(Collection<MenuItem> menuItems) {

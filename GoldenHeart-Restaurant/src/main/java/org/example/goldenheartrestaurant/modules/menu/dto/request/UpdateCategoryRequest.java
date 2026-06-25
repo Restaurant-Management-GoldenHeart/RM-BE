@@ -9,6 +9,8 @@ public record UpdateCategoryRequest(
         String name,
 
         @Size(max = 2000)
-        String description
+        String description,
+
+        String productionStation
 ) {
 }

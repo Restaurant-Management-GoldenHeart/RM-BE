@@ -21,6 +21,7 @@ import lombok.Setter;
 import org.example.goldenheartrestaurant.modules.menu.entity.Recipe;
 import org.example.goldenheartrestaurant.modules.restaurant.entity.Branch;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,6 +54,13 @@ public class Ingredient {
     @JoinColumn(name = "unit_id")
     private MeasurementUnit measurementUnit;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_purchase_unit_id")
+    private MeasurementUnit defaultPurchaseUnit;
+
+    @Column(name = "default_purchase_to_base_rate", precision = 12, scale = 6)
+    private BigDecimal defaultPurchaseToBaseRate;
+
     @Column(name = "unit", length = 20)
     private String legacyUnit;
 
@@ -70,7 +78,6 @@ public class Ingredient {
     @PrePersist
     @PreUpdate
     protected void syncLegacyUnit() {
-        // Giữ lại cột unit cũ để tương thích dữ liệu cũ trong DB khi chuyển sang bảng đơn vị.
         if (measurementUnit != null) {
             legacyUnit = measurementUnit.getSymbol();
         }

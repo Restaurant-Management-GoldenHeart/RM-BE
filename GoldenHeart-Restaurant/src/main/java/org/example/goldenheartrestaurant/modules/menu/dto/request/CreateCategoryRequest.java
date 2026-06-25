@@ -9,6 +9,8 @@ public record CreateCategoryRequest(
         String name,
 
         @Size(max = 2000)
-        String description
+        String description,
+
+        String productionStation
 ) {
 }

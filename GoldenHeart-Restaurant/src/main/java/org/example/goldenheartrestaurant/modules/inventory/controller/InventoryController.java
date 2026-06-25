@@ -7,15 +7,21 @@ import org.example.goldenheartrestaurant.common.response.PageResponse;
 import org.example.goldenheartrestaurant.common.security.CustomUserDetails;
 import org.example.goldenheartrestaurant.modules.inventory.dto.request.CreateInventoryItemRequest;
 import org.example.goldenheartrestaurant.modules.inventory.dto.request.InventoryReportGroupBy;
+import org.example.goldenheartrestaurant.modules.inventory.dto.request.RestockInventoryItemRequest;
 import org.example.goldenheartrestaurant.modules.inventory.dto.request.UpdateInventoryItemRequest;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryActionLogResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryAlertResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryItemResponse;
+import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryImportCommitResponse;
+import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryImportPreviewResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventoryMovementReportResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.InventorySummaryResponse;
 import org.example.goldenheartrestaurant.modules.inventory.dto.response.MeasurementUnitResponse;
 import org.example.goldenheartrestaurant.modules.inventory.service.InventoryManagementService;
+import org.example.goldenheartrestaurant.modules.inventory.service.InventoryExcelImportService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -37,15 +44,16 @@ import java.util.List;
 @RequestMapping("/api/v1/inventory")
 @RequiredArgsConstructor
 /**
- * Controller quản lý inventory.
+ * Controller quáº£n lÃ½ inventory.
  *
- * Rule phân quyền:
- * - ADMIN, MANAGER: thêm / sửa / xóa
+ * Rule phÃ¢n quyá»n:
+ * - ADMIN, MANAGER: thÃªm / sá»­a / xÃ³a
  * - ADMIN, MANAGER, STAFF, KITCHEN: xem
  */
 public class InventoryController {
 
     private final InventoryManagementService inventoryManagementService;
+    private final InventoryExcelImportService inventoryExcelImportService;
 
     @GetMapping("/units")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
@@ -119,6 +127,54 @@ public class InventoryController {
         );
     }
 
+    @GetMapping("/import/template")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<byte[]> downloadImportTemplate() {
+        byte[] template = inventoryExcelImportService.buildImportTemplate();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=goldenheart_inventory_import_template.xlsx")
+                .body(template);
+    }
+
+    @PostMapping(value = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<ApiResponse<InventoryImportPreviewResponse>> previewImport(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam Integer branchId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDate,
+            @RequestParam(required = false) String invoiceNumber,
+            @RequestParam(required = false) String note,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        InventoryImportPreviewResponse preview = inventoryExcelImportService.previewImport(file, branchId, receiptDate, invoiceNumber, note, currentUser);
+        return ResponseEntity.ok(
+                ApiResponse.<InventoryImportPreviewResponse>builder()
+                        .message(preview.importable() ? "Inventory import preview is valid" : "Inventory import preview contains validation errors")
+                        .data(preview)
+                        .build()
+        );
+    }
+
+    @PostMapping(value = "/import/commit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<ApiResponse<InventoryImportCommitResponse>> commitImport(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam Integer branchId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate receiptDate,
+            @RequestParam(required = false) String invoiceNumber,
+            @RequestParam(required = false) String note,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        InventoryImportCommitResponse result = inventoryExcelImportService.commitImport(file, branchId, receiptDate, invoiceNumber, note, currentUser);
+        return ResponseEntity.ok(
+                ApiResponse.<InventoryImportCommitResponse>builder()
+                        .message(result.committed() ? "Inventory import committed successfully" : "Inventory import file contains validation errors")
+                        .data(result)
+                        .build()
+        );
+    }
+
     @GetMapping("/{inventoryId}")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_STAFF", "ROLE_KITCHEN"})
     public ResponseEntity<ApiResponse<InventoryItemResponse>> getInventoryItemById(@PathVariable Integer inventoryId) {
@@ -159,6 +215,21 @@ public class InventoryController {
         );
     }
 
+
+    @PostMapping("/{inventoryId}/restock")
+    @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
+    public ResponseEntity<ApiResponse<InventoryItemResponse>> restockInventoryItem(
+            @PathVariable Integer inventoryId,
+            @Valid @RequestBody RestockInventoryItemRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.<InventoryItemResponse>builder()
+                        .message("Inventory item restocked successfully")
+                        .data(inventoryManagementService.restockInventoryItem(inventoryId, request, currentUser))
+                        .build()
+        );
+    }
     @PutMapping("/{inventoryId}")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
     public ResponseEntity<ApiResponse<InventoryItemResponse>> updateInventoryItem(
@@ -188,3 +259,5 @@ public class InventoryController {
         );
     }
 }
+
+

@@ -1,5 +1,6 @@
 package org.example.goldenheartrestaurant.modules.order.repository;
 
+import org.example.goldenheartrestaurant.modules.menu.entity.ProductionStation;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItem;
 import org.example.goldenheartrestaurant.modules.order.entity.OrderItemStatus;
 import org.example.goldenheartrestaurant.modules.report.repository.projection.OrderItemStatusCountProjection;
@@ -12,27 +13,27 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repository của OrderItem cho luồng bếp.
+ * Repository cá»§a OrderItem cho luá»“ng báº¿p.
  *
- * Query detail fetch sẵn:
+ * Query detail fetch sáºµn:
  * - order
  * - branch
  * - menu item
  * - recipes
  * - ingredients
  *
- * để service complete món không bị N+1 query khi trừ kho.
+ * Ä‘á»ƒ service complete mÃ³n khÃ´ng bá»‹ N+1 query khi trá»« kho.
  */
 public interface OrderItemRepository extends JpaRepository<OrderItem, Integer> {
 
     /**
-     * Lấy đầy đủ dữ liệu cần cho bếp hoàn thành món.
+     * Láº¥y Ä‘áº§y Ä‘á»§ dá»¯ liá»‡u cáº§n cho báº¿p hoÃ n thÃ nh mÃ³n.
      *
-     * Cần fetch toàn bộ menu item + recipe + ingredient ngay tại đây
-     * để service có thể:
-     * - biết món gồm những nguyên liệu nào
-     * - tính đúng lượng cần trừ kho
-     * - tránh phát sinh thêm nhiều query trong transaction
+     * Cáº§n fetch toÃ n bá»™ menu item + recipe + ingredient ngay táº¡i Ä‘Ã¢y
+     * Ä‘á»ƒ service cÃ³ thá»ƒ:
+     * - biáº¿t mÃ³n gá»“m nhá»¯ng nguyÃªn liá»‡u nÃ o
+     * - tÃ­nh Ä‘Ãºng lÆ°á»£ng cáº§n trá»« kho
+     * - trÃ¡nh phÃ¡t sinh thÃªm nhiá»u query trong transaction
      */
     @Query("""
             select distinct oi
@@ -54,13 +55,16 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Integer> {
             join fetch o.branch b
             left join fetch o.table t
             join fetch oi.menuItem mi
+            join fetch mi.category c
             where oi.status in :statuses
               and (:branchId is null or b.id = :branchId)
+              and (:productionStation is null or c.productionStation = :productionStation)
             order by oi.status asc, o.createdAt asc, oi.id asc
             """)
     List<OrderItem> findKitchenItemsByStatuses(
             @Param("statuses") Collection<OrderItemStatus> statuses,
-            @Param("branchId") Integer branchId
+            @Param("branchId") Integer branchId,
+            @Param("productionStation") ProductionStation productionStation
     );
 
     @Query("""

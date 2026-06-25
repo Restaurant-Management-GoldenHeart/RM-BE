@@ -20,6 +20,10 @@ public record InventoryItemResponse(
         boolean outOfStock,
         String alertMessage,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Integer defaultPurchaseUnitId,
+        String defaultPurchaseUnitName,
+        String defaultPurchaseUnitSymbol,
+        BigDecimal defaultPurchaseToBaseRate
 ) {
 }

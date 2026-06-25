@@ -13,6 +13,8 @@ import org.example.goldenheartrestaurant.modules.inventory.entity.StockMovement;
 import org.example.goldenheartrestaurant.modules.inventory.entity.StockMovementType;
 import org.example.goldenheartrestaurant.modules.inventory.repository.InventoryRepository;
 import org.example.goldenheartrestaurant.modules.inventory.repository.StockMovementRepository;
+import org.example.goldenheartrestaurant.modules.menu.entity.Category;
+import org.example.goldenheartrestaurant.modules.menu.entity.ProductionStation;
 import org.example.goldenheartrestaurant.modules.menu.entity.Recipe;
 import org.example.goldenheartrestaurant.modules.order.dto.response.KitchenPendingOrderItemResponse;
 import org.example.goldenheartrestaurant.modules.order.dto.response.OrderItemCompletionResponse;
@@ -77,15 +79,17 @@ public class KitchenWorkflowService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<KitchenPendingOrderItemResponse> getPendingItems(Integer branchId, CustomUserDetails currentUser) {
+    public List<KitchenPendingOrderItemResponse> getPendingItems(Integer branchId, String station, CustomUserDetails currentUser) {
         requireAnyRole(currentUser, ROLE_ADMIN, ROLE_MANAGER, ROLE_KITCHEN);
 
         Integer scopedBranchId = resolveKitchenBranchScope(branchId, currentUser);
+        ProductionStation productionStation = resolveProductionStationFilter(station);
         // Danh sách bếp cố ý bao gồm cả WAITING_STOCK để bếp và quản lý
         // thấy được món nào đang bị kẹt do thiếu nguyên liệu.
         return orderItemRepository.findKitchenItemsByStatuses(
                         EnumSet.of(OrderItemStatus.PENDING, OrderItemStatus.WAITING_STOCK, OrderItemStatus.PROCESSING),
-                        scopedBranchId
+                        scopedBranchId,
+                        productionStation
                 ).stream()
                 .map(this::toKitchenPendingResponse)
                 .toList();
@@ -460,6 +464,24 @@ public class KitchenWorkflowService {
         }
     }
 
+    private ProductionStation resolveProductionStationFilter(String station) {
+        if (!StringUtils.hasText(station)) {
+            return null;
+        }
+        try {
+            return ProductionStation.valueOf(station.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            throw new ConflictException("Unsupported production station");
+        }
+    }
+
+    private ProductionStation resolveProductionStation(OrderItem orderItem) {
+        Category category = orderItem.getMenuItem().getCategory();
+        return category != null && category.getProductionStation() != null
+                ? category.getProductionStation()
+                : ProductionStation.KITCHEN;
+    }
+
     private KitchenPendingOrderItemResponse toKitchenPendingResponse(OrderItem orderItem) {
         return new KitchenPendingOrderItemResponse(
                 orderItem.getId(),
@@ -468,6 +490,9 @@ public class KitchenWorkflowService {
                 orderItem.getOrder().getTable() != null ? orderItem.getOrder().getTable().getTableNumber() : null,
                 orderItem.getMenuItem().getId(),
                 orderItem.getMenuItem().getName(),
+                orderItem.getMenuItem().getCategory() != null ? orderItem.getMenuItem().getCategory().getId() : null,
+                orderItem.getMenuItem().getCategory() != null ? orderItem.getMenuItem().getCategory().getName() : null,
+                resolveProductionStation(orderItem).name(),
                 orderItem.getQuantity(),
                 orderItem.getNote(),
                 orderItem.getOrder().getCreatedAt(),

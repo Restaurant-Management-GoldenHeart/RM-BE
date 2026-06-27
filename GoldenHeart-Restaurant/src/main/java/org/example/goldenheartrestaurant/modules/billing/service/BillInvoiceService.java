@@ -26,12 +26,16 @@ import java.nio.file.Path;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -39,6 +43,8 @@ public class BillInvoiceService {
 
     private static final Locale VIETNAMESE = Locale.forLanguageTag("vi-VN");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    // Note của combo item: "[Combo:N] <tên>" (N = số lượng combo) hoặc "[Combo] <tên>" (format cũ)
+    private static final Pattern COMBO_NOTE_PATTERN = Pattern.compile("^\\[Combo(?::(\\d+))?\\]\\s+(.+)$");
     private static final List<String> FALLBACK_FONT_PATHS = List.of(
             "C:/Windows/Fonts/arial.ttf",
             "C:/Windows/Fonts/tahoma.ttf",
@@ -147,26 +153,90 @@ public class BillInvoiceService {
     }
 
     private List<InvoiceLineItemView> toGroupedLineItemViews(List<OrderItem> orderItems) {
-        Map<InvoiceLineItemKey, InvoiceLineItemAccumulator> groupedItems = new LinkedHashMap<>();
+        // Tách combo items (note = "[Combo:N] <tên>" hoặc "[Combo] <tên>") và regular items
+        Map<String, List<OrderItem>> comboGroups = new LinkedHashMap<>();
+        Map<String, Integer> comboQuantities = new LinkedHashMap<>(); // comboName → số lượng combo
+        List<OrderItem> regularItems = new ArrayList<>();
 
         orderItems.stream()
                 .filter(item -> item.getStatus() != OrderItemStatus.CANCELLED)
                 .forEach(item -> {
-                    BigDecimal unitPrice = nonNegative(item.getPrice());
-                    String itemName = item.getMenuItem() != null ? item.getMenuItem().getName() : "Món ăn";
                     String note = normalizeNote(item.getNote());
-                    InvoiceLineItemKey key = new InvoiceLineItemKey(
-                            item.getMenuItem() != null ? item.getMenuItem().getId() : null,
-                            itemName,
-                            unitPrice,
-                            note
-                    );
-                    groupedItems.computeIfAbsent(key, InvoiceLineItemAccumulator::new).add(item);
+                    if (note != null) {
+                        Matcher m = COMBO_NOTE_PATTERN.matcher(note);
+                        if (m.matches()) {
+                            String qtyStr = m.group(1);   // nullable — format cũ không có
+                            String comboName = m.group(2);
+                            if (qtyStr != null) {
+                                comboQuantities.putIfAbsent(comboName, Integer.parseInt(qtyStr));
+                            }
+                            comboGroups.computeIfAbsent(comboName, k -> new ArrayList<>()).add(item);
+                            return;
+                        }
+                    }
+                    regularItems.add(item);
                 });
 
-        return groupedItems.values().stream()
-                .map(InvoiceLineItemAccumulator::toView)
-                .toList();
+        List<InvoiceLineItemView> result = new ArrayList<>();
+
+        // Combo groups: header row + indented sub-items
+        comboGroups.forEach((comboName, items) -> {
+            BigDecimal groupTotal = items.stream()
+                    .map(i -> nonNegative(i.getPrice())
+                            .multiply(BigDecimal.valueOf(i.getQuantity() != null ? i.getQuantity() : 0)))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Tính SL combo:
+            // Khi gộp bàn, cùng combo từ nhiều bàn tạo ra nhiều "batch" — mỗi batch có N combo.
+            // Phát hiện số batch bằng cách đếm số lần xuất hiện của từng sub-item trong group.
+            // (Mỗi sub-item xuất hiện đúng 1 lần per batch → maxOccurrences = batchCount)
+            Integer nPerBatch = comboQuantities.get(comboName); // N từ note, per batch
+            Integer comboQty = null;
+            String comboUnitPriceStr = null;
+            if (nPerBatch != null && nPerBatch > 0) {
+                long batchCount = items.stream()
+                        .collect(Collectors.groupingBy(
+                                i -> i.getMenuItem() != null ? i.getMenuItem().getId() : -1,
+                                Collectors.counting()))
+                        .values().stream()
+                        .mapToLong(Long::longValue).max().orElse(1L);
+                comboQty = (int) (nPerBatch * batchCount);
+                BigDecimal unitPrice = groupTotal.divide(BigDecimal.valueOf(comboQty), 0, java.math.RoundingMode.HALF_UP);
+                comboUnitPriceStr = formatCurrency(unitPrice);
+            }
+
+            result.add(new InvoiceLineItemView(comboName, comboQty, comboUnitPriceStr, formatCurrency(groupTotal), null, "COMBO_HEADER"));
+
+            // Group sub-items cùng menuItem
+            Map<InvoiceLineItemKey, InvoiceLineItemAccumulator> subGrouped = new LinkedHashMap<>();
+            items.forEach(i -> {
+                BigDecimal unitPrice = nonNegative(i.getPrice());
+                String itemName = i.getMenuItem() != null ? i.getMenuItem().getName() : "Món ăn";
+                subGrouped.computeIfAbsent(
+                        new InvoiceLineItemKey(i.getMenuItem() != null ? i.getMenuItem().getId() : null, itemName, unitPrice, null),
+                        InvoiceLineItemAccumulator::new
+                ).add(i);
+            });
+            subGrouped.values().forEach(acc -> {
+                InvoiceLineItemView v = acc.toView();
+                result.add(new InvoiceLineItemView(v.name(), v.quantity(), v.unitPrice(), v.lineTotal(), null, "COMBO_ITEM"));
+            });
+        });
+
+        // Regular items
+        Map<InvoiceLineItemKey, InvoiceLineItemAccumulator> regularGrouped = new LinkedHashMap<>();
+        regularItems.forEach(item -> {
+            BigDecimal unitPrice = nonNegative(item.getPrice());
+            String itemName = item.getMenuItem() != null ? item.getMenuItem().getName() : "Món ăn";
+            String note = normalizeNote(item.getNote());
+            regularGrouped.computeIfAbsent(
+                    new InvoiceLineItemKey(item.getMenuItem() != null ? item.getMenuItem().getId() : null, itemName, unitPrice, note),
+                    InvoiceLineItemAccumulator::new
+            ).add(item);
+        });
+        regularGrouped.values().stream().map(InvoiceLineItemAccumulator::toView).forEach(result::add);
+
+        return result;
     }
 
     private InvoicePaymentView toPaymentView(Payment payment) {
@@ -318,7 +388,8 @@ public class BillInvoiceService {
                     quantity,
                     formatCurrency(key.unitPrice()),
                     formatCurrency(lineTotal),
-                    key.note()
+                    key.note(),
+                    "REGULAR"
             );
         }
     }
@@ -358,7 +429,8 @@ public class BillInvoiceService {
             Integer quantity,
             String unitPrice,
             String lineTotal,
-            String note
+            String note,
+            String rowType   // "REGULAR", "COMBO_HEADER", "COMBO_ITEM"
     ) {
     }
 

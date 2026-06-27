@@ -76,6 +76,14 @@ public class Customer extends BaseEntity {
     @Column(name = "last_visit_at")
     private java.time.LocalDateTime lastVisitAt;
 
+    /**
+     * Liên kết tuỳ chọn đến tài khoản hệ thống (bảng users).
+     * Null với khách vãng lai (walk-in); có giá trị khi khách tự đăng ký trên homepage.
+     * Dùng kiểu Integer thay vì @ManyToOne để tránh phụ thuộc vòng giữa module identity và customer.
+     */
+    @Column(name = "user_id", unique = true)
+    private Integer userId;
+
     @Builder.Default
     @OneToMany(mappedBy = "customer")
     private List<Order> orders = new ArrayList<>();

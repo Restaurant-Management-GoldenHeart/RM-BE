@@ -32,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -105,6 +107,22 @@ public class AuthController {
                                 .data(response)
                                 .build()
                 );
+    }
+
+    /**
+     * Tạo Customer CRM cho các tài khoản CUSTOMER đã đăng ký nhưng thiếu bản ghi CRM.
+     * Chỉ ADMIN mới được gọi. Gọi một lần sau khi nâng cấp hệ thống.
+     */
+    @PostMapping("/admin/sync-customers")
+    @Secured("ROLE_ADMIN")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> syncCustomers() {
+        int synced = authService.syncOrphanedCustomers();
+        return ResponseEntity.ok(
+                ApiResponse.<Map<String, Integer>>builder()
+                        .message("Đồng bộ hoàn tất: " + synced + " Customer CRM đã được tạo")
+                        .data(Map.of("synced", synced))
+                        .build()
+        );
     }
 
     @PostMapping("/password-recovery/request-otp")

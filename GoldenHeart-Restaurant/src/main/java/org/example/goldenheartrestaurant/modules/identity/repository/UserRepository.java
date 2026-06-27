@@ -1,5 +1,6 @@
 package org.example.goldenheartrestaurant.modules.identity.repository;
 
+import org.example.goldenheartrestaurant.modules.customer.entity.Customer;
 import org.example.goldenheartrestaurant.modules.identity.entity.User;
 import org.example.goldenheartrestaurant.modules.identity.entity.UserStatus;
 import org.springframework.data.domain.Page;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
 
@@ -94,6 +96,23 @@ public interface UserRepository extends JpaRepository<User, Integer> {
             @Param("userId") Integer userId,
             @Param("activeStatus") UserStatus activeStatus
     );
+
+    /**
+     * Tìm tất cả User có role CUSTOMER nhưng chưa có bản ghi Customer CRM tương ứng.
+     * Dùng để sync data cho các tài khoản đã đăng ký trước khi tính năng auto-create CRM được triển khai.
+     */
+    @Query("""
+            select u from User u
+            join fetch u.profile up
+            join u.role r
+            where upper(r.name) = 'CUSTOMER'
+              and u.deletedAt is null
+              and up.deletedAt is null
+              and not exists (
+                  select 1 from Customer c where c.userId = u.id
+              )
+            """)
+    List<User> findCustomerUsersWithoutCrmRecord();
 
     @Query(
             value = """

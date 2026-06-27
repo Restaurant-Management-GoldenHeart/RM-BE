@@ -60,12 +60,18 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import org.apache.poi.ss.usermodel.DataValidation;
+import org.apache.poi.ss.usermodel.DataValidationConstraint;
+import org.apache.poi.ss.usermodel.DataValidationHelper;
+import org.apache.poi.ss.util.CellRangeAddressList;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -89,6 +95,7 @@ public class InventoryExcelImportService {
             new ImportColumn(10, "Lô hàng", false),
             new ImportColumn(11, "Ghi chú", false)
     );
+    private static final int HIDDEN_INGREDIENT_ID_COL = 12;
     private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
             DateTimeFormatter.ISO_LOCAL_DATE,
             DateTimeFormatter.ofPattern("d/M/yyyy"),
@@ -107,26 +114,52 @@ public class InventoryExcelImportService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public byte[] buildImportTemplate() {
+    public byte[] buildImportTemplate(Integer branchId, CustomUserDetails currentUser) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            CellStyle headerStyle = createHeaderStyle(workbook, IndexedColors.GREY_25_PERCENT);
-            CellStyle requiredHeaderStyle = createHeaderStyle(workbook, IndexedColors.LIGHT_ORANGE);
-            CellStyle textStyle = createTextStyle(workbook);
-            CreationHelper creationHelper = workbook.getCreationHelper();
-            CellStyle numberStyle = workbook.createCellStyle();
-            numberStyle.cloneStyleFrom(textStyle);
-            numberStyle.setDataFormat(creationHelper.createDataFormat().getFormat("#,##0.00"));
-            CellStyle rateStyle = workbook.createCellStyle();
-            rateStyle.cloneStyleFrom(textStyle);
-            rateStyle.setDataFormat(creationHelper.createDataFormat().getFormat("#,##0.000000"));
-            CellStyle moneyStyle = workbook.createCellStyle();
-            moneyStyle.cloneStyleFrom(textStyle);
-            moneyStyle.setDataFormat(creationHelper.createDataFormat().getFormat("#,##0"));
-            CellStyle dateStyle = workbook.createCellStyle();
-            dateStyle.cloneStyleFrom(textStyle);
-            dateStyle.setDataFormat(creationHelper.createDataFormat().getFormat("yyyy-mm-dd"));
+            // Fetch units once — used for "Don vi" sheet and dropdown validation
+            List<MeasurementUnit> units = measurementUnitRepository.findAll().stream()
+                    .sorted(Comparator.comparing(u -> u.getSymbol().toLowerCase(Locale.ROOT))).toList();
 
+            // Fetch branch inventory for pre-fill (optional)
+            List<Inventory> prefillRows = List.of();
+            if (branchId != null) {
+                if (currentUser != null) ensureCanImportBranch(resolveBranch(branchId), currentUser);
+                prefillRows = inventoryRepository.search(null, branchId, false, PageRequest.of(0, 5000))
+                        .getContent().stream()
+                        .sorted(Comparator.comparing(inv -> inv.getIngredient().getName().toLowerCase(Locale.ROOT)))
+                        .toList();
+            }
+
+            // ── Styles ──────────────────────────────────────────────────────────
+            CellStyle headerStyle         = createHeaderStyle(workbook, IndexedColors.GREY_25_PERCENT);
+            CellStyle requiredHeaderStyle = createHeaderStyle(workbook, IndexedColors.LIGHT_ORANGE);
+            CreationHelper ch = workbook.getCreationHelper();
+
+            // lockedText: PALE_BLUE tint for pre-filled read-only cells (locked=true is Excel default)
+            CellStyle lockedText = workbook.createCellStyle();
+            lockedText.setBorderBottom(BorderStyle.THIN); lockedText.setBorderTop(BorderStyle.THIN);
+            lockedText.setBorderLeft(BorderStyle.THIN);   lockedText.setBorderRight(BorderStyle.THIN);
+            lockedText.setVerticalAlignment(VerticalAlignment.CENTER);
+            lockedText.setFillForegroundColor(IndexedColors.PALE_BLUE.getIndex());
+            lockedText.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            // editableXxx: same base style but locked=false so users can type when sheet is protected
+            CellStyle editText   = editableStyle(workbook, createTextStyle(workbook));
+            CellStyle editNumber = editableStyle(workbook, createTextStyle(workbook));
+            editNumber.setDataFormat(ch.createDataFormat().getFormat("#,##0.00"));
+            CellStyle editRate   = editableStyle(workbook, createTextStyle(workbook));
+            editRate.setDataFormat(ch.createDataFormat().getFormat("#,##0.000000"));
+            CellStyle editMoney  = editableStyle(workbook, createTextStyle(workbook));
+            editMoney.setDataFormat(ch.createDataFormat().getFormat("#,##0"));
+            CellStyle editDate   = editableStyle(workbook, createTextStyle(workbook));
+            editDate.setDataFormat(ch.createDataFormat().getFormat("yyyy-mm-dd"));
+
+            // ── Sheet order: guide → units → import (so "Don vi" exists for DataValidation ref)
+            writeGuideSheet(workbook.createSheet("Huong dan"), workbook);
+            writeUnitSheet(workbook.createSheet("Don vi"), workbook, units);
             Sheet importSheet = workbook.createSheet("Nhap kho");
+
+            // ── Header row ───────────────────────────────────────────────────────
             Row headerRow = importSheet.createRow(HEADER_ROW_INDEX);
             for (ImportColumn column : COLUMNS) {
                 Cell cell = headerRow.createCell(column.index());
@@ -138,20 +171,100 @@ public class InventoryExcelImportService {
                     default -> 4300;
                 });
             }
-            for (int rowIndex = 1; rowIndex <= 200; rowIndex++) {
-                Row row = importSheet.createRow(rowIndex);
-                for (ImportColumn column : COLUMNS) {
-                    Cell cell = row.createCell(column.index());
-                    if (List.of(2, 5, 7, 8).contains(column.index())) cell.setCellStyle(numberStyle);
-                    else if (column.index() == 4) cell.setCellStyle(rateStyle);
-                    else if (column.index() == 6) cell.setCellStyle(moneyStyle);
-                    else if (column.index() == 9) cell.setCellStyle(dateStyle);
-                    else cell.setCellStyle(textStyle);
+            // Hidden "ingredient_id" column — identifies pre-filled ingredient reliably on import
+            headerRow.createCell(HIDDEN_INGREDIENT_ID_COL).setCellValue("ingredient_id");
+            importSheet.setColumnHidden(HIDDEN_INGREDIENT_ID_COL, true);
+
+            boolean hasPrefill = !prefillRows.isEmpty();
+
+            if (hasPrefill) {
+                // ── Pre-filled rows from branch inventory ──────────────────────────
+                for (int i = 0; i < prefillRows.size(); i++) {
+                    Inventory inv  = prefillRows.get(i);
+                    Ingredient ing = inv.getIngredient();
+                    Row row = importSheet.createRow(i + 1);
+
+                    // Cols 0,1 locked — prevent accidental name/unit edits
+                    createLockedCell(row, 0, ing.getName(), lockedText);
+                    createLockedCell(row, 1, ing.resolveUnitSymbol(), lockedText);
+
+                    // Col 2 — quantity (must fill)
+                    row.createCell(2).setCellStyle(editNumber);
+
+                    // Col 3 — purchase unit, pre-filled with default
+                    Cell puCell = row.createCell(3);
+                    if (ing.getDefaultPurchaseUnit() != null) puCell.setCellValue(ing.getDefaultPurchaseUnit().getSymbol());
+                    puCell.setCellStyle(editText);
+
+                    // Col 4 — conversion rate, pre-filled with default
+                    Cell rateCell = row.createCell(4);
+                    if (ing.getDefaultPurchaseToBaseRate() != null) rateCell.setCellValue(ing.getDefaultPurchaseToBaseRate().doubleValue());
+                    rateCell.setCellStyle(editRate);
+
+                    // Col 5 — converted qty (optional override)
+                    row.createCell(5).setCellStyle(editNumber);
+
+                    // Col 6 — purchase unit cost (must fill)
+                    row.createCell(6).setCellStyle(editMoney);
+
+                    // Cols 7,8 — min stock, reorder pre-filled from current settings
+                    Cell minCell = row.createCell(7);
+                    if (inv.getMinStockLevel() != null) minCell.setCellValue(inv.getMinStockLevel().doubleValue());
+                    minCell.setCellStyle(editNumber);
+                    Cell reorderCell = row.createCell(8);
+                    if (inv.getReorderLevel() != null) reorderCell.setCellValue(inv.getReorderLevel().doubleValue());
+                    reorderCell.setCellStyle(editNumber);
+
+                    // Cols 9–11 — expiry, batch, note (blank, user fills)
+                    row.createCell(9).setCellStyle(editDate);
+                    row.createCell(10).setCellStyle(editText);
+                    row.createCell(11).setCellStyle(editText);
+
+                    // Col 12 hidden, locked — ingredient ID for reliable lookup on commit
+                    Cell idCell = row.createCell(HIDDEN_INGREDIENT_ID_COL);
+                    idCell.setCellValue(ing.getId());
+                    idCell.setCellStyle(lockedText);
                 }
+
+                // ── 20 blank rows at bottom for new ingredients ────────────────────
+                int blankStart = prefillRows.size() + 1;
+                for (int i = blankStart; i < blankStart + 20; i++) {
+                    Row row = importSheet.createRow(i);
+                    row.createCell(0).setCellStyle(editText);
+                    row.createCell(1).setCellStyle(editText);
+                    row.createCell(2).setCellStyle(editNumber);
+                    row.createCell(3).setCellStyle(editText);
+                    row.createCell(4).setCellStyle(editRate);
+                    row.createCell(5).setCellStyle(editNumber);
+                    row.createCell(6).setCellStyle(editMoney);
+                    row.createCell(7).setCellStyle(editNumber);
+                    row.createCell(8).setCellStyle(editNumber);
+                    row.createCell(9).setCellStyle(editDate);
+                    row.createCell(10).setCellStyle(editText);
+                    row.createCell(11).setCellStyle(editText);
+                }
+
+                // Protect sheet so locked cells (name, unit, id) cannot be edited
+                importSheet.protectSheet("");
+                addUnitDropdown(importSheet, units.size(), 1, prefillRows.size() + 20);
+
+            } else {
+                // ── Blank template — same behaviour as before ──────────────────────
+                for (int rowIndex = 1; rowIndex <= 200; rowIndex++) {
+                    Row row = importSheet.createRow(rowIndex);
+                    for (ImportColumn column : COLUMNS) {
+                        Cell cell = row.createCell(column.index());
+                        if (List.of(2, 5, 7, 8).contains(column.index())) cell.setCellStyle(editNumber);
+                        else if (column.index() == 4) cell.setCellStyle(editRate);
+                        else if (column.index() == 6) cell.setCellStyle(editMoney);
+                        else if (column.index() == 9) cell.setCellStyle(editDate);
+                        else cell.setCellStyle(editText);
+                    }
+                }
+                addUnitDropdown(importSheet, units.size(), 1, 200);
             }
+
             importSheet.createFreezePane(0, 1);
-            writeGuideSheet(workbook.createSheet("Huong dan"), workbook);
-            writeUnitSheet(workbook.createSheet("Don vi"), workbook);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         } catch (Exception exception) {
@@ -217,7 +330,8 @@ public class InventoryExcelImportService {
                 globalErrors.add("File Excel không có sheet dữ liệu.");
                 return buildParsedFile(branch, effectiveReceiptDate, normalizedInvoiceNumber, normalizedNote, globalErrors, parsedRows);
             }
-            Sheet sheet = workbook.getSheetAt(0);
+            Sheet sheet = workbook.getSheet("Nhap kho");
+            if (sheet == null) sheet = workbook.getSheetAt(0); // fallback cho file cũ
             DataFormatter formatter = new DataFormatter(Locale.forLanguageTag("vi-VN"));
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             validateHeader(sheet.getRow(HEADER_ROW_INDEX), formatter, evaluator, globalErrors);
@@ -265,6 +379,7 @@ public class InventoryExcelImportService {
         int rowNumber = row.getRowNum() + 1;
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
+        Integer prefilledIngredientId = readIngredientIdCell(row);
         String ingredientName = cleanText(cellText(row, 0, formatter, evaluator));
         String baseUnitText = cleanText(cellText(row, 1, formatter, evaluator));
         DecimalCellValue purchaseQuantityValue = parseDecimalCell(row, 2, formatter, evaluator);
@@ -327,7 +442,7 @@ public class InventoryExcelImportService {
             String ingredientKey = normalizeLookupText(ingredientName);
             PreviewStockState state = previewStates.get(ingredientKey);
             if (state == null) {
-                state = loadPreviewStockState(branch, ingredientName, baseUnit, rowNumber, errors);
+                state = loadPreviewStockState(branch, ingredientName, baseUnit, prefilledIngredientId, rowNumber, errors);
                 if (state != null) previewStates.put(ingredientKey, state);
             } else if (!state.unitId().equals(baseUnit.getId())) {
                 errors.add(columnError("Đơn vị tồn kho", "khác với đơn vị đã dùng cho nguyên liệu này ở dòng " + state.firstRowNumber() + "."));
@@ -403,8 +518,11 @@ public class InventoryExcelImportService {
     }
 
     private PreviewStockState loadPreviewStockState(Branch branch, String ingredientName, MeasurementUnit baseUnit,
-                                                    int firstRowNumber, List<String> errors) {
-        Optional<Ingredient> existingIngredient = ingredientRepository.findByBranchIdAndNameIgnoreCase(branch.getId(), ingredientName);
+                                                    Integer prefilledIngredientId, int firstRowNumber, List<String> errors) {
+        // Try pre-filled ID first (from hidden col 12 in template) — avoids name-based lookup issues
+        Optional<Ingredient> existingIngredient = Optional.empty();
+        if (prefilledIngredientId != null) existingIngredient = ingredientRepository.findById(prefilledIngredientId);
+        if (existingIngredient.isEmpty()) existingIngredient = ingredientRepository.findByBranchIdAndNameIgnoreCase(branch.getId(), ingredientName);
         if (existingIngredient.isEmpty()) return PreviewStockState.newIngredient(baseUnit, firstRowNumber);
         Ingredient ingredient = existingIngredient.get();
         Integer existingUnitId = ingredient.getMeasurementUnit() != null ? ingredient.getMeasurementUnit().getId() : null;
@@ -422,7 +540,11 @@ public class InventoryExcelImportService {
     }
 
     private void applyImportRow(Branch branch, GoodsReceipt receipt, User actor, ParsedImportRow row, LocalDateTime occurredAt) {
-        Ingredient ingredient = resolveOrCreateIngredient(branch, row.ingredientName(), row.baseUnit());
+        // Use pre-resolved ID (from hidden col 12 in template) for fast, reliable lookup
+        Ingredient ingredient = row.ingredientId() != null
+                ? ingredientRepository.findById(row.ingredientId())
+                        .orElseGet(() -> resolveOrCreateIngredient(branch, row.ingredientName(), row.baseUnit()))
+                : resolveOrCreateIngredient(branch, row.ingredientName(), row.baseUnit());
         if (ingredient.getDefaultPurchaseUnit() == null && row.purchaseUnit() != null && row.conversionRate() != null) {
             ingredient.setDefaultPurchaseUnit(row.purchaseUnit());
             ingredient.setDefaultPurchaseToBaseRate(row.conversionRate());
@@ -604,10 +726,9 @@ public class InventoryExcelImportService {
 
     private boolean isRowBlank(Row row, DataFormatter formatter, FormulaEvaluator evaluator) {
         if (row == null) return true;
-        for (ImportColumn column : COLUMNS) {
-            if (StringUtils.hasText(cellText(row, column.index(), formatter, evaluator))) return false;
-        }
-        return true;
+        // Blank = no purchase quantity entered (col 2). Pre-filled templates always have cols 0/1 filled,
+        // so we can't use "any column has content" as the signal anymore.
+        return !StringUtils.hasText(cellText(row, 2, formatter, evaluator));
     }
 
     private boolean hasExcelExtension(String filename) {
@@ -715,6 +836,41 @@ public class InventoryExcelImportService {
         return style;
     }
 
+    private CellStyle editableStyle(Workbook workbook, CellStyle base) {
+        CellStyle s = workbook.createCellStyle();
+        s.cloneStyleFrom(base);
+        s.setLocked(false);
+        return s;
+    }
+
+    private void createLockedCell(Row row, int col, String value, CellStyle style) {
+        Cell c = row.createCell(col);
+        c.setCellValue(value != null ? value : "");
+        c.setCellStyle(style);
+    }
+
+    private void addUnitDropdown(Sheet sheet, int unitCount, int firstRow, int lastRow) {
+        DataValidationHelper dvh = sheet.getDataValidationHelper();
+        DataValidationConstraint dvc = dvh.createFormulaListConstraint("'Don vi'!$D$2:$D$" + (unitCount + 1));
+        CellRangeAddressList range = new CellRangeAddressList(firstRow, lastRow, 3, 3);
+        DataValidation dv = dvh.createValidation(dvc, range);
+        dv.setShowErrorBox(true);
+        dv.createErrorBox("Đơn vị không hợp lệ", "Vui lòng chọn từ danh sách sheet 'Don vi'.");
+        sheet.addValidationData(dv);
+    }
+
+    private Integer readIngredientIdCell(Row row) {
+        if (row == null) return null;
+        Cell cell = row.getCell(HIDDEN_INGREDIENT_ID_COL);
+        if (cell == null) return null;
+        try {
+            int id = (int) cell.getNumericCellValue();
+            return id > 0 ? id : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private void writeGuideSheet(Sheet sheet, Workbook workbook) {
         Font titleFont = workbook.createFont();
         titleFont.setBold(true);
@@ -741,7 +897,7 @@ public class InventoryExcelImportService {
         sheet.setColumnWidth(0, 18000);
     }
 
-    private void writeUnitSheet(Sheet sheet, Workbook workbook) {
+    private void writeUnitSheet(Sheet sheet, Workbook workbook, List<MeasurementUnit> units) {
         CellStyle headerStyle = createHeaderStyle(workbook, IndexedColors.GREY_25_PERCENT);
         Row header = sheet.createRow(0);
         String[] headers = {"ID", "Mã", "Tên đơn vị", "Ký hiệu"};
@@ -751,8 +907,6 @@ public class InventoryExcelImportService {
             cell.setCellStyle(headerStyle);
             sheet.setColumnWidth(i, i == 2 ? 7000 : 3600);
         }
-        List<MeasurementUnit> units = measurementUnitRepository.findAll().stream()
-                .sorted((left, right) -> left.getName().compareToIgnoreCase(right.getName())).toList();
         for (int i = 0; i < units.size(); i++) {
             MeasurementUnit unit = units.get(i);
             Row row = sheet.createRow(i + 1);

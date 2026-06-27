@@ -21,6 +21,9 @@ public record CustomerResponse(
         Integer tierId,
         String tierCode,
         String tierName,
-        BigDecimal tierDiscountRate
+        BigDecimal tierDiscountRate,
+        /** userId != null nghĩa là khách này đã tự đăng ký tài khoản online. */
+        Integer userId,
+        Boolean hasAccount
 ) {
 }

@@ -36,6 +36,23 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
 
     Optional<Customer> findById(Integer id);
 
+    /** Tìm Customer CRM theo user_id — dùng cho customer portal (khách đã đăng ký tài khoản). */
+    Optional<Customer> findByUserId(Integer userId);
+
+    /** Tìm Customer CRM theo active_email. */
+    Optional<Customer> findByActiveEmailIgnoreCase(String activeEmail);
+
+    /**
+     * Tìm hồ sơ khách walk-in (userId == null) theo số điện thoại.
+     *
+     * <p>Dùng trong luồng đăng ký tài khoản: khách cung cấp SĐT đã đăng ký với nhà hàng
+     * để hệ thống tìm và liên kết hồ sơ CRM cũ — giữ nguyên điểm tích lũy.
+     * Điều kiện {@code userId is null} bảo đảm không bao giờ link nhầm vào
+     * hồ sơ đã được claim bởi tài khoản khác.
+     */
+    @Query("select c from Customer c where c.activePhone = :phone and c.userId is null")
+    Optional<Customer> findWalkInByActivePhone(@Param("phone") String phone);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Customer c where c.id = :customerId")
     Optional<Customer> findByIdForUpdate(@Param("customerId") Integer customerId);

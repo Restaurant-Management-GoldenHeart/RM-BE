@@ -456,12 +456,16 @@ public class OrderManagementService {
                 continue;
             }
 
+            BigDecimal itemPrice = (request.overridePrice() != null && request.overridePrice().compareTo(BigDecimal.ZERO) > 0)
+                    ? request.overridePrice()
+                    : menuItem.getPrice();
+
             order.getOrderItems().add(
                     OrderItem.builder()
                             .order(order)
                             .menuItem(menuItem)
                             .quantity(request.quantity())
-                            .price(menuItem.getPrice())
+                            .price(itemPrice)
                             .status(OrderItemStatus.PENDING)
                             .note(normalizedNote)
                             .build()

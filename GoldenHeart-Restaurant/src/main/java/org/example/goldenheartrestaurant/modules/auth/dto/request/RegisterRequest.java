@@ -30,4 +30,15 @@ public class RegisterRequest {
     @NotBlank(message = "Full name is required")
     @Size(max = 100, message = "Full name must be at most 100 characters")
     private String fullName;
+
+    /**
+     * Số điện thoại — tuỳ chọn, chỉ cần khi khách muốn liên kết với hồ sơ walk-in
+     * đã được staff tạo trước đó (để kế thừa điểm tích lũy).
+     * Nếu không cung cấp, hệ thống sẽ tạo hồ sơ CRM mới trống.
+     */
+    @Pattern(
+            regexp = "^(0|\\+84)[0-9]{9}$",
+            message = "Số điện thoại không hợp lệ (VD: 0901234567 hoặc +84901234567)"
+    )
+    private String phone;
 }

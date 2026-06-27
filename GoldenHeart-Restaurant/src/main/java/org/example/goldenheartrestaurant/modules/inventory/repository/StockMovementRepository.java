@@ -75,4 +75,16 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, In
     List<InventoryMovementPeriodProjection> summarizeMovementByMonth(@Param("branchId") Integer branchId,
                                                                      @Param("fromDateTime") LocalDateTime fromDateTime,
                                                                      @Param("toDateTime") LocalDateTime toDateTime);
+
+    @Query("""
+            select coalesce(sum(coalesce(sm.totalCost, 0)), 0)
+            from StockMovement sm
+            where sm.movementType = org.example.goldenheartrestaurant.modules.inventory.entity.StockMovementType.WASTE_OUT
+              and (:branchId is null or sm.branch.id = :branchId)
+              and (:dateFrom is null or sm.occurredAt >= :dateFrom)
+              and (:dateTo is null or sm.occurredAt <= :dateTo)
+            """)
+    BigDecimal sumWasteOutCost(@Param("branchId") Integer branchId,
+                               @Param("dateFrom") LocalDateTime dateFrom,
+                               @Param("dateTo") LocalDateTime dateTo);
 }

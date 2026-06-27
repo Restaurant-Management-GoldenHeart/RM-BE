@@ -16,6 +16,9 @@ public interface CustomerTierRepository extends JpaRepository<CustomerTier, Inte
 
     Optional<CustomerTier> findFirstByActiveTrueAndMinPointsLessThanEqualOrderByMinPointsDesc(Integer loyaltyPoints);
 
+    /** Tier tiếp theo mà khách cần phấn đấu để đạt được (min_points > điểm hiện tại). */
+    Optional<CustomerTier> findFirstByActiveTrueAndMinPointsGreaterThanOrderByMinPointsAsc(Integer currentPoints);
+
     boolean existsByCodeIgnoreCase(String code);
 
     boolean existsByCodeIgnoreCaseAndIdNot(String code, Integer id);

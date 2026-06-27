@@ -152,9 +152,45 @@
 
         .note {
             margin-top: 4px;
-            color: #b45309;
             font-size: 10px;
             font-style: italic;
+        }
+
+        /* ── Combo header row ── */
+        .combo-header-row td {
+            padding: 9px 12px;
+            border-top: 1px solid #0f172a;
+            border-bottom: 1px dashed #94a3b8;
+            font-weight: 700;
+        }
+
+        .combo-tag {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            padding: 1px 6px;
+            border: 1px solid #0f172a;
+            border-radius: 999px;
+            margin-right: 7px;
+        }
+
+        /* ── Combo sub-items ── */
+        .combo-item-row td {
+            font-style: italic;
+            font-size: 11px;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 8px 12px;
+        }
+
+        .combo-item-indent {
+            padding-left: 20px !important;
+        }
+
+        /* ── Regular items ── */
+        .regular-item-row td {
+            font-weight: 700;
         }
 
         .bottom-grid {
@@ -297,6 +333,12 @@
     </div>
 
     <table class="items-table">
+        <colgroup>
+            <col style="width: 48%" />
+            <col style="width: 8%" />
+            <col style="width: 22%" />
+            <col style="width: 22%" />
+        </colgroup>
         <thead>
         <tr>
             <th>Món ăn</th>
@@ -306,14 +348,27 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="item : ${invoice.items}">
-            <td>
+        <tr th:each="item : ${invoice.items}"
+            th:class="${item.rowType == 'COMBO_HEADER'} ? 'combo-header-row' : (${item.rowType == 'COMBO_ITEM'} ? 'combo-item-row' : 'regular-item-row')">
+
+            <!-- COMBO_HEADER: 4 cột riêng biệt — tên | SL | Đơn giá | Thành tiền -->
+            <td th:if="${item.rowType == 'COMBO_HEADER'}">
+                <span class="combo-tag">Combo</span>
+                <span th:text="${item.name}">Tên combo</span>
+            </td>
+            <td class="qty" th:if="${item.rowType == 'COMBO_HEADER'}" th:text="${item.quantity}">1</td>
+            <td class="number" th:if="${item.rowType == 'COMBO_HEADER'}" th:text="${item.unitPrice}">--</td>
+            <td class="number" th:if="${item.rowType == 'COMBO_HEADER'}" th:text="${item.lineTotal}">0 ₫</td>
+
+            <!-- COMBO_ITEM hoặc REGULAR: 4 cột bình thường -->
+            <td th:unless="${item.rowType == 'COMBO_HEADER'}"
+                th:classappend="${item.rowType == 'COMBO_ITEM'} ? 'combo-item-indent' : ''">
                 <div th:text="${item.name}">Bò lúc lắc</div>
                 <div class="note" th:if="${item.note}" th:text="'Ghi chú: ' + ${item.note}">Ghi chú</div>
             </td>
-            <td class="qty" th:text="${item.quantity}">1</td>
-            <td class="number" th:text="${item.unitPrice}">2.000 ₫</td>
-            <td class="number" th:text="${item.lineTotal}">2.000 ₫</td>
+            <td class="qty" th:unless="${item.rowType == 'COMBO_HEADER'}" th:text="${item.quantity}">1</td>
+            <td class="number" th:unless="${item.rowType == 'COMBO_HEADER'}" th:text="${item.unitPrice}">2.000 ₫</td>
+            <td class="number" th:unless="${item.rowType == 'COMBO_HEADER'}" th:text="${item.lineTotal}">2.000 ₫</td>
         </tr>
         </tbody>
     </table>

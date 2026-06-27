@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -80,4 +81,43 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
             where (:branchId is null or mi.branch.id = :branchId)
             """)
     long countForReport(@Param("branchId") Integer branchId);
+
+    /**
+     * Lấy danh sách món ăn phổ biến cho homepage — gộp theo TÊN MÓN xuyên suốt tất cả chi nhánh.
+     *
+     * <p><b>Logic nghiệp vụ:</b>
+     * <ul>
+     *   <li>Cùng tên món ở nhiều chi nhánh → gộp thành 1 dòng, cộng dồn số lượt gọi.</li>
+     *   <li>Chỉ tính đơn hàng không bị huỷ (status != 'CANCELLED').</li>
+     *   <li>Món chưa từng được đặt vẫn hiện (LEFT JOIN), totalOrderCount = 0.</li>
+     *   <li>Chỉ lấy món đang AVAILABLE.</li>
+     *   <li>Sắp xếp: gọi nhiều nhất → đầu tiên; nếu bằng nhau → sort theo tên.</li>
+     * </ul>
+     *
+     * <p>Native query dùng alias trong ORDER BY (MySQL hỗ trợ) để tránh lặp lại biểu thức CASE SUM.
+     */
+    @Query(value = """
+            SELECT MIN(mi.id)              AS id,
+                   mi.name                 AS name,
+                   MIN(mi.image_url)       AS imageUrl,
+                   MIN(mi.description)     AS description,
+                   MIN(mi.price)           AS price,
+                   cat.id                  AS categoryId,
+                   cat.name                AS categoryName,
+                   cat.production_station  AS productionStation,
+                   COALESCE(SUM(
+                       CASE WHEN o.status IS NOT NULL AND o.status != 'CANCELLED'
+                            THEN oi.quantity
+                            ELSE 0
+                       END
+                   ), 0)                   AS totalOrderCount
+            FROM menu_items mi
+            JOIN categories cat ON mi.category_id = cat.id
+            LEFT JOIN order_items oi ON oi.menu_item_id = mi.id
+            LEFT JOIN orders o ON oi.order_id = o.id
+            WHERE mi.status = 'AVAILABLE'
+            GROUP BY mi.name, cat.id, cat.name, cat.production_station
+            ORDER BY totalOrderCount DESC, mi.name ASC
+            """, nativeQuery = true)
+    List<PopularDishProjection> findPopularDishesForHomepage();
 }

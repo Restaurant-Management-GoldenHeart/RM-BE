@@ -215,7 +215,9 @@ public class CustomerService {
                 tier != null ? tier.getId() : null,
                 tier != null ? tier.getCode() : null,
                 tier != null ? tier.getName() : null,
-                tier != null ? tier.getDiscountRate() : null
+                tier != null ? tier.getDiscountRate() : null,
+                customer.getUserId(),
+                customer.getUserId() != null
         );
     }
 

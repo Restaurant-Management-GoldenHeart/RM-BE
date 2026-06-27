@@ -129,8 +129,10 @@ public class InventoryController {
 
     @GetMapping("/import/template")
     @Secured({"ROLE_ADMIN", "ROLE_MANAGER"})
-    public ResponseEntity<byte[]> downloadImportTemplate() {
-        byte[] template = inventoryExcelImportService.buildImportTemplate();
+    public ResponseEntity<byte[]> downloadImportTemplate(
+            @RequestParam(required = false) Integer branchId,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        byte[] template = inventoryExcelImportService.buildImportTemplate(branchId, currentUser);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=goldenheart_inventory_import_template.xlsx")

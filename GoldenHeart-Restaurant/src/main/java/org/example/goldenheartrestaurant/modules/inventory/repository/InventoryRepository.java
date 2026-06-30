@@ -1,12 +1,10 @@
 package org.example.goldenheartrestaurant.modules.inventory.repository;
 
-import jakarta.persistence.LockModeType;
 import org.example.goldenheartrestaurant.modules.inventory.entity.Inventory;
 import org.example.goldenheartrestaurant.modules.inventory.repository.projection.InventorySummaryProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -101,17 +99,15 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
      * - trÃ¡nh 2 request hoÃ n thÃ nh mÃ³n cÃ¹ng lÃºc cÃ¹ng trá»« má»™t nguyÃªn liá»‡u
      * - Ä‘áº£m báº£o sá»‘ tá»“n Ä‘Æ°á»£c Ä‘á»c vÃ  cáº­p nháº­t má»™t cÃ¡ch tuáº§n tá»±
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select i
-            from Inventory i
-            join fetch i.branch
-            join fetch i.ingredient ing
-            left join fetch ing.measurementUnit
-            left join fetch ing.defaultPurchaseUnit
-            where i.branch.id = :branchId
-              and i.ingredient.id in :ingredientIds
-            """)
+    @Query(value = """
+            SELECT i.* FROM inventory i
+            JOIN branches b ON b.id = i.branch_id
+            JOIN ingredients ing ON ing.id = i.ingredient_id
+            WHERE i.deleted_at IS NULL
+              AND i.branch_id = :branchId
+              AND i.ingredient_id IN (:ingredientIds)
+            FOR UPDATE
+            """, nativeQuery = true)
     List<Inventory> findAllForUpdateByBranchIdAndIngredientIds(
             @Param("branchId") Integer branchId,
             @Param("ingredientIds") List<Integer> ingredientIds

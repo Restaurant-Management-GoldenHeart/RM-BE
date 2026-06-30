@@ -127,16 +127,7 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
             where i.id = :inventoryId
             """)
     Optional<Inventory> findDetailById(@Param("inventoryId") Integer inventoryId);
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select i
-            from Inventory i
-            join fetch i.branch b
-            join fetch i.ingredient ing
-            left join fetch ing.measurementUnit
-            left join fetch ing.defaultPurchaseUnit
-            where i.id = :inventoryId
-            """)
+    @Query(value = "SELECT * FROM inventory WHERE id = :inventoryId AND deleted_at IS NULL FOR UPDATE", nativeQuery = true)
     Optional<Inventory> findDetailForUpdateById(@Param("inventoryId") Integer inventoryId);
 
     /**
@@ -144,17 +135,7 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
      */
     Optional<Inventory> findByBranchIdAndIngredientId(Integer branchId, Integer ingredientId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select i
-            from Inventory i
-            join fetch i.branch
-            join fetch i.ingredient ing
-            left join fetch ing.measurementUnit
-            left join fetch ing.defaultPurchaseUnit
-            where i.branch.id = :branchId
-              and i.ingredient.id = :ingredientId
-            """)
+    @Query(value = "SELECT * FROM inventory WHERE deleted_at IS NULL AND branch_id = :branchId AND ingredient_id = :ingredientId FOR UPDATE", nativeQuery = true)
     Optional<Inventory> findForUpdateByBranchIdAndIngredientId(
             @Param("branchId") Integer branchId,
             @Param("ingredientId") Integer ingredientId

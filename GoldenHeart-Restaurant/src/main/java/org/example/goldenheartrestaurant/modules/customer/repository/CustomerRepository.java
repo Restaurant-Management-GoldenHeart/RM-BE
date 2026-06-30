@@ -1,11 +1,9 @@
 package org.example.goldenheartrestaurant.modules.customer.repository;
 
-import jakarta.persistence.LockModeType;
 import org.example.goldenheartrestaurant.modules.customer.entity.Customer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -53,8 +51,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     @Query("select c from Customer c where c.activePhone = :phone and c.userId is null")
     Optional<Customer> findWalkInByActivePhone(@Param("phone") String phone);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from Customer c where c.id = :customerId")
+    @Query(value = "SELECT * FROM customers WHERE id = :customerId AND deleted_at IS NULL FOR UPDATE", nativeQuery = true)
     Optional<Customer> findByIdForUpdate(@Param("customerId") Integer customerId);
 
     boolean existsByActiveEmailIgnoreCase(String activeEmail);

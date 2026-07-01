@@ -32,9 +32,9 @@ public class PayOsProperties {
 
     private String baseUrl = "https://api-merchant.payos.vn";
 
-    private String returnUrl = "http://localhost:5173/payment-success";
+    private String returnUrl = "https://rm-fe.vercel.app/payment-success";
 
-    private String cancelUrl = "http://localhost:5173/payment-cancel";
+    private String cancelUrl = "https://rm-fe.vercel.app/payment-cancel";
 
     private String webhookUrl = "";
 

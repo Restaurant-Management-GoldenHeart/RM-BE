@@ -12,6 +12,9 @@ build/
 codex-boot.err
 codex-boot.log
 
+### Local overrides (khong push, moi may dev tu tao) ###
+application-local.properties
+
 ### STS ###
 .apt_generated
 .classpath

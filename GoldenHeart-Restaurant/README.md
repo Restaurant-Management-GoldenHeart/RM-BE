@@ -1,68 +1,68 @@
 # GoldenHeart Restaurant Backend
 
-Backend cua he thong quan ly nha hang GoldenHeart Restaurant. Du an duoc xay dung bang Spring Boot, Spring Security JWT, Spring Data JPA va MySQL, phuc vu cac nghiep vu chinh cua nha hang: xac thuc, nhan vien, chi nhanh, so do ban, thuc don, combo, kho, POS, bep, hoa don, thanh toan PayOS, bao cao, khach hang than thiet va yeu cau huy hao.
+Backend của hệ thống quản lý nhà hàng GoldenHeart Restaurant. Dự án được xây dựng bằng Spring Boot, Spring Security JWT, Spring Data JPA và MySQL, phục vụ các nghiệp vụ vận hành nhà hàng như xác thực, nhân viên, chi nhánh, sơ đồ bàn, thực đơn, kho, POS, bếp, hóa đơn, thanh toán PayOS, báo cáo, khách hàng thân thiết và yêu cầu hủy hao.
 
-## Muc Luc
+## Mục Lục
 
-- [Tong Quan](#tong-quan)
-- [Cong Nghe Su Dung](#cong-nghe-su-dung)
-- [Cau Truc Thu Muc](#cau-truc-thu-muc)
-- [Yeu Cau Moi Truong](#yeu-cau-moi-truong)
-- [Cau Hinh Ung Dung](#cau-hinh-ung-dung)
-- [Khoi Tao Database](#khoi-tao-database)
-- [Chay Backend Local](#chay-backend-local)
-- [Build, Test Va Docker](#build-test-va-docker)
-- [Xac Thuc Va Phan Quyen](#xac-thuc-va-phan-quyen)
-- [Quy Uoc API](#quy-uoc-api)
-- [Danh Sach Module Va Endpoint](#danh-sach-module-va-endpoint)
-- [Tich Hop Ben Ngoai](#tich-hop-ben-ngoai)
-- [Tai Lieu Va Cong Cu Kem Theo](#tai-lieu-va-cong-cu-kem-theo)
-- [Quy Uoc Phat Trien](#quy-uoc-phat-trien)
+- [Tổng Quan](#tổng-quan)
+- [Công Nghệ Sử Dụng](#công-nghệ-sử-dụng)
+- [Cấu Trúc Thư Mục](#cấu-trúc-thư-mục)
+- [Yêu Cầu Môi Trường](#yêu-cầu-môi-trường)
+- [Cấu Hình Ứng Dụng](#cấu-hình-ứng-dụng)
+- [Khởi Tạo Database](#khởi-tạo-database)
+- [Chạy Backend Local](#chạy-backend-local)
+- [Build, Test Và Docker](#build-test-và-docker)
+- [Xác Thực Và Phân Quyền](#xác-thực-và-phân-quyền)
+- [Quy Ước API](#quy-ước-api)
+- [Danh Sách Module Và Endpoint](#danh-sách-module-và-endpoint)
+- [Tích Hợp Bên Ngoài](#tích-hợp-bên-ngoài)
+- [Tài Liệu Và Công Cụ Kèm Theo](#tài-liệu-và-công-cụ-kèm-theo)
+- [Quy Ước Phát Triển](#quy-ước-phát-triển)
 - [Troubleshooting](#troubleshooting)
 
-## Tong Quan
+## Tổng Quan
 
-Backend chay REST API tai prefix:
+Backend cung cấp REST API với prefix:
 
 ```text
 http://localhost:1010/api/v1
 ```
 
-Vai tro cua backend:
+Các nhóm nghiệp vụ chính:
 
-- Quan ly dang ky, dang nhap, refresh token, logout, doi mat khau va khoi phuc mat khau bang OTP.
-- Quan ly tai khoan nhan vien, role, trang thai nguoi dung va thong tin ca nhan.
-- Quan ly chi nhanh, khu vuc an, ban nha hang, gop ban, tach ban va chuyen trang thai ban.
-- Quan ly danh muc mon, mon an, cong thuc, anh mon an va combo.
-- Quan ly ton kho, nhap kho, lich su dieu chinh, canh bao ton kho thap va import Excel.
-- Van hanh POS: tao order, gan khach hang, phuc vu mon, tao bill, thanh toan va tai hoa don PDF.
-- Van hanh bep: xem mon dang cho, cap nhat trang thai che bien va hoan thanh mon.
-- Tich hop PayOS QR payment va webhook dong bo trang thai giao dich.
-- Quan ly khach hang, hang thanh vien, diem tich luy, lich su giao dich, coupon va review.
-- Cung cap dashboard/bao cao doanh thu, phuong thuc thanh toan, trang thai bill va timeseries.
-- Quan ly yeu cau huy hao/xuat huy nguyen lieu co anh dinh kem va luong duyet.
+- Đăng ký, đăng nhập, refresh token, đăng xuất, đổi mật khẩu và khôi phục mật khẩu bằng OTP.
+- Quản lý tài khoản nhân viên, role, trạng thái người dùng và hồ sơ cá nhân.
+- Quản lý chi nhánh, khu vực ăn uống, bàn nhà hàng, gộp bàn, tách bàn và trạng thái bàn.
+- Quản lý danh mục, món ăn, công thức, ảnh món ăn và combo.
+- Quản lý tồn kho, nhập kho, lịch sử điều chỉnh, cảnh báo tồn kho thấp và import Excel.
+- Vận hành POS: tạo order, gán khách hàng, phục vụ món, tạo bill, thanh toán và tải hóa đơn PDF.
+- Vận hành bếp: xem món đang chờ, cập nhật trạng thái chế biến và hoàn thành món.
+- Tích hợp PayOS QR payment và webhook đồng bộ trạng thái giao dịch.
+- Quản lý khách hàng, hạng thành viên, điểm tích lũy, coupon và review.
+- Cung cấp dashboard và báo cáo doanh thu, phương thức thanh toán, trạng thái bill và dữ liệu theo thời gian.
+- Quản lý yêu cầu hủy hao nguyên liệu có luồng tạo, duyệt, từ chối, thống kê và xuất báo cáo.
 
-## Cong Nghe Su Dung
+## Công Nghệ Sử Dụng
 
-| Nhom | Cong nghe |
+| Nhóm | Công nghệ |
 | --- | --- |
 | Runtime | Java 21 |
 | Framework | Spring Boot 4.0.5 |
 | API | Spring Web MVC |
 | Security | Spring Security, JWT, BCrypt |
 | ORM | Spring Data JPA, Hibernate |
-| Database | MySQL/TiDB compatible |
+| Database | MySQL hoặc hệ tương thích MySQL như TiDB |
 | Validation | Jakarta Bean Validation |
 | Email | Spring Mail SMTP |
 | Template/PDF | Thymeleaf, openhtmltopdf |
 | Excel | Apache POI |
-| Storage anh | Cloudinary |
-| Payment | PayOS |
+| Lưu ảnh | Cloudinary |
+| Thanh toán | PayOS |
 | Build | Gradle Wrapper |
 | Container | Docker multi-stage build |
 | Test | JUnit Platform, Spring Boot test starters |
 
-## Cau Truc Thu Muc
+## Cấu Trúc Thư Mục
 
 ```text
 GoldenHeart-Restaurant/
@@ -108,56 +108,60 @@ GoldenHeart-Restaurant/
 `-- ngrok/
 ```
 
-Quy uoc module:
+Ý nghĩa các nhóm thư mục:
 
-- `controller`: lop REST controller, nhan request va tra response DTO.
-- `service`: xu ly nghiep vu, transaction, phan quyen theo role/branch.
-- `repository`: Spring Data JPA repository va projection.
-- `dto/request`: payload dau vao cua API.
-- `dto/response`: payload dau ra cua API.
-- `entity`: entity JPA gan voi bang database.
-- `mapper`: chuyen entity sang DTO neu module can mapper rieng.
+- `common/config`: cấu hình dùng chung như security, JWT, Cloudinary, PayOS, Jackson và PDF.
+- `common/security`: filter JWT, service đọc user hiện tại và lớp user details.
+- `common/exception`: exception nghiệp vụ và global exception handler.
+- `common/response`: response wrapper và response phân trang.
+- `modules/*/controller`: REST controller của từng domain.
+- `modules/*/service`: xử lý nghiệp vụ, transaction và phân quyền theo role/branch.
+- `modules/*/repository`: Spring Data JPA repository và projection.
+- `modules/*/dto/request`: payload đầu vào của API.
+- `modules/*/dto/response`: payload đầu ra của API.
+- `modules/*/entity`: entity JPA ánh xạ bảng database.
 
-## Yeu Cau Moi Truong
+## Yêu Cầu Môi Trường
 
-Can cai dat:
+Cần cài đặt:
 
 - JDK 21.
-- MySQL 8+ hoac database MySQL-compatible nhu TiDB.
-- Gradle khong bat buoc cai global vi repo co Gradle Wrapper.
-- Docker neu muon build image.
-- Postman/Newman neu muon chay collection API.
+- MySQL 8+ hoặc database tương thích MySQL.
+- Docker nếu muốn build/chạy container.
+- Postman hoặc Newman nếu muốn chạy bộ test API có sẵn.
 
-Kiem tra nhanh:
+Gradle không bắt buộc cài global vì repo đã có Gradle Wrapper.
+
+Kiểm tra nhanh:
 
 ```powershell
 java -version
 .\gradlew.bat --version
 ```
 
-## Cau Hinh Ung Dung
+## Cấu Hình Ứng Dụng
 
-File cau hinh mac dinh:
+File cấu hình mặc định:
 
 ```text
 src/main/resources/application.properties
 ```
 
-Ung dung co dong sau:
+Ứng dụng có import cấu hình local:
 
 ```properties
 spring.config.import=optional:classpath:application-local.properties
 ```
 
-Vi vay moi may dev nen tao file rieng:
+Mỗi máy dev nên tạo file riêng:
 
 ```text
 src/main/resources/application-local.properties
 ```
 
-File nay da duoc `.gitignore` bo qua, dung de ghi de cau hinh local va secret. Khong dua mat khau database, mail, PayOS, Cloudinary hoac JWT secret that vao README, commit hoac chat.
+File `application-local.properties` đã được `.gitignore` bỏ qua, dùng để ghi đè cấu hình local và các giá trị nhạy cảm. Không commit mật khẩu database, mail, PayOS, Cloudinary hoặc JWT secret thật.
 
-Mau cau hinh local:
+Mẫu cấu hình local:
 
 ```properties
 server.port=1010
@@ -216,94 +220,100 @@ app.cloudinary.folder=goldenheart/menu-items
 app.invoice.pdf-font-path=
 ```
 
-Cac bien moi truong quan trong co the override:
+Các biến môi trường quan trọng:
 
-| Bien | Y nghia |
+| Biến | Ý nghĩa |
 | --- | --- |
-| `JWT_SECRET` | Secret ky access token va refresh token. Nen dai toi thieu 32 ky tu. |
-| `PASSWORD_RECOVERY_EMAIL_FROM` | Email nguoi gui OTP. |
-| `PAYOS_ENABLED` | Bat/tat PayOS. |
-| `PAYOS_CLIENT_ID` | Client ID PayOS. |
-| `PAYOS_API_KEY` | API key PayOS. |
-| `PAYOS_CHECKSUM_KEY` | Checksum key de verify webhook PayOS. |
-| `PAYOS_RETURN_URL` | URL FE khi thanh toan thanh cong. |
-| `PAYOS_CANCEL_URL` | URL FE khi huy thanh toan. |
-| `PAYOS_WEBHOOK_URL` | Public webhook URL cho PayOS goi ve backend. |
-| `CLOUDINARY_ENABLED` | Bat/tat upload anh Cloudinary. |
+| `JWT_SECRET` | Secret dùng để ký access token và refresh token. Nên dài tối thiểu 32 ký tự. |
+| `PASSWORD_RECOVERY_EMAIL_FROM` | Email người gửi OTP khôi phục mật khẩu. |
+| `PAYOS_ENABLED` | Bật hoặc tắt tích hợp PayOS. |
+| `PAYOS_CLIENT_ID` | Client ID của PayOS. |
+| `PAYOS_API_KEY` | API key của PayOS. |
+| `PAYOS_CHECKSUM_KEY` | Checksum key dùng xác thực webhook PayOS. |
+| `PAYOS_RETURN_URL` | URL frontend khi thanh toán thành công. |
+| `PAYOS_CANCEL_URL` | URL frontend khi người dùng hủy thanh toán. |
+| `PAYOS_WEBHOOK_URL` | Public webhook URL để PayOS gọi về backend. |
+| `CLOUDINARY_ENABLED` | Bật hoặc tắt upload ảnh lên Cloudinary. |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name. |
 | `CLOUDINARY_API_KEY` | Cloudinary API key. |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret. |
-| `CLOUDINARY_FOLDER` | Thu muc luu anh mon/combo. |
-| `INVOICE_PDF_FONT_PATH` | Duong dan font Unicode tuy chon cho file hoa don PDF. |
+| `CLOUDINARY_FOLDER` | Thư mục lưu ảnh món ăn/combo. |
+| `INVOICE_PDF_FONT_PATH` | Đường dẫn font Unicode tùy chọn cho hóa đơn PDF. |
 
-## Khoi Tao Database
+## Khởi Tạo Database
 
-Ung dung dang dung JPA `ddl-auto=update`, nen khi chay lan dau Hibernate co the tao/cap nhat schema tu entity.
+Ứng dụng đang dùng:
 
-Cac script SQL co san:
+```properties
+spring.jpa.hibernate.ddl-auto=update
+```
+
+Khi chạy lần đầu, Hibernate có thể tự tạo hoặc cập nhật schema dựa trên entity.
+
+Các script SQL có sẵn:
 
 ```text
 sql/01_reset_local_database.sql
 sql/05_seed_full_test_data.sql
 ```
 
-Luong khoi tao de nghi:
+Quy trình khởi tạo đề xuất:
 
-1. Tao database local:
+1. Tạo database local:
 
 ```sql
 CREATE DATABASE goldenheart_restaurant CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-2. Cau hinh datasource trong `application-local.properties`.
-3. Chay backend de Hibernate tao bang.
-4. Neu can data demo, chay seed trong `sql/05_seed_full_test_data.sql`.
+2. Cấu hình datasource trong `application-local.properties`.
+3. Chạy backend để Hibernate tạo bảng.
+4. Nếu cần dữ liệu demo, chạy seed trong `sql/05_seed_full_test_data.sql`.
 
-Backend co bootstrap runner:
+Backend có bootstrap runner tự động:
 
-- Tao cac role mac dinh: `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN`, `CUSTOMER`.
-- Tao tai khoan admin dau tien neu `app.bootstrap.admin.enabled=true` va username chua ton tai.
+- Tạo các role mặc định: `ADMIN`, `MANAGER`, `STAFF`, `KITCHEN`, `CUSTOMER`.
+- Tạo tài khoản admin đầu tiên nếu `app.bootstrap.admin.enabled=true` và username chưa tồn tại.
 
-Tai khoan bootstrap mac dinh nen chi dung local:
+Tài khoản bootstrap mặc định chỉ nên dùng local:
 
 ```text
 username: admin
 password: Admin123
 ```
 
-## Chay Backend Local
+## Chạy Backend Local
 
-Tu thu muc backend:
+Từ thư mục backend:
 
 ```powershell
 cd D:\GH\RM-BE\GoldenHeart-Restaurant
 .\gradlew.bat bootRun
 ```
 
-Neu dung Git Bash/Linux/macOS:
+Trên Git Bash/Linux/macOS:
 
 ```bash
 cd /path/to/RM-BE/GoldenHeart-Restaurant
 ./gradlew bootRun
 ```
 
-Backend mac dinh lang nghe tai:
+Backend mặc định chạy tại:
 
 ```text
 http://localhost:1010
 ```
 
-Kiem tra nhanh:
+Kiểm tra nhanh:
 
 ```powershell
 curl http://localhost:1010/api/v1/public/menu/popular
 ```
 
-Neu endpoint public tra JSON hoac danh sach rong la ung dung da len. Cac endpoint protected se tra `401` neu chua co JWT.
+Nếu API public trả JSON hoặc danh sách rỗng, backend đã chạy. Các endpoint protected sẽ trả `401` nếu chưa có JWT.
 
-## Build, Test Va Docker
+## Build, Test Và Docker
 
-Chay test:
+Chạy test:
 
 ```powershell
 .\gradlew.bat test
@@ -315,13 +325,13 @@ Build jar:
 .\gradlew.bat build
 ```
 
-Build bo qua test:
+Build bỏ qua test:
 
 ```powershell
 .\gradlew.bat build -x test
 ```
 
-Chay jar sau khi build:
+Chạy jar sau khi build:
 
 ```powershell
 java -jar build\libs\GoldenHeart-Restaurant-0.0.1-SNAPSHOT.jar
@@ -333,57 +343,57 @@ Build Docker image:
 docker build -t goldenheart-restaurant-be .
 ```
 
-Chay Docker container:
+Chạy Docker container:
 
 ```powershell
 docker run --rm -p 1010:1010 --env JWT_SECRET=replace-with-strong-secret goldenheart-restaurant-be
 ```
 
-Khi chay Docker that, nen truyen day du datasource, mail, PayOS, Cloudinary bang bien moi truong hoac secret manager cua platform deploy.
+Khi chạy Docker thực tế, nên truyền datasource, mail, PayOS, Cloudinary và secret bằng biến môi trường hoặc secret manager của nền tảng deploy.
 
-## Xac Thuc Va Phan Quyen
+## Xác Thực Và Phân Quyền
 
-Backend dung Spring Security theo mo hinh stateless:
+Backend dùng Spring Security theo mô hình stateless:
 
-- Login bang username/password.
-- Backend tra `accessToken` trong JSON body.
+- Người dùng đăng nhập bằng username/password.
+- Backend trả `accessToken` trong JSON body.
 - Backend set `refreshToken` trong HttpOnly cookie.
-- Frontend gui access token qua header:
+- Frontend gửi access token qua header:
 
 ```http
 Authorization: Bearer <accessToken>
 ```
 
-- Refresh token duoc luu bang hash trong bang `refresh_tokens`.
-- Logout va refresh se revoke token cu.
-- Doi mat khau thanh cong se revoke cac refresh session dang hoat dong.
+- Refresh token được lưu bằng hash trong bảng `refresh_tokens`.
+- Refresh token cũ được revoke khi refresh hoặc logout.
+- Đổi mật khẩu thành công sẽ revoke các refresh session đang hoạt động.
 
-Endpoint public trong cau hinh security:
+Endpoint public trong security:
 
-| Endpoint | Muc dich |
+| Endpoint | Mục đích |
 | --- | --- |
-| `POST /api/v1/auth/register` | Dang ky tai khoan khach hang. |
-| `POST /api/v1/auth/login` | Dang nhap. |
-| `POST /api/v1/auth/refresh` | Cap lai access token tu refresh cookie. |
-| `POST /api/v1/auth/logout` | Dang xuat, xoa/revoke refresh cookie. |
-| `POST /api/v1/auth/password-recovery/**` | Khoi phuc mat khau bang OTP. |
+| `POST /api/v1/auth/register` | Đăng ký tài khoản khách hàng. |
+| `POST /api/v1/auth/login` | Đăng nhập. |
+| `POST /api/v1/auth/refresh` | Cấp access token mới từ refresh cookie. |
+| `POST /api/v1/auth/logout` | Đăng xuất và revoke refresh cookie. |
+| `POST /api/v1/auth/password-recovery/**` | Khôi phục mật khẩu bằng OTP. |
 | `POST /api/v1/payment-gateways/payos/webhook` | Webhook PayOS. |
 | `GET /api/v1/public/**` | API public cho homepage/customer portal. |
 | `OPTIONS /**` | CORS preflight. |
 
-Cac endpoint con lai yeu cau authenticated.
+Các endpoint còn lại yêu cầu đăng nhập.
 
-Role he thong:
+Role hệ thống:
 
-| Role | Mo ta |
+| Role | Mô tả |
 | --- | --- |
-| `ADMIN` | Toan quyen quan tri he thong, nhan vien, chi nhanh, bao cao va cau hinh nghiep vu. |
-| `MANAGER` | Quan ly van hanh theo chi nhanh, dashboard, nhan vien, ban, menu, kho, POS va bep. |
-| `STAFF` | Van hanh POS, ban, order, thanh toan va mot so thao tac kho/huy hao theo luong nghiep vu. |
-| `KITCHEN` | Van hanh man hinh bep, mon cho che bien, cap nhat trang thai va huy hao lien quan bep. |
-| `CUSTOMER` | Su dung customer portal: profile, don hang, mon da dung, diem tich luy, coupon va review. |
+| `ADMIN` | Quản trị toàn hệ thống, nhân viên, chi nhánh, báo cáo và cấu hình nghiệp vụ. |
+| `MANAGER` | Quản lý vận hành theo chi nhánh, dashboard, nhân viên, bàn, menu, kho, POS và bếp. |
+| `STAFF` | Vận hành POS, bàn, order, thanh toán và một số thao tác kho/hủy hao theo nghiệp vụ. |
+| `KITCHEN` | Vận hành màn hình bếp, món đang chờ, cập nhật trạng thái và hủy hao liên quan bếp. |
+| `CUSTOMER` | Sử dụng customer portal: hồ sơ, đơn hàng, món đã dùng, điểm tích lũy, coupon và review. |
 
-## Quy Uoc API
+## Quy Ước API
 
 Base URL:
 
@@ -391,7 +401,7 @@ Base URL:
 /api/v1
 ```
 
-Response thanh cong dung wrapper `ApiResponse`:
+Response thành công dùng wrapper `ApiResponse`:
 
 ```json
 {
@@ -402,7 +412,7 @@ Response thanh cong dung wrapper `ApiResponse`:
 }
 ```
 
-Response phan trang dung `PageResponse` trong `data` hoac cau truc response rieng cua module:
+Response phân trang thường dùng `PageResponse`:
 
 ```json
 {
@@ -414,7 +424,7 @@ Response phan trang dung `PageResponse` trong `data` hoac cau truc response rien
 }
 ```
 
-Response loi duoc chuan hoa boi `GlobalExceptionHandler`:
+Response lỗi được chuẩn hóa bởi `GlobalExceptionHandler`:
 
 ```json
 {
@@ -427,234 +437,234 @@ Response loi duoc chuan hoa boi `GlobalExceptionHandler`:
 }
 ```
 
-Quy uoc request:
+Quy ước request:
 
-- JSON request dung `Content-Type: application/json`.
-- Upload anh/import Excel dung `multipart/form-data`.
-- Cac filter phan trang thuong dung `page`, `size`, `keyword`, `branchId`, `status`, `dateFrom`, `dateTo`.
-- Cac API protected can `Authorization: Bearer <accessToken>`.
-- Refresh token nam trong HttpOnly cookie nen client can gui cookie khi goi API cross-origin.
+- JSON request dùng `Content-Type: application/json`.
+- Upload ảnh/import Excel dùng `multipart/form-data`.
+- API protected cần `Authorization: Bearer <accessToken>`.
+- Refresh token nằm trong HttpOnly cookie nên client cần gửi cookie khi gọi API cross-origin.
+- Filter phân trang thường dùng `page`, `size`, `keyword`, `branchId`, `status`, `dateFrom`, `dateTo`.
 
-## Danh Sach Module Va Endpoint
+## Danh Sách Module Và Endpoint
 
 ### Auth
 
 Base path: `/api/v1/auth`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `POST` | `/register` | Dang ky tai khoan khach hang. |
-| `POST` | `/login` | Dang nhap, tra access token va set refresh cookie. |
-| `POST` | `/refresh` | Rotate refresh token va cap access token moi. |
-| `POST` | `/logout` | Dang xuat va revoke refresh token. |
-| `POST` | `/change-password` | Doi mat khau cho user da dang nhap. |
-| `POST` | `/admin/sync-customers` | Dong bo customer/user theo luong admin. |
-| `POST` | `/password-recovery/request-otp` | Gui OTP khoi phuc mat khau. |
-| `POST` | `/password-recovery/verify-otp` | Xac thuc OTP va tra reset token. |
-| `POST` | `/password-recovery/reset-password` | Dat mat khau moi bang reset token. |
+| `POST` | `/register` | Đăng ký tài khoản khách hàng. |
+| `POST` | `/login` | Đăng nhập, trả access token và set refresh cookie. |
+| `POST` | `/refresh` | Rotate refresh token và cấp access token mới. |
+| `POST` | `/logout` | Đăng xuất và revoke refresh token. |
+| `POST` | `/change-password` | Đổi mật khẩu cho user đã đăng nhập. |
+| `POST` | `/admin/sync-customers` | Đồng bộ customer/user theo luồng admin. |
+| `POST` | `/password-recovery/request-otp` | Gửi OTP khôi phục mật khẩu. |
+| `POST` | `/password-recovery/verify-otp` | Xác thực OTP và trả reset token. |
+| `POST` | `/password-recovery/reset-password` | Đặt mật khẩu mới bằng reset token. |
 
 ### Identity / Employees
 
 Base path: `/api/v1/employees`, `/api/v1/roles`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/employees` | Danh sach nhan vien, ho tro filter/phan trang. |
-| `GET` | `/employees/{employeeId}` | Chi tiet nhan vien. |
-| `POST` | `/employees` | Tao nhan vien. |
-| `PUT` | `/employees/{employeeId}` | Cap nhat nhan vien. |
-| `DELETE` | `/employees/{employeeId}` | Xoa mem nhan vien. |
-| `GET` | `/employees/me` | Ho so nhan vien dang dang nhap. |
-| `PUT` | `/employees/me` | Cap nhat ho so ca nhan. |
-| `GET` | `/roles` | Danh sach role. |
+| `GET` | `/employees` | Danh sách nhân viên, hỗ trợ filter/phân trang. |
+| `GET` | `/employees/{employeeId}` | Chi tiết nhân viên. |
+| `POST` | `/employees` | Tạo nhân viên. |
+| `PUT` | `/employees/{employeeId}` | Cập nhật nhân viên. |
+| `DELETE` | `/employees/{employeeId}` | Xóa mềm nhân viên. |
+| `GET` | `/employees/me` | Hồ sơ nhân viên đang đăng nhập. |
+| `PUT` | `/employees/me` | Cập nhật hồ sơ cá nhân. |
+| `GET` | `/roles` | Danh sách role. |
 
 ### Restaurant
 
 Base path: `/api/v1/branches`, `/api/v1/dining-areas`, `/api/v1/tables`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/branches` | Danh sach chi nhanh. |
-| `GET` | `/branches/{branchId}` | Chi tiet chi nhanh. |
-| `POST` | `/branches` | Tao chi nhanh. |
-| `PUT` | `/branches/{branchId}` | Cap nhat chi nhanh. |
-| `DELETE` | `/branches/{branchId}` | Xoa chi nhanh. |
-| `GET` | `/dining-areas` | Danh sach khu vuc an theo chi nhanh. |
-| `POST` | `/dining-areas` | Tao khu vuc an. |
-| `PUT` | `/dining-areas/{areaId}` | Cap nhat khu vuc an. |
-| `DELETE` | `/dining-areas/{areaId}` | Xoa khu vuc an. |
-| `GET` | `/tables` | Danh sach ban theo chi nhanh/khu vuc/trang thai. |
-| `GET` | `/tables/{tableId}` | Chi tiet ban. |
-| `POST` | `/tables` | Tao ban. |
-| `PUT` | `/tables/{tableId}` | Cap nhat ban. |
-| `DELETE` | `/tables/{tableId}` | Xoa ban. |
-| `PUT` | `/tables/{tableId}/status` | Doi trang thai ban. |
-| `GET` | `/tables/{tableId}/active-order` | Lay order dang mo cua ban. |
-| `POST` | `/tables/{tableId}/split` | Tach order/ban. |
-| `POST` | `/tables/{tableId}/unmerge` | Huy gop ban. |
-| `POST` | `/tables/merge` | Gop ban. |
+| `GET` | `/branches` | Danh sách chi nhánh. |
+| `GET` | `/branches/{branchId}` | Chi tiết chi nhánh. |
+| `POST` | `/branches` | Tạo chi nhánh. |
+| `PUT` | `/branches/{branchId}` | Cập nhật chi nhánh. |
+| `DELETE` | `/branches/{branchId}` | Xóa chi nhánh. |
+| `GET` | `/dining-areas` | Danh sách khu vực ăn theo chi nhánh. |
+| `POST` | `/dining-areas` | Tạo khu vực ăn. |
+| `PUT` | `/dining-areas/{areaId}` | Cập nhật khu vực ăn. |
+| `DELETE` | `/dining-areas/{areaId}` | Xóa khu vực ăn. |
+| `GET` | `/tables` | Danh sách bàn theo chi nhánh/khu vực/trạng thái. |
+| `GET` | `/tables/{tableId}` | Chi tiết bàn. |
+| `POST` | `/tables` | Tạo bàn. |
+| `PUT` | `/tables/{tableId}` | Cập nhật bàn. |
+| `DELETE` | `/tables/{tableId}` | Xóa bàn. |
+| `PUT` | `/tables/{tableId}/status` | Đổi trạng thái bàn. |
+| `GET` | `/tables/{tableId}/active-order` | Lấy order đang mở của bàn. |
+| `POST` | `/tables/{tableId}/split` | Tách order/bàn. |
+| `POST` | `/tables/{tableId}/unmerge` | Hủy gộp bàn. |
+| `POST` | `/tables/merge` | Gộp bàn. |
 
-### Menu Va Combo
+### Menu Và Combo
 
 Base path: `/api/v1/categories`, `/api/v1/menu-items`, `/api/v1/combos`, `/api/v1/public`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/categories` | Danh sach danh muc. |
-| `GET` | `/categories/{categoryId}` | Chi tiet danh muc. |
-| `POST` | `/categories` | Tao danh muc. |
-| `PUT` | `/categories/{categoryId}` | Cap nhat danh muc. |
-| `DELETE` | `/categories/{categoryId}` | Xoa danh muc. |
-| `GET` | `/menu-items` | Danh sach mon an, ho tro filter/phan trang. |
-| `GET` | `/menu-items/{menuItemId}` | Chi tiet mon an. |
-| `POST` | `/menu-items` | Tao mon an, ho tro upload anh multipart. |
-| `PUT` | `/menu-items/{menuItemId}` | Cap nhat mon an, ho tro upload anh multipart. |
-| `DELETE` | `/menu-items/{menuItemId}` | Xoa mon an. |
-| `GET` | `/combos` | Danh sach combo. |
-| `GET` | `/combos/{id}` | Chi tiet combo. |
-| `POST` | `/combos` | Tao combo multipart. |
-| `PUT` | `/combos/{id}` | Cap nhat combo multipart. |
-| `DELETE` | `/combos/{id}` | Xoa combo. |
-| `GET` | `/public/menu/popular` | Danh sach mon pho bien cho homepage. |
-| `GET` | `/public/menu-items/{menuItemId}/reviews` | Review public cua mon. |
+| `GET` | `/categories` | Danh sách danh mục. |
+| `GET` | `/categories/{categoryId}` | Chi tiết danh mục. |
+| `POST` | `/categories` | Tạo danh mục. |
+| `PUT` | `/categories/{categoryId}` | Cập nhật danh mục. |
+| `DELETE` | `/categories/{categoryId}` | Xóa danh mục. |
+| `GET` | `/menu-items` | Danh sách món ăn, hỗ trợ filter/phân trang. |
+| `GET` | `/menu-items/{menuItemId}` | Chi tiết món ăn. |
+| `POST` | `/menu-items` | Tạo món ăn, hỗ trợ upload ảnh multipart. |
+| `PUT` | `/menu-items/{menuItemId}` | Cập nhật món ăn, hỗ trợ upload ảnh multipart. |
+| `DELETE` | `/menu-items/{menuItemId}` | Xóa món ăn. |
+| `GET` | `/combos` | Danh sách combo. |
+| `GET` | `/combos/{id}` | Chi tiết combo. |
+| `POST` | `/combos` | Tạo combo multipart. |
+| `PUT` | `/combos/{id}` | Cập nhật combo multipart. |
+| `DELETE` | `/combos/{id}` | Xóa combo. |
+| `GET` | `/public/menu/popular` | Danh sách món phổ biến cho homepage. |
+| `GET` | `/public/menu-items/{menuItemId}/reviews` | Review public của món. |
 
-### Customers, Loyalty Va Portal
+### Customers, Loyalty Và Portal
 
 Base path: `/api/v1/customers`, `/api/v1/customer-tiers`, `/api/v1/me`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/customers/lookup` | Tim nhanh khach hang theo keyword. |
-| `GET` | `/customers` | Danh sach khach hang. |
-| `GET` | `/customers/{customerId}` | Chi tiet khach hang. |
-| `POST` | `/customers` | Tao khach hang. |
-| `POST` | `/customers/quick-create` | Tao nhanh khach hang trong POS. |
-| `PUT` | `/customers/{customerId}` | Cap nhat khach hang. |
-| `DELETE` | `/customers/{customerId}` | Xoa mem khach hang. |
-| `GET` | `/customers/{customerId}/loyalty-transactions` | Lich su diem cua khach hang. |
-| `GET` | `/customer-tiers` | Danh sach hang thanh vien. |
-| `GET` | `/customer-tiers/{tierId}` | Chi tiet hang thanh vien. |
-| `POST` | `/customer-tiers` | Tao hang thanh vien. |
-| `PUT` | `/customer-tiers/{tierId}` | Cap nhat hang thanh vien. |
-| `DELETE` | `/customer-tiers/{tierId}` | Xoa hang thanh vien. |
-| `GET` | `/me/profile` | Customer xem ho so. |
-| `PUT` | `/me/profile` | Customer cap nhat ho so. |
-| `GET` | `/me/loyalty/transactions` | Customer xem lich su diem. |
-| `GET` | `/me/orders` | Customer xem lich su don. |
-| `GET` | `/me/dishes-eaten` | Customer xem mon da dung. |
-| `POST` | `/me/reviews` | Customer tao review. |
-| `GET` | `/me/reviews` | Customer xem review cua minh. |
+| `GET` | `/customers/lookup` | Tìm nhanh khách hàng theo keyword. |
+| `GET` | `/customers` | Danh sách khách hàng. |
+| `GET` | `/customers/{customerId}` | Chi tiết khách hàng. |
+| `POST` | `/customers` | Tạo khách hàng. |
+| `POST` | `/customers/quick-create` | Tạo nhanh khách hàng trong POS. |
+| `PUT` | `/customers/{customerId}` | Cập nhật khách hàng. |
+| `DELETE` | `/customers/{customerId}` | Xóa mềm khách hàng. |
+| `GET` | `/customers/{customerId}/loyalty-transactions` | Lịch sử điểm của khách hàng. |
+| `GET` | `/customer-tiers` | Danh sách hạng thành viên. |
+| `GET` | `/customer-tiers/{tierId}` | Chi tiết hạng thành viên. |
+| `POST` | `/customer-tiers` | Tạo hạng thành viên. |
+| `PUT` | `/customer-tiers/{tierId}` | Cập nhật hạng thành viên. |
+| `DELETE` | `/customer-tiers/{tierId}` | Xóa hạng thành viên. |
+| `GET` | `/me/profile` | Customer xem hồ sơ. |
+| `PUT` | `/me/profile` | Customer cập nhật hồ sơ. |
+| `GET` | `/me/loyalty/transactions` | Customer xem lịch sử điểm. |
+| `GET` | `/me/orders` | Customer xem lịch sử đơn. |
+| `GET` | `/me/dishes-eaten` | Customer xem món đã dùng. |
+| `POST` | `/me/reviews` | Customer tạo review. |
+| `GET` | `/me/reviews` | Customer xem review của mình. |
 | `GET` | `/me/coupons` | Customer xem coupon. |
 
 ### Inventory
 
 Base path: `/api/v1/inventory`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/units` | Danh sach don vi do. |
-| `GET` | `/` | Danh sach hang ton kho. |
-| `GET` | `/summary` | Tong quan ton kho. |
-| `GET` | `/reports/movements` | Bao cao bien dong kho. |
-| `GET` | `/alerts` | Canh bao ton kho thap/het. |
-| `GET` | `/import/template` | Tai file template import Excel. |
-| `POST` | `/import/preview` | Preview file Excel truoc khi import. |
+| `GET` | `/units` | Danh sách đơn vị đo. |
+| `GET` | `/` | Danh sách hàng tồn kho. |
+| `GET` | `/summary` | Tổng quan tồn kho. |
+| `GET` | `/reports/movements` | Báo cáo biến động kho. |
+| `GET` | `/alerts` | Cảnh báo tồn kho thấp/hết. |
+| `GET` | `/import/template` | Tải file template import Excel. |
+| `POST` | `/import/preview` | Preview file Excel trước khi import. |
 | `POST` | `/import/commit` | Commit import Excel. |
-| `GET` | `/{inventoryId}` | Chi tiet item kho. |
-| `GET` | `/{inventoryId}/history` | Lich su dieu chinh item. |
-| `POST` | `/` | Tao item kho. |
-| `POST` | `/{inventoryId}/restock` | Nhap them ton kho. |
-| `PUT` | `/{inventoryId}` | Cap nhat item kho. |
-| `DELETE` | `/{inventoryId}` | Xoa item kho. |
+| `GET` | `/{inventoryId}` | Chi tiết item kho. |
+| `GET` | `/{inventoryId}/history` | Lịch sử điều chỉnh item. |
+| `POST` | `/` | Tạo item kho. |
+| `POST` | `/{inventoryId}/restock` | Nhập thêm tồn kho. |
+| `PUT` | `/{inventoryId}` | Cập nhật item kho. |
+| `DELETE` | `/{inventoryId}` | Xóa item kho. |
 
-### Order, Kitchen, Billing Va Payment
+### Order, Kitchen, Billing Và Payment
 
 Base path: `/api/v1/orders`, `/api/v1/kitchen`, `/api/v1/bills`, `/api/v1/payment-gateways`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `POST` | `/orders` | Tao order cho ban/POS. |
-| `GET` | `/orders/{orderId}` | Chi tiet order. |
-| `GET` | `/orders/{orderId}/bills` | Danh sach bill cua order. |
-| `PUT` | `/orders/{orderId}/customer` | Gan khach hang vao order. |
-| `PUT` | `/orders/order-items/{orderItemId}/serve` | Danh dau mon da phuc vu. |
-| `GET` | `/kitchen/orders/pending` | Danh sach mon dang cho bep. |
-| `PUT` | `/kitchen/order-items/{orderItemId}/status` | Cap nhat trang thai mon bep. |
-| `POST` | `/kitchen/order-items/{orderItemId}/complete` | Hoan thanh mon bep. |
-| `GET` | `/bills/preview` | Preview bill truoc khi thanh toan. |
-| `GET` | `/bills/history` | Lich su bill. |
-| `GET` | `/bills/{billId}` | Chi tiet bill. |
-| `GET` | `/bills/{billId}/invoice.pdf` | Tai hoa don PDF. |
-| `POST` | `/bills` | Tao bill. |
-| `POST` | `/bills/{billId}/payments` | Ghi nhan thanh toan. |
-| `POST` | `/bills/{billId}/payos/qr` | Tao QR PayOS. |
-| `GET` | `/bills/{billId}/payos/qr` | Lay QR PayOS moi nhat cua bill. |
-| `POST` | `/bills/{billId}/payos/qr/cancel` | Huy QR PayOS dang cho. |
-| `GET` | `/payment-gateways/transactions/{transactionId}` | Lay trang thai giao dich payment gateway. |
+| `POST` | `/orders` | Tạo order cho bàn/POS. |
+| `GET` | `/orders/{orderId}` | Chi tiết order. |
+| `GET` | `/orders/{orderId}/bills` | Danh sách bill của order. |
+| `PUT` | `/orders/{orderId}/customer` | Gán khách hàng vào order. |
+| `PUT` | `/orders/order-items/{orderItemId}/serve` | Đánh dấu món đã phục vụ. |
+| `GET` | `/kitchen/orders/pending` | Danh sách món đang chờ bếp. |
+| `PUT` | `/kitchen/order-items/{orderItemId}/status` | Cập nhật trạng thái món bếp. |
+| `POST` | `/kitchen/order-items/{orderItemId}/complete` | Hoàn thành món bếp. |
+| `GET` | `/bills/preview` | Preview bill trước khi thanh toán. |
+| `GET` | `/bills/history` | Lịch sử bill. |
+| `GET` | `/bills/{billId}` | Chi tiết bill. |
+| `GET` | `/bills/{billId}/invoice.pdf` | Tải hóa đơn PDF. |
+| `POST` | `/bills` | Tạo bill. |
+| `POST` | `/bills/{billId}/payments` | Ghi nhận thanh toán. |
+| `POST` | `/bills/{billId}/payos/qr` | Tạo QR PayOS. |
+| `GET` | `/bills/{billId}/payos/qr` | Lấy QR PayOS mới nhất của bill. |
+| `POST` | `/bills/{billId}/payos/qr/cancel` | Hủy QR PayOS đang chờ. |
+| `GET` | `/payment-gateways/transactions/{transactionId}` | Lấy trạng thái giao dịch payment gateway. |
 | `POST` | `/payment-gateways/payos/webhook` | Webhook PayOS. |
 
 ### Report
 
 Base path: `/api/v1/reports`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `GET` | `/dashboard` | Du lieu dashboard tong hop. |
-| `GET` | `/revenue/summary` | Tong hop doanh thu theo khoang thoi gian. |
-| `GET` | `/revenue/timeseries` | Chuoi doanh thu theo ngay/thang/nam. |
-| `GET` | `/payments/method-breakdown` | Co cau phuong thuc thanh toan. |
-| `GET` | `/bills/status-summary` | Tong hop trang thai bill. |
+| `GET` | `/dashboard` | Dữ liệu dashboard tổng hợp. |
+| `GET` | `/revenue/summary` | Tổng hợp doanh thu theo khoảng thời gian. |
+| `GET` | `/revenue/timeseries` | Chuỗi doanh thu theo ngày/tháng/năm. |
+| `GET` | `/payments/method-breakdown` | Cơ cấu phương thức thanh toán. |
+| `GET` | `/bills/status-summary` | Tổng hợp trạng thái bill. |
 
 ### Waste Requests
 
 Base path: `/api/v1/waste-requests`
 
-| Method | Endpoint | Mo ta |
+| Method | Endpoint | Mô tả |
 | --- | --- | --- |
-| `POST` | `/` | Tao yeu cau huy hao multipart. |
-| `GET` | `/` | Danh sach yeu cau huy hao. |
-| `GET` | `/stats` | Thong ke huy hao. |
-| `GET` | `/export` | Xuat bao cao huy hao. |
-| `GET` | `/{id}` | Chi tiet yeu cau. |
-| `PUT` | `/{id}/approve` | Duyet yeu cau. |
-| `PUT` | `/{id}/reject` | Tu choi yeu cau. |
-| `GET` | `/pending-count` | So yeu cau dang cho duyet. |
+| `POST` | `/` | Tạo yêu cầu hủy hao multipart. |
+| `GET` | `/` | Danh sách yêu cầu hủy hao. |
+| `GET` | `/stats` | Thống kê hủy hao. |
+| `GET` | `/export` | Xuất báo cáo hủy hao. |
+| `GET` | `/{id}` | Chi tiết yêu cầu. |
+| `PUT` | `/{id}/approve` | Duyệt yêu cầu. |
+| `PUT` | `/{id}/reject` | Từ chối yêu cầu. |
+| `GET` | `/pending-count` | Số yêu cầu đang chờ duyệt. |
 
-## Tich Hop Ben Ngoai
+## Tích Hợp Bên Ngoài
 
 ### PayOS
 
-PayOS duoc dung cho QR payment trong POS.
+PayOS được dùng cho QR payment trong POS.
 
-Luong chinh:
+Luồng chính:
 
-1. FE tao bill hoac lay bill dang mo.
-2. FE goi `POST /api/v1/bills/{billId}/payos/qr`.
-3. Backend tao payment link/QR tren PayOS va luu `PaymentGatewayTransaction`.
-4. FE hien QR, checkout URL va polling trang thai transaction.
-5. PayOS goi webhook ve `/api/v1/payment-gateways/payos/webhook`.
-6. Backend verify checksum, dong bo trang thai bill/payment.
-7. FE co the goi lai transaction de refresh trang thai.
+1. Frontend tạo bill hoặc lấy bill đang mở.
+2. Frontend gọi `POST /api/v1/bills/{billId}/payos/qr`.
+3. Backend tạo payment link/QR trên PayOS và lưu `PaymentGatewayTransaction`.
+4. Frontend hiển thị QR, checkout URL và polling trạng thái transaction.
+5. PayOS gọi webhook về `/api/v1/payment-gateways/payos/webhook`.
+6. Backend verify checksum và đồng bộ trạng thái bill/payment.
+7. Frontend có thể gọi lại transaction để refresh trạng thái.
 
-Khi test webhook local, can public URL nhu ngrok:
+Khi test webhook local, cần public URL như ngrok:
 
 ```powershell
 .\scripts\start-payos-ngrok.ps1
 ```
 
-Cap nhat `PAYOS_WEBHOOK_URL` bang public URL do ngrok cung cap.
+Sau đó cập nhật `PAYOS_WEBHOOK_URL` bằng public URL do ngrok cung cấp.
 
 ### Cloudinary
 
-Cloudinary duoc dung cho anh mon an/combo.
+Cloudinary được dùng cho ảnh món ăn/combo.
 
-Neu test local khong can upload cloud:
+Nếu test local không cần upload cloud:
 
 ```properties
 app.cloudinary.enabled=false
 ```
 
-Neu bat:
+Nếu bật Cloudinary:
 
 ```properties
 app.cloudinary.enabled=true
@@ -666,94 +676,92 @@ app.cloudinary.folder=goldenheart/menu-items
 
 ### Email OTP
 
-Password recovery dung Spring Mail. Voi Gmail can App Password, khong dung mat khau dang nhap Gmail thong thuong.
+Password recovery dùng Spring Mail. Với Gmail cần App Password, không dùng mật khẩu đăng nhập Gmail thông thường.
 
-De test local khong gui email that, co the bat log delivery neu service ho tro cau hinh nay:
+Để test local không gửi email thật, có thể bật log delivery nếu service hỗ trợ cấu hình này:
 
 ```properties
 app.password-recovery.dev-log-delivery=true
 ```
 
-## Tai Lieu Va Cong Cu Kem Theo
+## Tài Liệu Và Công Cụ Kèm Theo
 
-Tai lieu co san trong backend:
-
-| File/Thu muc | Noi dung |
+| File/Thư mục | Nội dung |
 | --- | --- |
-| `AUTH_SETUP.md` | Huong dan rieng ve JWT auth, refresh token va change password. |
-| `API_TESTING_RUNBOOK.md` | Runbook test API bang Postman/Newman. |
-| `PROJECT_STRUCTURE.md` | Ghi chu cau truc module backend. |
-| `BE_ROADMAP.md` | Roadmap/cong viec backend. |
-| `postman/` | Postman collection va environment E2E. |
-| `sql/` | Script reset va seed database local. |
-| `ngrok/` | Cau hinh lien quan webhook PayOS/ngrok. |
-| `scripts/` | Script tien ich khi test PayOS/local. |
+| `AUTH_SETUP.md` | Hướng dẫn riêng về JWT auth, refresh token và đổi mật khẩu. |
+| `API_TESTING_RUNBOOK.md` | Runbook test API bằng Postman/Newman. |
+| `PROJECT_STRUCTURE.md` | Ghi chú cấu trúc module backend. |
+| `BE_ROADMAP.md` | Roadmap/công việc backend. |
+| `postman/` | Postman collection và environment E2E. |
+| `sql/` | Script reset và seed database local. |
+| `ngrok/` | Cấu hình liên quan webhook PayOS/ngrok. |
+| `scripts/` | Script tiện ích khi test PayOS/local. |
 
-## Quy Uoc Phat Trien
+## Quy Ước Phát Triển
 
-- Controller chi dieu phoi request/response, khong nhoi nghiep vu lon.
-- Service xu ly logic nghiep vu, phan quyen, transaction va validate cheo.
-- Repository chi truy van database, uu tien method ro nghia hoac query co ten projection.
-- Khong tra entity truc tiep cho FE neu API da co response DTO.
-- Request DTO phai dung validation annotation phu hop.
-- Response DTO chi tra truong an toan, khong tra password hash, token hash, secret hoac thong tin noi bo.
-- Moi module nen giu boundary rieng: `controller`, `service`, `repository`, `entity`, `dto`.
-- Cac xoa nghiep vu dang dung soft delete voi `deleted_at` o nhieu entity, can can nhac khi query duplicate va lookup.
-- Cac thao tac lien quan chi nhanh can truyen/kiem tra `branchId` de dung scope van hanh.
-- Khong commit `application-local.properties`, build output, log runtime hoac secret.
+- Controller chỉ điều phối request/response, không nhồi logic nghiệp vụ lớn.
+- Service xử lý nghiệp vụ, phân quyền, transaction và validate chéo.
+- Repository chỉ truy vấn database, ưu tiên method rõ nghĩa hoặc projection.
+- Không trả entity trực tiếp cho frontend nếu API đã có response DTO.
+- Request DTO phải dùng validation annotation phù hợp.
+- Response DTO chỉ trả trường an toàn, không trả password hash, token hash, secret hoặc thông tin nội bộ.
+- Mỗi module nên giữ boundary riêng: `controller`, `service`, `repository`, `entity`, `dto`.
+- Nhiều entity đang dùng soft delete với `deleted_at`; cần lưu ý khi kiểm tra duplicate và lookup.
+- Các thao tác liên quan chi nhánh cần truyền/kiểm tra `branchId` để đúng phạm vi vận hành.
+- Không commit `application-local.properties`, build output, log runtime hoặc secret.
 
 ## Troubleshooting
 
-### Backend khong ket noi duoc database
+### Backend không kết nối được database
 
-Kiem tra:
+Kiểm tra:
 
-- Database da chay chua.
-- URL JDBC dung port/schema chua.
+- Database đã chạy chưa.
+- URL JDBC đúng port/schema chưa.
 - Username/password trong `application-local.properties`.
-- MySQL co cho phep public key retrieval/SSL theo cau hinh dang dung khong.
+- MySQL có yêu cầu SSL hoặc `allowPublicKeyRetrieval` theo cấu hình đang dùng không.
 
-### FE goi API bi CORS hoac mat cookie
+### Frontend gọi API bị CORS hoặc mất cookie
 
-Kiem tra:
+Kiểm tra:
 
-- Backend dang chay port `1010`.
-- FE dung `VITE_API_BASE_URL=http://localhost:1010/api/v1` hoac dung proxy `/api/v1`.
-- Axios `withCredentials=true` da duoc bat trong FE.
-- Cookie refresh token path la `/api/v1/auth`.
-- Neu deploy HTTPS, can bat cookie secure/same-site phu hop.
+- Backend đang chạy port `1010`.
+- Frontend dùng `VITE_API_BASE_URL=http://localhost:1010/api/v1` hoặc proxy `/api/v1`.
+- Axios `withCredentials=true` đã bật trong frontend.
+- Cookie refresh token path là `/api/v1/auth`.
+- Nếu deploy HTTPS, cần cấu hình cookie secure/same-site phù hợp.
 
-### Login thanh cong nhung API protected bi 401
+### Login thành công nhưng API protected bị 401
 
-Kiem tra:
+Kiểm tra:
 
-- FE da luu `accessToken` vao localStorage chua.
-- Request co header `Authorization: Bearer <token>` khong.
-- `JWT_SECRET` luc login va luc verify co cung gia tri khong.
-- Token da het han chua.
+- Frontend đã lưu `accessToken` vào localStorage chưa.
+- Request có header `Authorization: Bearer <token>` không.
+- `JWT_SECRET` lúc login và lúc verify có cùng giá trị không.
+- Token đã hết hạn chưa.
 
-### Khong tao duoc PDF hoa don tieng Viet
+### Không tạo được PDF hóa đơn tiếng Việt
 
-Kiem tra:
+Kiểm tra:
 
 - Template `src/main/resources/templates/billing/bill-invoice.html`.
-- Font Unicode tren may chay server.
-- Thu `INVOICE_PDF_FONT_PATH` tro den font ho tro tieng Viet.
+- Font Unicode trên máy chạy server.
+- Thử cấu hình `INVOICE_PDF_FONT_PATH` trỏ đến font hỗ trợ tiếng Việt.
 
-### PayOS webhook khong cap nhat giao dich
+### PayOS webhook không cập nhật giao dịch
 
-Kiem tra:
+Kiểm tra:
 
-- `PAYOS_WEBHOOK_URL` phai la public URL, khong phai localhost.
-- Checksum key dung voi merchant PayOS.
-- Backend public endpoint `/api/v1/payment-gateways/payos/webhook` khong bi chan.
-- Ngrok tunnel con song.
+- `PAYOS_WEBHOOK_URL` phải là public URL, không phải localhost.
+- Checksum key đúng với merchant PayOS.
+- Endpoint `/api/v1/payment-gateways/payos/webhook` không bị chặn.
+- Ngrok tunnel còn hoạt động.
 
-### Upload anh that bai
+### Upload ảnh thất bại
 
-Kiem tra:
+Kiểm tra:
 
 - `app.cloudinary.enabled`.
 - Cloud name, API key, API secret.
-- Gioi han file `spring.servlet.multipart.max-file-size` va `app.cloudinary.max-file-size`.
-- Request FE co dung `multipart/form-data`.
+- Giới hạn file `spring.servlet.multipart.max-file-size` và `app.cloudinary.max-file-size`.
+- Request frontend có đúng `multipart/form-data`.
